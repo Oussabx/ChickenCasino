@@ -1,9 +1,12 @@
 import { ReactNode, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Volume2, Gamepad2, Eye, ShieldCheck, Database, User } from 'lucide-react';
+import { Volume2, Gamepad2, Eye, ShieldCheck, Database, User, KeyRound, AlertTriangle } from 'lucide-react';
 import { toast, todaysNet, useStore } from '../store';
 import { fmt } from '../lib/format';
 import Avatar from '../components/Avatar';
+import Modal from '../components/Modal';
+import { RecoveryCodeView } from '../components/AuthModal';
+import { changePassword, currentAccount, deleteAccount, passwordValid, regenerateRecoveryCode, renameAccount, useAccounts } from '../lib/auth';
 
 export default function Settings() {
   const s = useStore();
@@ -25,13 +28,15 @@ export default function Settings() {
               <div className="mt-1 flex gap-2">
                 <input id="nm" className="input" value={name} maxLength={18} onChange={(e) => setName(e.target.value)} />
                 <button className="btn-gold px-4" disabled={name.trim().length < 3 || name === s.user.name}
-                  onClick={() => { useStore.setState({ user: { ...s.user!, name: name.trim() } }); toast({ title: 'Username updated', tone: 'green' }); }}>Save</button>
+                  onClick={() => { const r = renameAccount(name); toast(r.ok ? { title: 'Username updated', tone: 'green' } : { title: r.error, tone: 'red' }); }}>Save</button>
               </div>
             </div>
           </div>
           <Row label="Avatar, frame & title" desc="Unlock and equip in the shop."><Link to="/shop" className="btn-ghost px-3 py-1.5 text-sm">Open shop</Link></Row>
         </Section>
       )}
+
+      {s.user && <Security />}
 
       <Section icon={<Volume2 size={18} />} title="Sound">
         <Row label="Sound effects" desc="Clicks, clucks and big-win fanfares."><Toggle on={s.settings.sound} onChange={(v) => set({ sound: v })} /></Row>
@@ -77,13 +82,90 @@ export default function Settings() {
 
       <Section icon={<Database size={18} />} title="Data">
         <Row label="Bet history" desc={`${s.rounds.length} rounds stored on this device.`}><Link to="/history" className="btn-ghost px-3 py-1.5 text-sm">View / export</Link></Row>
-        <Row label="Reset everything" desc="Wipes your account, balance, items and history on this device.">
-          <button className="btn px-3 py-1.5 text-sm border border-blood/40 text-blood hover:bg-blood/10"
-            onClick={() => { if (window.confirm('Reset all Chicken Casino data? This cannot be undone.')) { s.resetAll(); toast({ title: 'All data reset', tone: 'red' }); nav('/'); } }}>Reset</button>
-        </Row>
+        {s.user && (
+          <Row label="Delete account" desc="Permanently removes this account, its balance, items and history from this device.">
+            <button className="btn px-3 py-1.5 text-sm border border-blood/40 text-blood hover:bg-blood/10"
+              onClick={() => { if (window.confirm(`Delete the account "${s.user!.name}"? This cannot be undone.`)) { deleteAccount(); toast({ title: 'Account deleted', tone: 'red' }); nav('/'); } }}>Delete</button>
+          </Row>
+        )}
       </Section>
       <p className="text-center text-xs text-smoke">Chicken Casino v1.0 · Virtual coins only · Data saved locally in your browser</p>
     </div>
+  );
+}
+
+function Security() {
+  const needsPassword = useAccounts((a) => !!currentAccount()?.needsPassword && !!a);
+  const hasCode = useAccounts((a) => !!currentAccount()?.rHash && !!a);
+  const [cur, setCur] = useState('');
+  const [pw, setPw] = useState('');
+  const [pw2, setPw2] = useState('');
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [codePw, setCodePw] = useState('');
+  const [codeOpen, setCodeOpen] = useState(false);
+  const [code, setCode] = useState('');
+  const [codeErr, setCodeErr] = useState('');
+  const name = useStore((s) => s.user?.name ?? '');
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordValid(pw)) return setMsg({ ok: false, text: 'Use 8+ characters with a letter and a number.' });
+    if (pw !== pw2) return setMsg({ ok: false, text: 'New passwords don’t match.' });
+    setBusy(true);
+    const r = await changePassword(cur, pw);
+    setBusy(false);
+    if (!r.ok) return setMsg({ ok: false, text: r.error });
+    setCur(''); setPw(''); setPw2('');
+    setMsg({ ok: true, text: needsPassword ? 'Password set. Now create a recovery code below.' : 'Password changed.' });
+  };
+
+  const genCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    const r = await regenerateRecoveryCode(codePw);
+    setBusy(false);
+    if (!r.ok) return setCodeErr(r.error);
+    setCodePw(''); setCodeErr(''); setCode(r.recoveryCode);
+  };
+
+  return (
+    <Section icon={<KeyRound size={18} />} title="Security">
+      {needsPassword && (
+        <div className="my-3 flex gap-3 rounded-xl border border-gold/40 bg-gold/10 p-3 text-sm">
+          <AlertTriangle size={18} className="shrink-0 text-gold" />
+          <span>This profile was created before passwords existed. <b>Set a password</b> so nobody else on this device can play as you.</span>
+        </div>
+      )}
+      <form onSubmit={save} className="py-3.5 space-y-2.5">
+        <div className="text-sm font-semibold">{needsPassword ? 'Set a password' : 'Change password'}</div>
+        <input type="text" name="username" autoComplete="username" value={name} readOnly hidden />
+        {!needsPassword && <input className="input" type="password" placeholder="Current password" autoComplete="current-password" value={cur} onChange={(e) => setCur(e.target.value)} />}
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          <input className="input" type="password" placeholder="New password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} />
+          <input className="input" type="password" placeholder="Confirm new password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} />
+        </div>
+        <div className="flex items-center gap-3">
+          <button className="btn-gold px-4 py-2 text-sm" disabled={busy || !pw}>{needsPassword ? 'Set password' : 'Update password'}</button>
+          {msg && <span className={`text-xs ${msg.ok ? 'text-emerald-400' : 'text-blood'}`}>{msg.text}</span>}
+        </div>
+      </form>
+      <Row label="Recovery code" desc={hasCode ? 'Used to reset your password if you forget it. Making a new one cancels the old one.' : 'You don’t have one yet — without it a forgotten password can’t be reset.'}>
+        <button className="btn-ghost px-3 py-1.5 text-sm" disabled={needsPassword} onClick={() => { setCodeOpen(true); setCode(''); setCodeErr(''); }}>{hasCode ? 'New code' : 'Create code'}</button>
+      </Row>
+      <Modal open={codeOpen} onClose={() => setCodeOpen(false)} title={code ? '' : 'New recovery code'}>
+        {code ? (
+          <RecoveryCodeView code={code} username={name} title="Your new recovery code" intro="Your previous code no longer works." cta="Done" onContinue={() => setCodeOpen(false)} />
+        ) : (
+          <form onSubmit={genCode} className="space-y-3">
+            <p className="text-sm text-smoke">Confirm your password to generate a new code.</p>
+            <input className="input" type="password" placeholder="Password" autoComplete="current-password" autoFocus value={codePw} onChange={(e) => setCodePw(e.target.value)} />
+            {codeErr && <p className="text-xs text-blood">{codeErr}</p>}
+            <button className="btn-gold w-full py-3" disabled={busy || !codePw}>Generate code</button>
+          </form>
+        )}
+      </Modal>
+    </Section>
   );
 }
 

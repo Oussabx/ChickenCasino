@@ -5,7 +5,8 @@ import { Menu, History, Settings, User, Wallet, LogOut, ShoppingBag, Crown, Trop
 import Logo from './Logo';
 import Balance from './Balance';
 import Avatar from './Avatar';
-import { useLevel, useStore, useUI } from '../store';
+import { toast, useLevel, useStore, useUI } from '../store';
+import { logout as doLogout } from '../lib/auth';
 import { xpForLevel } from '../lib/data';
 
 const NAV = [
@@ -18,7 +19,7 @@ const NAV = [
 
 export default function Header() {
   const user = useStore((s) => s.user);
-  const logout = useStore((s) => s.logout);
+  const logout = () => { doLogout(); toast({ title: 'Logged out. See you soon 🐔', tone: 'neutral' }); };
   const openAuth = useUI((s) => s.openAuth);
   const { level, tier, xp } = useLevel();
   const [menu, setMenu] = useState(false);

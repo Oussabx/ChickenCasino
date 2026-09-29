@@ -7,6 +7,7 @@ import Toaster from './Toaster';
 import AuthModal from './AuthModal';
 import Celebration from './Celebration';
 import { toast, useStore } from '../store';
+import { migrateLegacyProfile } from '../lib/auth';
 
 export default function Layout() {
   const { pathname } = useLocation();
@@ -14,6 +15,7 @@ export default function Layout() {
   const reminder = useStore((s) => s.settings.sessionReminder);
   const start = useRef(Date.now());
 
+  useEffect(() => { migrateLegacyProfile(); }, []);
   useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
   useEffect(() => { document.documentElement.classList.toggle('reduce-motion', reduce); }, [reduce]);
   useEffect(() => {

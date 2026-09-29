@@ -2,7 +2,7 @@
 
 **Play big. Win bigger.** A social-casino web app (desktop + mobile) built around the Chicken Casino brand — dark, red and gold, with a rooster in sunglasses.
 
-> Virtual coins only. Nothing can be deposited or withdrawn; all data lives in your browser's localStorage.
+> Virtual coins only. Nothing can be deposited or withdrawn. There is no backend: accounts and progress live in the browser's localStorage, so they don't sync between devices, and password resets use a recovery code instead of email.
 
 ## Games
 
@@ -29,7 +29,8 @@ All games use `crypto.getRandomValues` and are tuned to ≈99% RTP.
 - **History** – every round, filters, profit chart, pagination, CSV export.
 - **Profile** – level, stats per game, 10 achievements.
 - **Settings** – sound/volume, turbo mode, reduced motion, hide balance, default bet, large-bet confirmation, session reminders, daily loss limit, take-a-break, reset data.
-- Account sign-up / log-in (local), toasts, big-win celebration, level-up rewards, mobile bottom nav + drawer.
+- **Accounts** – sign-up (username, optional email, password strength checks, avatar), log-in by username or email, show/hide password, Caps Lock warning, lockout after 5 failed tries, and forgot-password via a one-time recovery code (rotated on use). Passwords and codes are stored only as salted PBKDF2 hashes; each account keeps its own balance, items and history. Security settings let you change the password or make a new recovery code.
+- Toasts, big-win celebration, level-up rewards, mobile bottom nav + drawer.
 
 ## Stack
 
