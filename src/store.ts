@@ -80,10 +80,11 @@ export const useToasts = create<ToastState>((set, get) => ({
 export const toast = (t: Omit<Toast, 'id'>) => useToasts.getState().push(t);
 
 /* ---------- UI (ephemeral) ---------- */
+export type AuthView = 'login' | 'signup' | 'forgot';
 interface UIState {
-  auth: null | 'login' | 'signup';
+  auth: null | AuthView;
   celebrate: null | { amount: number; mult: number };
-  openAuth: (m: 'login' | 'signup' | null) => void;
+  openAuth: (m: AuthView | null) => void;
   setCelebrate: (c: UIState['celebrate']) => void;
 }
 export const useUI = create<UIState>((set) => ({
@@ -95,7 +96,7 @@ export const useUI = create<UIState>((set) => ({
 
 /* ---------- main persisted store ---------- */
 interface State {
-  user: { name: string; joinedAt: number } | null;
+  user: { name: string; joinedAt: number; email?: string } | null;
   balance: number;
   eggs: number;
   xp: number;
@@ -114,9 +115,9 @@ interface State {
   stats: Stats;
   tournaments: string[];
 
-  signup: (name: string, avatar?: string) => void;
-  login: (name: string) => void;
-  logout: () => void;
+  /** Replace all per-account game data (null = fresh account). */
+  loadData: (d: GameData | null) => void;
+  exportData: () => GameData;
   betError: (amount: number) => string | null;
   placeBet: (amount: number) => boolean;
   settle: (game: GameId, bet: number, multiplier: number, detail?: string) => number;
@@ -140,8 +141,7 @@ const DEFAULT_SETTINGS: Settings = {
   sessionReminder: 0, lossLimit: 0, showLiveFeed: true, bigWinCelebration: true, defaultBet: 10,
 };
 
-const initial = {
-  user: null,
+const GAME_DEFAULTS = {
   balance: 0,
   eggs: 0,
   xp: 0,
@@ -149,8 +149,7 @@ const initial = {
   txs: [] as Tx[],
   inventory: ['av-classic', 'fr-none', 'sk-classic', 'bl-gold', 'tt-none'],
   equipped: { avatar: 'av-classic', frame: 'fr-none', skin: 'sk-classic', ball: 'bl-gold', title: 'tt-none' },
-  settings: DEFAULT_SETTINGS,
-  daily: { last: null, streak: 0 },
+  daily: { last: null as string | null, streak: 0 },
   missions: { date: today(), claimed: [] as string[] },
   promoUsed: [] as string[],
   favorites: [] as GameId[],
@@ -161,25 +160,23 @@ const initial = {
   tournaments: [] as string[],
 };
 
+/** Everything that belongs to one account (settings stay per-device). */
+export type GameData = typeof GAME_DEFAULTS;
+const GAME_KEYS = Object.keys(GAME_DEFAULTS) as (keyof GameData)[];
+
+const initial = { user: null as State['user'], ...GAME_DEFAULTS };
+
 export const useStore = create<State>()(
   persist(
     (set, get) => ({
-      ...initial,
+      ...structuredClone(initial),
+      settings: DEFAULT_SETTINGS,
 
-      signup: (name, avatar) => {
+      loadData: (d) => set({ ...structuredClone(GAME_DEFAULTS), missions: { date: today(), claimed: [] }, ...(d ?? {}) }),
+      exportData: () => {
         const s = get();
-        const first = !s.txs.some((t) => t.kind === 'bonus');
-        set({ user: { name, joinedAt: Date.now() } });
-        if (avatar) get().equip(avatar);
-        if (first) {
-          get().grant('bonus', 'Welcome bonus', 10000, 10);
-          toast({ title: 'Welcome to the coop! 🐔', desc: '10,000 coins + 10 golden eggs added', tone: 'gold' });
-        } else {
-          toast({ title: `Welcome back, ${name}!`, tone: 'gold' });
-        }
+        return Object.fromEntries(GAME_KEYS.map((k) => [k, s[k]])) as GameData;
       },
-      login: (name) => get().signup(name),
-      logout: () => set({ user: null }),
 
       betError: (amount) => {
         const s = get();
@@ -328,7 +325,7 @@ export const useStore = create<State>()(
         set((s) => ({ favorites: s.favorites.includes(id) ? s.favorites.filter((x) => x !== id) : [...s.favorites, id] })),
       joinTournament: (id) => set((s) => ({ tournaments: s.tournaments.includes(id) ? s.tournaments : [...s.tournaments, id] })),
       takeBreak: (hours) => set({ breakUntil: Date.now() + hours * 36e5 }),
-      resetAll: () => set({ ...initial, settings: DEFAULT_SETTINGS }),
+      resetAll: () => set({ ...structuredClone(initial), settings: DEFAULT_SETTINGS }),
     }),
     {
       name: 'chicken-casino-v1',

@@ -5,7 +5,7 @@ import GameCard from '../components/GameCard';
 import { useStore, useUI } from '../store';
 import { useCountdown, useLiveFeed } from '../lib/useLiveFeed';
 import { fmt, pad2 } from '../lib/format';
-import { Coin, Club, Diamond, Heart, Spade } from '../components/Icons';
+import { Coin, Diamond, Heart, Spade } from '../components/Icons';
 
 const WEEK_END = (() => { const d = new Date(); d.setUTCDate(d.getUTCDate() + ((7 - d.getUTCDay()) % 7 || 7)); d.setUTCHours(0, 0, 0, 0); return d.getTime(); })();
 
@@ -77,8 +77,8 @@ export default function Home() {
 
           {/* welcome bonus */}
           <div className="relative mt-6 overflow-hidden rounded-2xl border border-blood/30 bg-gradient-to-r from-ink-900 via-blood-900 to-blood-700">
-            <img src="./img/bonus-chicken.webp" alt="" className="absolute left-0 bottom-0 h-full w-auto object-cover opacity-90 [mask-image:linear-gradient(to_right,black_60%,transparent)]" />
-            <div className="relative ml-auto w-[62%] sm:w-[55%] py-6 pr-5">
+            <img src="./img/bonus-chicken.webp" alt="" className="hidden sm:block absolute left-0 bottom-0 h-full w-auto object-cover opacity-90 [mask-image:linear-gradient(to_right,black_60%,transparent)]" />
+            <div className="relative sm:ml-auto sm:w-[55%] px-5 sm:pl-0 py-6">
               <div className="font-display text-sm font-extrabold tracking-wider">WELCOME BONUS</div>
               <div className="h-display text-3xl sm:text-4xl text-gold-grad mt-1">10,000 coins</div>
               <div className="text-sm text-cream/80">+10 golden eggs on sign-up</div>
@@ -91,7 +91,7 @@ export default function Home() {
           </div>
         </section>
 
-        <div className="space-y-6">
+        <div className="flex flex-col gap-6">
           <section className="card p-5">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-lg font-extrabold">Popular Tournaments</h2>
@@ -117,13 +117,13 @@ export default function Home() {
             </div>
           </section>
 
-          <section className="card p-5">
+          <section className="card p-5 flex-1">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-lg font-extrabold">Latest Winners</h2>
               <span className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-semibold"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />LIVE</span>
             </div>
             <ul className="mt-3 divide-y divide-white/[0.05]">
-              {feed.slice(0, 5).map((f) => (
+              {feed.slice(0, 6).map((f) => (
                 <li key={f.id} className="flex items-center gap-3 py-2.5 animate-slideUp">
                   <div className="grid h-8 w-8 place-items-center rounded-full bg-gold/10 text-gold text-sm">♛</div>
                   <div className="min-w-0 flex-1">
@@ -147,17 +147,9 @@ export default function Home() {
         </section>
       )}
 
-      {/* mood strip */}
-      <section className="mt-10 grid grid-cols-2 md:grid-cols-[1fr_1fr_2fr_2fr] gap-3">
-        {['strip-chips', 'strip-cards', 'strip-neon', 'strip-closeup'].map((s, i) => (
-          <div key={s} className={`relative overflow-hidden rounded-2xl border border-white/5 ${i > 1 ? 'col-span-1' : ''} aspect-[4/3] md:aspect-auto md:h-44`}>
-            <img src={`./img/${s}.webp`} alt="" className={`h-full w-full object-cover ${s === 'strip-neon' ? 'animate-flicker' : ''}`} loading="lazy" />
-          </div>
-        ))}
-      </section>
 
       {/* why */}
-      <section className="mt-10 grid gap-4 md:grid-cols-3">
+      <section className="mt-8 grid gap-4 md:grid-cols-3">
         {[
           { icon: <Spade className="h-6 w-6" />, t: 'Originals you won’t find elsewhere', d: 'Chicken Cross, Egg Hunt and Rocket Rooster are built from scratch for the coop.' },
           { icon: <Heart className="h-6 w-6 text-blood" />, t: 'Rewards that actually reward', d: 'Daily streaks, missions, rakeback and a shop full of flex — all earned by playing.' },
@@ -170,7 +162,6 @@ export default function Home() {
           </div>
         ))}
       </section>
-      <div className="mt-6 flex justify-center text-white/10 gap-4"><Club className="h-5 w-5" /><Spade className="h-5 w-5" /><Club className="h-5 w-5" /></div>
     </div>
   );
 }
