@@ -408,11 +408,17 @@ export class CrossScene {
     lane.blocked = true;
     lane.barrier.visible = true;
     lane.barrierAnim = 0.0001;
-    // push any car that would hit the chicken back into the queue upstream
-    for (const c of lane.cars) {
+    // Near miss: the lead car races in and brakes hard right behind the barrier.
+    // Anything else close to the chicken gets pushed back into the queue.
+    const [lead, ...rest] = lane.cars;
+    lead.speed = Math.max(lead.speed, 17);
+    lead.z = -lane.dir * (13 + Math.random() * 3);
+    lead.group.position.z = lead.z;
+    rest.forEach((c, k) => {
       const rel = c.z * lane.dir; // negative = upstream (approaching)
-      if (rel > -3.5 && rel < 2) c.z = -lane.dir * (6 + Math.random() * 6);
-    }
+      if (rel > -22 && rel < 3) c.z = -lane.dir * (20 + k * 6);
+      c.group.position.z = c.z;
+    });
   }
 
   private setLaneState(i: number, s: LaneState) {
@@ -641,6 +647,9 @@ export class CrossScene {
           if (qi >= 0) {
             let limit = stopRel - car.len / 2;
             for (let k = 0; k < qi; k++) limit -= queue[k].len + 0.6;
+            // brake smoothly as the car approaches its stop point
+            const remaining = limit - car.z * lane.dir;
+            if (remaining < 5) z = car.z + lane.dir * Math.min(car.speed * dt, Math.max(0, remaining) * Math.min(1, dt * 7));
             if (z * lane.dir > limit) z = lane.dir * limit;
           }
         }
