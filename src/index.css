@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --gold: #f4c430;
+  --red: #e63946;
+}
+
+html, body, #root { min-height: 100%; }
+body {
+  @apply bg-ink text-cream font-sans antialiased;
+  background-image:
+    radial-gradient(1200px 600px at 85% -10%, rgba(230, 57, 70, 0.12), transparent 60%),
+    radial-gradient(900px 500px at -10% 30%, rgba(244, 196, 48, 0.05), transparent 60%);
+  background-attachment: fixed;
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection { background: rgba(244, 196, 48, 0.35); }
+
+* { scrollbar-width: thin; scrollbar-color: #333 transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 99px; }
+
+.reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+@layer components {
+  .h-display { @apply font-display font-black uppercase tracking-tight leading-[0.95]; }
+  .card { @apply bg-ink-800/90 border border-white/[0.06] rounded-2xl shadow-card; }
+  .card-hover { @apply transition duration-200 hover:border-gold/30 hover:-translate-y-0.5; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl font-display font-bold transition active:scale-[.97] disabled:opacity-40 disabled:pointer-events-none select-none; }
+  .btn-gold { @apply btn bg-gold text-ink hover:bg-gold-300 shadow-gold; }
+  .btn-red { @apply btn bg-blood text-white hover:bg-blood-600 shadow-red; }
+  .btn-ghost { @apply btn border border-white/15 text-cream hover:bg-white/5 hover:border-white/30; }
+  .btn-dark { @apply btn bg-ink-600 text-cream hover:bg-ink-500 border border-white/5; }
+  .input { @apply w-full rounded-xl bg-ink-900 border border-white/10 px-3 py-2.5 text-cream placeholder:text-smoke/60 outline-none focus:border-gold/60 focus:ring-2 focus:ring-gold/15 transition; }
+  .label { @apply text-[11px] font-semibold uppercase tracking-[.14em] text-smoke; }
+  .chip { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold; }
+  .seg { @apply flex rounded-xl bg-ink-900 p-1 border border-white/5; }
+  .seg > button { @apply flex-1 rounded-lg px-2 py-1.5 text-xs font-bold text-smoke transition hover:text-cream; }
+  .seg > button[data-active='true'] { @apply bg-ink-500 text-cream shadow; }
+  .text-gold-grad { @apply bg-gradient-to-b from-gold-300 via-gold to-gold-600 bg-clip-text text-transparent; }
+  .neon-red { text-shadow: 0 0 6px rgba(230,57,70,.9), 0 0 20px rgba(230,57,70,.7), 0 0 40px rgba(230,57,70,.5); }
+  .neon-gold { text-shadow: 0 0 6px rgba(244,196,48,.9), 0 0 24px rgba(244,196,48,.6); }
+  .felt { background: radial-gradient(120% 90% at 50% 0%, #1b1b1b 0%, #0e0e0e 55%, #080808 100%); }
+  .grain::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .06;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  .shine { background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.18) 50%, transparent 70%); background-size: 200% 100%; @apply animate-shimmer; }
+}
+
+@layer utilities {
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  .no-scrollbar { scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .tabular { font-variant-numeric: tabular-nums; }
+}
+
+/* range input */
+input[type='range'].range { -webkit-appearance: none; appearance: none; background: transparent; width: 100%; }
+input[type='range'].range::-webkit-slider-thumb { -webkit-appearance: none; height: 26px; width: 26px; border-radius: 8px; background: #f4c430; border: 3px solid #0b0b0b; box-shadow: 0 0 0 2px #f4c430, 0 4px 14px rgba(244,196,48,.6); cursor: grab; margin-top: -9px; }
+input[type='range'].range::-moz-range-thumb { height: 22px; width: 22px; border-radius: 8px; background: #f4c430; border: 3px solid #0b0b0b; cursor: grab; }
+input[type='range'].range::-webkit-slider-runnable-track { height: 8px; border-radius: 99px; background: transparent; }
+input[type='range'].range::-moz-range-track { height: 8px; background: transparent; }
