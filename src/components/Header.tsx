@@ -1,5 +1,6 @@
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Menu, History, Settings, User, Wallet, LogOut, ShoppingBag, Crown, Trophy, Gift, Gamepad2, X, Home } from 'lucide-react';
 import Logo from './Logo';
 import Balance from './Balance';
@@ -91,7 +92,7 @@ export default function Header() {
         </div>
       </div>
 
-      {drawer && (
+      {drawer && createPortal(
         <div className="fixed inset-0 z-[60] lg:hidden">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setDrawer(false)} />
           <aside className="absolute right-0 top-0 h-full w-[85%] max-w-sm bg-ink-800 border-l border-white/10 p-5 overflow-y-auto animate-[slideUp_.25s_ease-out]">
@@ -136,7 +137,8 @@ export default function Header() {
               </div>
             )}
           </aside>
-        </div>
+        </div>,
+        document.body,
       )}
     </header>
   );
