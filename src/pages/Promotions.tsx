@@ -6,6 +6,7 @@ import { DAILY_REWARDS } from '../lib/data';
 import { fmt } from '../lib/format';
 import { Coin, Egg } from '../components/Icons';
 import { sfx } from '../lib/sound';
+import { Reveal, Tilt } from '../lib/motion';
 
 export default function Promotions() {
   const s = useStore();
@@ -44,7 +45,7 @@ export default function Promotions() {
             const done = claimedToday ? day <= curDay : day < curDay;
             const next = !claimedToday && day === curDay;
             return (
-              <div key={i} className={`relative rounded-2xl border p-3 text-center transition ${next ? 'border-gold bg-gold/10 shadow-gold' : done ? 'border-emerald-400/30 bg-emerald-500/5' : 'border-white/5 bg-ink-700/50'} ${day === 7 ? 'col-span-4 sm:col-span-1 bg-gradient-to-b from-blood/20 to-transparent' : ''}`}>
+              <div key={i} style={{ animationDelay: `${i * 70}ms` }} className={`relative rounded-2xl border p-3 text-center transition animate-pop hover:-translate-y-1 ${next ? 'animate-[pop_.45s_both,floaty_3s_ease-in-out_.5s_infinite]' : ''} ${next ? 'border-gold bg-gold/10 shadow-gold' : done ? 'border-emerald-400/30 bg-emerald-500/5' : 'border-white/5 bg-ink-700/50'} ${day === 7 ? 'col-span-4 sm:col-span-1 bg-gradient-to-b from-blood/20 to-transparent' : ''}`}>
                 <div className="label !text-[10px]">Day {day}</div>
                 <div className="my-2 flex justify-center">{r.eggs ? <Egg className="h-8 w-8" /> : <Coin className="h-8 w-8" />}</div>
                 <div className="font-display text-sm font-black">{fmt(r.coins, 0)}</div>
@@ -120,11 +121,11 @@ export default function Promotions() {
           { img: 'strip-closeup.webp', t: 'Rooster Rush Weekend', d: 'Double XP on Rocket Rooster every Saturday & Sunday.', tag: 'Weekend' },
           { img: 'strip-cards.webp', t: 'Crossing Guard Cashback', d: 'Get flattened on lane 1 in Chicken Cross? Blame the traffic, not us.', tag: 'Fun fact' },
           { img: 'mood-face.webp', t: 'Refer a Hen', d: 'Bring a friend to the coop and you both get 5 golden eggs. Coming soon.', tag: 'Soon' },
-        ].map((p) => (
-          <div key={p.t} className="card overflow-hidden card-hover">
+        ].map((p, i) => (
+          <Reveal key={p.t} delay={i * 100}><Tilt className="card overflow-hidden h-full">
             <div className="relative h-36"><img src={`./img/${p.img}`} alt="" className="h-full w-full object-cover" loading="lazy" /><span className="chip absolute left-3 top-3 bg-ink/80 text-gold backdrop-blur">{p.tag}</span></div>
             <div className="p-4"><div className="font-display font-bold">{p.t}</div><p className="text-sm text-smoke mt-1">{p.d}</p></div>
-          </div>
+          </Tilt></Reveal>
         ))}
       </section>
     </div>

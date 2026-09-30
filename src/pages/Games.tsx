@@ -3,6 +3,7 @@ import { Search } from 'lucide-react';
 import { GAMES } from '../lib/data';
 import GameCard from '../components/GameCard';
 import { useStore } from '../store';
+import { Reveal } from '../lib/motion';
 
 const FILTERS = ['All', 'Originals', 'Favourites', 'Hot', 'New'] as const;
 
@@ -43,15 +44,15 @@ export default function Games() {
         </div>
       </div>
       <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-4">
-        {list.map((g) => (
-          <div key={g.id}>
+        {list.map((g, i) => (
+          <Reveal key={g.id} variant="zoom" delay={(i % 3) * 90}>
             <GameCard g={g} size="lg" />
             <div className="mt-2 flex flex-wrap items-center gap-1.5 px-1">
               {g.tags.map((t) => <span key={t} className="chip bg-white/5 text-smoke">{t}</span>)}
               <span className="ml-auto text-[11px] text-smoke">Max <b className="text-gold">{g.maxWin}</b></span>
             </div>
             {stats[g.id] && <div className="px-1 mt-1 text-[11px] text-smoke">You've played {stats[g.id]!.rounds} rounds · best {stats[g.id]!.best.toFixed(2)}×</div>}
-          </div>
+          </Reveal>
         ))}
         {!list.length && <div className="col-span-full py-16 text-center text-smoke">No games match — try another filter. 🐣</div>}
       </div>

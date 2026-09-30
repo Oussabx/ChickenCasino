@@ -9,6 +9,7 @@ import { fmt, pad2 } from '../lib/format';
 import GameArt from '../components/GameArt';
 import Avatar from '../components/Avatar';
 import { Coin } from '../components/Icons';
+import { Reveal, Tilt } from '../lib/motion';
 
 const weekStart = () => { const d = new Date(); d.setUTCHours(0, 0, 0, 0); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.getTime(); };
 const WEEK_END = weekStart() + 7 * 864e5;
@@ -47,7 +48,7 @@ export default function Tournaments() {
     <div className="mx-auto max-w-7xl px-4 lg:px-6 pt-6 space-y-6">
       <PageHeader kicker="Compete" title="Tournaments" sub="Climb the leaderboard, split the prize pool. Scores update as you play." img="mood-crown.webp" />
       <div className="grid gap-4 md:grid-cols-3">
-        {TOURNAMENTS.map((x) => <TCard key={x.id} t={x} active={sel === x.id} onClick={() => setSel(x.id)} />)}
+        {TOURNAMENTS.map((x, i) => <Reveal key={x.id} delay={i * 110}><TCard t={x} active={sel === x.id} onClick={() => setSel(x.id)} /></Reveal>)}
       </div>
       <Leaderboard t={t} />
     </div>
@@ -58,7 +59,7 @@ function TCard({ t, active, onClick }: { t: T; active: boolean; onClick: () => v
   const cd = useCountdown(t.ends);
   const joined = useStore((s) => s.tournaments.includes(t.id));
   return (
-    <button onClick={onClick} className={`card text-left overflow-hidden transition ${active ? 'ring-2 ring-gold shadow-gold' : 'card-hover'}`}>
+    <Tilt className="rounded-2xl h-full"><button onClick={onClick} className={`card w-full h-full text-left overflow-hidden transition ${active ? 'ring-2 ring-gold shadow-gold' : 'hover:border-gold/30'}`}>
       <div className="relative h-28">
         {t.game ? <GameArt id={t.game} className="absolute inset-0" /> : <img src="./img/mood-chips.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />}
         <div className="absolute inset-0 bg-gradient-to-t from-ink-800 to-transparent" />
@@ -69,7 +70,7 @@ function TCard({ t, active, onClick }: { t: T; active: boolean; onClick: () => v
         <div className="mt-1 flex items-center gap-1 text-sm font-bold text-gold"><Coin className="h-4 w-4" />{fmt(t.pool, 0)} pool</div>
         <div className="mt-3 flex items-center gap-1.5 text-xs text-smoke"><Clock size={12} />Ends in <span className="font-bold text-cream tabular">{cd.days ? `${cd.days}d ` : ''}{pad2(cd.hours)}:{pad2(cd.mins)}:{pad2(cd.secs)}</span></div>
       </div>
-    </button>
+    </button></Tilt>
   );
 }
 

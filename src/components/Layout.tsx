@@ -6,6 +6,7 @@ import Footer from './Footer';
 import Toaster from './Toaster';
 import AuthModal from './AuthModal';
 import Celebration from './Celebration';
+import Ambient from './Ambient';
 import { toast, useStore } from '../store';
 import { migrateLegacyProfile } from '../lib/auth';
 
@@ -29,8 +30,9 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <Ambient />
       <Header />
-      <main className="flex-1 pb-24 lg:pb-0">
+      <main key={pathname} className="relative flex-1 pb-24 lg:pb-0 page-in">
         <Suspense fallback={<div className="grid min-h-[60vh] place-items-center"><img src="./img/head.webp" alt="Loading" className="h-16 w-16 rounded-full animate-floaty" /></div>}>
           <Outlet />
         </Suspense>

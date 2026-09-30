@@ -8,6 +8,7 @@ import { ChickenSprite, Coin, Egg } from '../components/Icons';
 import Avatar from '../components/Avatar';
 import Modal from '../components/Modal';
 import { sfx } from '../lib/sound';
+import { Reveal, Tilt } from '../lib/motion';
 
 const TABS: { k: ItemKind; label: string }[] = [
   { k: 'bundle', label: 'Coin bundles' },
@@ -45,7 +46,7 @@ export default function Shop() {
       {tab === 'bundle' && <p className="text-sm text-smoke -mt-2">Golden eggs are earned from level-ups, daily streaks, missions and promo codes — trade them here for coins.</p>}
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {items.map((it) => <Item key={it.id} it={it} onBuy={() => setConfirm(it)} />)}
+        {items.map((it, i) => <Reveal key={it.id} variant="zoom" delay={(i % 4) * 80} className="h-full"><Item it={it} onBuy={() => setConfirm(it)} /></Reveal>)}
       </div>
 
       <Modal open={!!confirm} onClose={() => setConfirm(null)} title="Confirm purchase">
@@ -88,9 +89,9 @@ function Item({ it, onBuy }: { it: ShopItem; onBuy: () => void }) {
   const locked = !!it.minLevel && level < it.minLevel;
   const isBundle = it.kind === 'bundle';
   return (
-    <div className={`card overflow-hidden border ${RARITY_STYLE[it.rarity].split(' ')[1]} flex flex-col`}>
+    <Tilt max={12} className={`card overflow-hidden border ${RARITY_STYLE[it.rarity].split(' ')[1]} flex flex-col h-full`}>
       <div className={`relative aspect-square grid place-items-center overflow-hidden ${it.rarity === 'legendary' ? 'bg-[radial-gradient(circle,rgba(244,196,48,.18),transparent_70%)]' : 'bg-[radial-gradient(circle,rgba(255,255,255,.05),transparent_70%)]'}`}>
-        <Preview it={it} />
+        <div className="bob grid h-full w-full place-items-center" style={{ ['--dur' as string]: '5s', ['--r1' as string]: '0deg' }}><Preview it={it} /></div>
         <span className={`chip absolute left-2 top-2 bg-ink/80 uppercase !text-[10px] ${RARITY_STYLE[it.rarity].split(' ')[0]}`}>{it.rarity}</span>
         {equipped && <span className="chip absolute right-2 top-2 bg-gold text-ink !text-[10px]"><Check size={10} />EQUIPPED</span>}
       </div>
@@ -109,7 +110,7 @@ function Item({ it, onBuy }: { it: ShopItem; onBuy: () => void }) {
           )}
         </div>
       </div>
-    </div>
+    </Tilt>
   );
 }
 

@@ -4,11 +4,13 @@ import { useStore } from '../store';
 import { fmt } from '../lib/format';
 import { Coin, Egg } from './Icons';
 import { useEffect, useRef, useState } from 'react';
+import { useCountUp } from '../lib/motion';
 
 export default function Balance({ compact = false }: { compact?: boolean }) {
   const balance = useStore((s) => s.balance);
   const eggs = useStore((s) => s.eggs);
   const hide = useStore((s) => s.settings.hideBalance);
+  const shown = useCountUp(balance, 700);
   const prev = useRef(balance);
   const [flash, setFlash] = useState<'' | 'up' | 'down'>('');
   useEffect(() => {
@@ -22,8 +24,8 @@ export default function Balance({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center rounded-xl border border-white/10 bg-ink-900/80 pl-2.5 pr-1 py-1 gap-2">
       <Coin className="h-5 w-5 shrink-0" />
-      <span className={`font-display font-bold tabular text-sm transition-colors ${flash === 'up' ? 'text-emerald-400' : flash === 'down' ? 'text-blood' : ''}`}>
-        {hide ? '••••••' : fmt(balance)}
+      <span className={`font-display font-bold tabular text-sm transition-all duration-300 ${flash === 'up' ? 'text-emerald-400 scale-110' : flash === 'down' ? 'text-blood' : ''} inline-block`}>
+        {hide ? '••••••' : fmt(shown)}
       </span>
       {!compact && (
         <span className="hidden md:flex items-center gap-1 border-l border-white/10 pl-2 text-sm font-display font-bold">
