@@ -168,14 +168,16 @@ export default function Baccarat({ variant = 'classic' }: { variant?: 'classic' 
     return won ? 'win' : 'lose';
   };
 
+  const spot = (s: Spot) => (
+    <BetSpot key={s} disabled={dealing} amount={bets[s] ?? 0} onClick={() => place(s)} highlight={spotResult(s)}
+      label={{ player: 'Player', banker: 'Banker', tie: 'Tie', pp: 'Player Pair', bp: 'Banker Pair' }[s]}
+      sub={{ player: 'pays 1:1', banker: 'pays 0.95:1', tie: 'pays 8:1', pp: 'pays 11:1', bp: 'pays 11:1' }[s]}
+      className={s === 'player' ? '!border-sky-400/50' : s === 'banker' ? '!border-blood/60' : s === 'tie' ? '!border-emerald-400/50' : '!border-gold/40'} />
+  );
   const betArea = (
-    <div className={`grid gap-2 ${punto ? 'grid-cols-5' : 'grid-cols-3'}`}>
-      {spots.map((s) => (
-        <BetSpot key={s} disabled={dealing} amount={bets[s] ?? 0} onClick={() => place(s)} highlight={spotResult(s)}
-          label={{ player: 'Player', banker: 'Banker', tie: 'Tie', pp: 'P Pair', bp: 'B Pair' }[s]}
-          sub={{ player: '1:1', banker: '0.95:1', tie: '8:1', pp: '11:1', bp: '11:1' }[s]}
-          className={s === 'player' ? '!border-sky-400/40' : s === 'banker' ? '!border-blood/50' : s === 'tie' ? '!border-emerald-400/40' : ''} />
-      ))}
+    <div className="space-y-2">
+      <div className="grid grid-cols-3 gap-2">{(['player', 'tie', 'banker'] as Spot[]).map(spot)}</div>
+      {punto && <div className="grid grid-cols-2 gap-2">{(['pp', 'bp'] as Spot[]).map(spot)}</div>}
     </div>
   );
 

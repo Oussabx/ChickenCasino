@@ -1,14 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import GameShell, { GameAction } from '../components/GameShell';
 import BetControls, { MiniBet, confirmBet } from '../components/BetControls';
-import { useStore } from '../store';
+import { toast, useStore } from '../store';
+import { fmt } from '../lib/format';
 import { sfx } from '../lib/sound';
 import { Card, Shoe, bjValue, isBlackjack } from '../lib/cards';
 import { Card3D, TableScene } from './three/table3d';
 import { Anchor, HandBadge, ResultBanner, TableHint } from '../components/TableUI';
 
-interface Hand { cards: Card[]; bet: number; done: boolean; doubled: boolean; fromSplit: boolean; result?: 'win' | 'lose' | 'push' | 'bj' }
-type Phase = 'bet' | 'dealing' | 'player' | 'dealer' | 'done';
+interface Hand { cards: Card[]; bet: number; done: boolean; doubled: boolean; fromSplit: boolean; result?: 'win' | 'lose' | 'push' | 'bj' | 'even' }
+type Phase = 'bet' | 'dealing' | 'insurance' | 'player' | 'dealer' | 'done';
+interface Insurance { bet: number; won: boolean }
+const INS: [number, number] = [0, -0.6];
+const isTen = (c: Card) => c.r >= 10 && c.r <= 13;
 
 const DEALER_Z = -1.85, PLAYER_Z = 1.05, BET_Z = 2.35, SPLIT_X = 2.3;
 const dealerX = (i: number) => -0.62 + i * 0.62;
@@ -25,7 +29,8 @@ export const TABLE = {
   ],
   texts: [
     { text: 'BLACKJACK PAYS 3 TO 2', z: -0.12, size: 0.36, arc: true },
-    { text: 'DEALER MUST DRAW TO 16 AND STAND ON ALL 17s', z: -0.56, size: 0.13, arc: true, weight: 700, color: 'rgba(248,246,239,.55)' },
+    { text: 'INSURANCE PAYS 2 TO 1', z: -0.58, size: 0.17, arc: true, weight: 800, color: 'rgba(248,246,239,.7)' },
+    { text: 'DEALER MUST DRAW TO 16 AND STAND ON ALL 17s', z: 2.92, size: 0.12, arc: true, weight: 700, color: 'rgba(244,196,48,.6)' },
   ],
   logoZ: null,
   view: { wide: [-0.25, 9.6, 5.9] as [number, number, number], narrow: [-0.2, 6.3, 6.4] as [number, number, number] },
@@ -48,6 +53,8 @@ export default function Blackjack() {
   const handsRef = useRef<Hand[]>([]);
   const dealerHand = useRef<Card[]>([]);
   const firstCards = useRef<Card3D[]>([]);
+  const insRef = useRef<Insurance>({ bet: 0, won: false });
+  const [insBet, setInsBet] = useState(0);
   const turbo = useStore((s) => s.settings.turbo);
 
   useEffect(() => {
@@ -66,6 +73,7 @@ export default function Blackjack() {
     sfx.bet();
     sc.clear();
     setSummary(null); setHoleShown(false); hole.current = null;
+    insRef.current = { bet: 0, won: false }; setInsBet(0);
     setPhase('dealing');
     const p1 = shoe.current.draw(), d1 = shoe.current.draw(), p2 = shoe.current.draw(), d2 = shoe.current.draw();
     const h: Hand = { cards: [], bet, done: false, doubled: false, fromSplit: false };
@@ -80,18 +88,57 @@ export default function Blackjack() {
     dealerHand.current = [d1, d2];
     setDealer([d1, d2]);
 
+    // dealer shows an ace: offer insurance (or even money on a blackjack) before peeking
+    if (d1.r === 14) { setPhase('insurance'); return; }
+    await peekAndContinue(h, isTen(d1));
+  };
+
+  /** Dealer checks the hole card (on an ace or ten); naturals settle immediately. */
+  const peekAndContinue = async (h: Hand, peek: boolean) => {
+    const sc = sceneRef.current; if (!sc || !hole.current) return;
+    const [d1, d2] = dealerHand.current;
     const dealerBJ = isBlackjack([d1, d2]);
     const playerBJ = isBlackjack(h.cards);
-    if (dealerBJ || playerBJ) {
-      // dealer peeks on A/10; naturals settle immediately
-      if (dealerBJ) { await revealHole(); }
+    const ins = insRef.current;
+    if (peek) {
+      // tip the hole card up to check it
+      sc.lift(hole.current.c3, true); await wait(650); sc.lift(hole.current.c3, false); await wait(200);
+    }
+    if (ins.bet > 0) {
+      ins.won = dealerBJ;
+      if (!dealerBJ) { sc.settleChips('ins', 'lose'); toast({ title: 'No dealer blackjack — insurance lost', tone: 'neutral' }); }
+    }
+    if ((peek && dealerBJ) || playerBJ) {
+      await revealHole();
       h.result = playerBJ && dealerBJ ? 'push' : playerBJ ? 'bj' : 'lose';
       h.done = true; sync([h]);
-      if (!dealerBJ && playerBJ) await revealHole();
       finish([h], [d1, d2]);
       return;
     }
     setPhase('player');
+  };
+
+  /** Insurance decision: `take` = insure for half the bet (or even money with a blackjack). */
+  const decideInsurance = async (take: boolean) => {
+    const sc = sceneRef.current; if (!sc || phase !== 'insurance') return;
+    const h = { ...handsRef.current[0], cards: [...handsRef.current[0].cards] };
+    if (take && isBlackjack(h.cards)) {
+      // even money: paid 1:1 right away, no matter what the dealer has
+      sfx.click(); setPhase('dealing');
+      await revealHole();
+      h.result = 'even'; h.done = true; sync([h]);
+      finish([h], dealerHand.current);
+      return;
+    }
+    if (take) {
+      const cost = Math.round((h.bet / 2) * 100) / 100;
+      if (!useStore.getState().placeBet(cost)) return;
+      sfx.bet();
+      insRef.current = { bet: cost, won: false }; setInsBet(cost);
+      sc.setChips('ins', cost, ...INS);
+    } else sfx.click();
+    setPhase('dealing');
+    await peekAndContinue(h, true);
   };
 
   const revealHole = async () => {
@@ -181,25 +228,27 @@ export default function Blackjack() {
 
   const finish = (hs: Hand[], dh: Card[]) => {
     const sc = sceneRef.current;
-    let totalBet = 0, payout = 0;
+    const ins = insRef.current;
+    let totalBet = ins.bet, payout = ins.won ? ins.bet * 3 : 0;
     for (const h of hs) {
       totalBet += h.bet;
-      payout += h.result === 'bj' ? h.bet * 2.5 : h.result === 'win' ? h.bet * 2 : h.result === 'push' ? h.bet : 0;
+      payout += h.result === 'bj' ? h.bet * 2.5 : h.result === 'win' || h.result === 'even' ? h.bet * 2 : h.result === 'push' ? h.bet : 0;
     }
     const mult = payout / totalBet;
     const dv = bjValue(dh).total;
-    useStore.getState().settle('blackjack', totalBet, mult, `You ${hs.map((h) => bjValue(h.cards).total).join('/')} vs dealer ${dv}${hs.length > 1 ? ' · split' : ''}`);
+    useStore.getState().settle('blackjack', totalBet, mult, `You ${hs.map((h) => bjValue(h.cards).total).join('/')} vs dealer ${dv}${hs.length > 1 ? ' · split' : ''}${hs[0].result === 'even' ? ' · even money' : ins.bet ? (ins.won ? ' · insurance paid' : ' · insurance lost') : ''}`);
     const tone = payout > totalBet ? 'win' : payout === totalBet ? 'push' : 'lose';
-    const text = hs.some((h) => h.result === 'bj') ? 'BLACKJACK!' : tone === 'win' ? (dv > 21 ? 'DEALER BUSTS!' : 'YOU WIN!') : tone === 'push' ? 'PUSH' : hs.every((h) => bjValue(h.cards).total > 21) ? 'BUST' : 'DEALER WINS';
+    const text = hs[0].result === 'even' ? 'EVEN MONEY' : ins.won ? 'INSURANCE PAYS 2:1' : hs.some((h) => h.result === 'bj') ? 'BLACKJACK!' : tone === 'win' ? (dv > 21 ? 'DEALER BUSTS!' : 'YOU WIN!') : tone === 'push' ? 'PUSH' : hs.every((h) => bjValue(h.cards).total > 21) ? 'BUST' : 'DEALER WINS';
     setSummary({ text, tone, payout });
     tone === 'win' ? sfx.win() : tone === 'push' ? sfx.click() : sfx.lose();
     if (sc) {
       hs.forEach((h, i) => {
         const bx = handBaseX(i, hs.length), n = h.cards.length;
-        const won = h.result === 'win' || h.result === 'bj';
+        const won = h.result === 'win' || h.result === 'bj' || h.result === 'even';
         if (won || h.result === 'lose') sc.celebrate(bx - 0.3 + (n - 1) * 0.26, PLAYER_Z - (n - 1) * 0.04, won, 1.1 + (n - 1) * 0.52, 1.55 + (n - 1) * 0.08);
         sc.settleChips(`h${i}`, won ? 'win' : h.result === 'push' ? 'push' : 'lose', h.result === 'bj' ? h.bet * 1.5 : h.bet);
       });
+      if (ins.won) sc.settleChips('ins', 'win', ins.bet * 2);
       if (tone === 'lose' && dv <= 21) sc.highlight(dealerX(0) + (dh.length - 1) * 0.31, DEALER_Z, 1.1 + (dh.length - 1) * 0.62, 1.55);
     }
     setPhase('done');
@@ -211,12 +260,26 @@ export default function Blackjack() {
   const dealerShown = holeShown ? dealer : dealer.slice(0, 1);
   const dv = dealerShown.length ? bjValue(dealerShown) : null;
 
-  const action = phase === 'player' || (phase === 'dealing' && hands.length) ? (
+  const playerBJ = !!h && hands.length === 1 && isBlackjack(h.cards);
+  const action = phase === 'insurance' ? (
+    <div className="grid grid-cols-2 gap-2">
+      <button className="btn-gold py-3.5 text-sm" onClick={() => decideInsurance(true)}>
+        <ActLabel title={playerBJ ? 'Even money' : 'Insurance'} sub={playerBJ ? `take ${fmt(bet * 2, 0)} now` : `+${fmt(bet / 2)}`} />
+      </button>
+      <button className="btn-dark py-3.5 text-sm" onClick={() => decideInsurance(false)}>
+        <ActLabel title="No thanks" sub={playerBJ ? 'play for 3:2' : 'dealer peeks'} />
+      </button>
+    </div>
+  ) : phase === 'player' || (phase === 'dealing' && hands.length) ? (
     <div className="grid grid-cols-4 gap-2">
-      <button className="btn-gold py-3.5 text-sm" disabled={phase !== 'player'} onClick={() => hit()}>Hit</button>
-      <button className="btn-red py-3.5 text-sm" disabled={phase !== 'player'} onClick={stand}>Stand</button>
-      <button className="btn-dark py-3.5 text-sm" disabled={!canDouble} onClick={() => hit(true)}>Double</button>
-      <button className="btn-dark py-3.5 text-sm" disabled={!canSplit} onClick={split}>Split</button>
+      <button className="btn-gold py-3 text-sm" disabled={phase !== 'player'} onClick={() => hit()}><ActLabel title="Hit" sub="+1 card" /></button>
+      <button className="btn-red py-3 text-sm" disabled={phase !== 'player'} onClick={stand}><ActLabel title="Stand" sub="hold" /></button>
+      <button className="btn-double py-3 text-sm" disabled={!canDouble} onClick={() => hit(true)} title="Double your bet for exactly one more card">
+        <ActLabel title="Double" sub={h ? `+${fmt(h.bet, 0)}` : '2×'} />
+      </button>
+      <button className="btn-split py-3 text-sm" disabled={!canSplit} onClick={split} title="Split a pair into two hands">
+        <ActLabel title="Split" sub={canSplit ? `+${fmt(h.bet, 0)}` : 'pairs only'} />
+      </button>
     </div>
   ) : (
     <button className="btn-gold w-full py-4 text-base" disabled={phase === 'dealer'} onClick={deal}>{phase === 'done' ? 'Deal again' : 'Deal'}</button>
@@ -229,6 +292,7 @@ export default function Blackjack() {
       <div className="rounded-xl bg-ink-900 p-3 text-xs text-smoke space-y-1">
         <div className="flex justify-between"><span>Blackjack</span><b className="text-gold">3 : 2</b></div>
         <div className="flex justify-between"><span>Win</span><b className="text-cream">1 : 1</b></div>
+        <div className="flex justify-between"><span>Insurance (dealer shows A)</span><b className="text-cream">2 : 1</b></div>
         <div className="flex justify-between"><span>Dealer</span><b className="text-cream">Stands on soft 17</b></div>
         <div className="flex justify-between"><span>Shoe</span><b className="text-cream">6 decks</b></div>
       </div>
@@ -241,6 +305,7 @@ export default function Blackjack() {
       'Get closer to 21 than the dealer without going over. Face cards count 10, aces 1 or 11.',
       'Hit to take a card, Stand to hold, Double to double your bet for exactly one more card, Split a pair into two hands.',
       'The dealer draws to 16 and stands on all 17s. Wins pay 1:1, a blackjack (ace + ten) pays 3:2, ties push.',
+      'When the dealer shows an ace you can buy insurance for half your bet: it pays 2:1 if the dealer has blackjack and is lost otherwise. Holding a blackjack yourself, you can take even money (1:1 straight away) instead.',
     ]}>
       <div ref={hostRef} className="absolute inset-0" aria-label="Blackjack table" />
       <div className="table-vignette pointer-events-none absolute inset-0" />
@@ -263,6 +328,19 @@ export default function Blackjack() {
       })}
       {summary && <ResultBanner key={dealer.length + summary.text} tone={summary.tone} title={summary.text} amount={summary.payout} sub={summary.payout > 0 ? 'Paid' : 'Better luck next hand'} big={summary.text === 'BLACKJACK!'} />}
       {phase === 'bet' && <TableHint>Set your bet and press <b className="text-gold">Deal</b></TableHint>}
+      {phase === 'insurance' && <TableHint>Dealer shows an <b className="text-gold">Ace</b> — {playerBJ ? 'take even money?' : `insure for ${fmt(bet / 2)}? Pays 2:1 on dealer blackjack`}</TableHint>}
+      {insBet > 0 && phase !== 'done' && phase !== 'insurance' && (
+        <Anchor scene={scene} at={[INS[0] + 1.05, 0.2, INS[1]]}><HandBadge label="Insured" value={fmt(insBet, 0)} tone="neutral" /></Anchor>
+      )}
     </GameShell>
+  );
+}
+
+function ActLabel({ title, sub }: { title: string; sub: string }) {
+  return (
+    <span className="flex flex-col items-center leading-tight">
+      <span>{title}</span>
+      <span className="text-[10px] font-semibold opacity-75 tabular">{sub}</span>
+    </span>
   );
 }

@@ -40,6 +40,8 @@ body {
   .btn-red { @apply btn bg-blood text-white hover:bg-blood-600 shadow-red; }
   .btn-ghost { @apply btn border border-white/15 text-cream hover:bg-white/5 hover:border-white/30; }
   .btn-dark { @apply btn bg-ink-600 text-cream hover:bg-ink-500 border border-white/5; }
+  .btn-double { @apply btn bg-gradient-to-b from-sky-400 to-sky-600 text-white border border-sky-300/40 shadow-[0_8px_24px_-10px_rgba(56,189,248,.8)] hover:brightness-110 disabled:from-ink-600 disabled:to-ink-600 disabled:text-smoke disabled:border-white/5 disabled:shadow-none; }
+  .btn-split { @apply btn bg-gradient-to-b from-violet-400 to-violet-600 text-white border border-violet-300/40 shadow-[0_8px_24px_-10px_rgba(139,92,246,.8)] hover:brightness-110 disabled:from-ink-600 disabled:to-ink-600 disabled:text-smoke disabled:border-white/5 disabled:shadow-none; }
   .input { @apply w-full rounded-xl bg-ink-900 border border-white/10 px-3 py-2.5 text-cream placeholder:text-smoke/60 outline-none focus:border-gold/60 focus:ring-2 focus:ring-gold/15 transition; }
   .label { @apply text-[11px] font-semibold uppercase tracking-[.14em] text-smoke; }
   .chip { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold; }

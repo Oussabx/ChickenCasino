@@ -46,13 +46,28 @@ export function BetSpot({ label, sub, amount, onClick, className = '', disabled,
 }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled}
-      className={`relative rounded-xl border-2 px-2 py-2 text-center transition active:scale-[.97] disabled:cursor-default ${highlight === 'win' ? 'border-gold bg-gold/15 shadow-gold' : highlight === 'lose' ? 'border-white/10 opacity-60' : 'border-white/15 bg-black/30 hover:border-gold/50'} ${className}`}>
-      <div className="font-display text-sm font-black leading-tight">{label}</div>
-      {sub && <div className="text-[10px] text-smoke">{sub}</div>}
+      className={`relative min-w-0 rounded-xl border-2 px-1.5 py-2.5 text-center transition active:scale-[.97] disabled:cursor-default ${highlight === 'win' ? 'border-gold bg-gold/15 shadow-gold' : highlight === 'lose' ? 'border-white/10 opacity-60' : 'border-white/15 bg-black/30 hover:border-gold/50'} ${className}`}>
+      <div className="truncate whitespace-nowrap font-display text-[13px] font-black leading-tight">{label}</div>
+      {sub && <div className="mt-0.5 whitespace-nowrap text-[10px] font-semibold text-smoke">{sub}</div>}
       {children}
       {amount > 0 && (
         <span className="absolute -right-2 -top-2 animate-pop rounded-full bg-gold px-1.5 py-0.5 font-display text-[10px] font-black text-ink shadow-gold tabular">{fmt(amount, 0)}</span>
       )}
     </button>
+  );
+}
+
+/** One-line chip selector + undo/clear for the phone action bar. */
+export function ChipRow({ chip, setChip, onUndo, onClear, disabled }: { chip: number; setChip: (v: number) => void; onUndo: () => void; onClear: () => void; disabled?: boolean }) {
+  return (
+    <div className={`flex items-center gap-1.5 ${disabled ? 'pointer-events-none opacity-50' : ''}`}>
+      {CHIP_VALUES.map((v) => (
+        <button key={v} type="button" onClick={() => { sfx.click(); setChip(v); }} aria-label={`${v} chip`} aria-pressed={chip === v}>
+          <ChipToken value={v} size={32} selected={chip === v} />
+        </button>
+      ))}
+      <button type="button" className="btn-dark ml-auto h-9 w-9 !p-0" onClick={onUndo} aria-label="Undo"><RotateCcw size={15} /></button>
+      <button type="button" className="btn-dark h-9 w-9 !p-0" onClick={onClear} aria-label="Clear"><Trash2 size={15} /></button>
+    </div>
   );
 }

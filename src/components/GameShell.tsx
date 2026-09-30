@@ -9,7 +9,7 @@ import Modal from './Modal';
 import { useLiveFeed } from '../lib/useLiveFeed';
 import { Coin } from './Icons';
 
-export default function GameShell({ id, controls, children, rules }: { id: GameId; controls: ReactNode; children: ReactNode; rules: string[] }) {
+export default function GameShell({ id, controls, children, rules, tall }: { id: GameId; controls: ReactNode; children: ReactNode; rules: string[]; tall?: boolean }) {
   const g = gameById(id)!;
   const fav = useStore((s) => s.favorites.includes(id));
   const toggleFav = useStore((s) => s.toggleFav);
@@ -35,7 +35,7 @@ export default function GameShell({ id, controls, children, rules }: { id: GameI
 
       <div className="card overflow-hidden grid lg:grid-cols-[340px_1fr]">
         <aside className="order-2 lg:order-1 border-t lg:border-t-0 lg:border-r border-white/[0.06] bg-ink-800 p-4 space-y-4">{controls}</aside>
-        <section className="order-1 lg:order-2 relative min-h-[max(380px,calc(100svh-400px))] sm:min-h-[500px] lg:min-h-[580px] felt grain">{children}</section>
+        <section className={`order-1 lg:order-2 relative ${tall ? 'min-h-[max(420px,calc(100svh-316px))]' : 'min-h-[max(380px,calc(100svh-400px))]'} sm:min-h-[500px] lg:min-h-[580px] felt grain`}>{children}</section>
       </div>
 
       <BelowGame id={id} />
