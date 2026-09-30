@@ -712,8 +712,7 @@ export class TableScene extends Stage3D {
   }
 
   private feltPoint(e: { clientX: number; clientY: number }) {
-    const r = this.renderer.domElement.getBoundingClientRect();
-    const ndc = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    const ndc = this.toNdc(e);
     const ray = new THREE.Raycaster(); ray.setFromCamera(ndc, this.camera);
     return ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -FELT_Y), new THREE.Vector3());
   }

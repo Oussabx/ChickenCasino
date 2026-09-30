@@ -1,10 +1,10 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, Info, Maximize2, RotateCw, Star, Volume2, VolumeX, Zap } from 'lucide-react';
-import { PhoneGameCtx, enterLandscape, usePhoneGame, usePhoneLayout } from '../lib/phone';
+import { ChevronLeft, Info, Maximize2, Star, Volume2, VolumeX, Zap } from 'lucide-react';
+import { PhoneGameCtx, toggleFullscreen, usePhoneGame, usePhoneLayout } from '../lib/phone';
 import { GameId, gameById } from '../lib/data';
-import { useStore } from '../store';
+import { toast, useStore } from '../store';
 import { fmt, fmtMult, timeAgo } from '../lib/format';
 import Modal from './Modal';
 import { useLiveFeed } from '../lib/useLiveFeed';
@@ -17,7 +17,7 @@ export default function GameShell({ id, controls, children, rules, tall }: { id:
   const { sound, turbo } = useStore((s) => s.settings);
   const update = useStore((s) => s.updateSettings);
   const [info, setInfo] = useState(false);
-  const { phone, portrait } = usePhoneLayout();
+  const { phone, portrait, w: vw, h: vh } = usePhoneLayout();
   const balance = useStore((s) => s.balance);
 
   // phones: a full-screen landscape game with the controls beside it — nothing on the page scrolls
@@ -29,6 +29,13 @@ export default function GameShell({ id, controls, children, rules, tall }: { id:
     window.scrollTo(0, 0);
     return () => { [html.style.overflow, body.style.overflow, html.style.overscrollBehavior] = prev; };
   }, [phone]);
+  // held upright: show the game turned sideways straight away (no "rotate your phone" step)
+  const rotated = phone && portrait;
+  useEffect(() => {
+    const d = document.documentElement.dataset;
+    if (rotated) d.gameRotated = '1'; else delete d.gameRotated;
+    return () => { delete d.gameRotated; };
+  }, [rotated]);
 
   const rulesModal = (
     <Modal open={info} onClose={() => setInfo(false)} title={`How to play ${g.name}`}>
@@ -46,27 +53,28 @@ export default function GameShell({ id, controls, children, rules, tall }: { id:
     return (
       <PhoneGameCtx.Provider value={true}>
         {createPortal(
-          <div className="fixed inset-0 z-[65] flex bg-ink" style={{ height: '100dvh' }}>
+          <div className="fixed left-0 top-0 z-[65] flex bg-ink"
+            style={rotated
+              ? { width: vh, height: vw, transform: 'rotate(90deg) translateY(-100%)', transformOrigin: 'top left' }
+              : { width: '100vw', height: '100dvh' }}>
             <section className="relative min-w-0 flex-1 felt grain">{children}</section>
-            <aside className="flex w-[clamp(230px,36vw,330px)] shrink-0 flex-col border-l border-white/[0.06] bg-ink-800">
+            <aside className="flex min-h-0 w-[clamp(250px,34%,330px)] shrink-0 flex-col overflow-hidden border-l border-white/[0.06] bg-ink-800">
               <div className="flex items-center gap-1.5 border-b border-white/[0.06] px-2 py-1.5" style={{ paddingTop: 'max(6px, env(safe-area-inset-top))' }}>
                 <Link to="/games" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-ink-700" aria-label="Back to games"><ChevronLeft size={16} /></Link>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-display text-xs font-black leading-tight">{g.name}</div>
-                  <div className="flex items-center gap-1 text-[11px] font-bold text-gold tabular"><Coin className="h-3 w-3" />{fmt(balance)}</div>
+                <div className="flex min-w-0 flex-1 items-center gap-1 rounded-lg bg-ink-900 px-2 py-1.5 font-display text-xs font-black text-gold tabular" title={g.name}>
+                  <Coin className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{fmt(balance, 0)}</span>
                 </div>
                 <IconBtn small onClick={() => update({ turbo: !turbo })} active={turbo} label="Turbo mode"><Zap size={14} /></IconBtn>
                 <IconBtn small onClick={() => update({ sound: !sound })} active={sound} label="Sound">{sound ? <Volume2 size={14} /> : <VolumeX size={14} />}</IconBtn>
                 <IconBtn small onClick={() => setInfo(true)} label="How to play"><Info size={14} /></IconBtn>
-                <IconBtn small onClick={() => enterLandscape()} label="Fullscreen"><Maximize2 size={14} /></IconBtn>
+                <IconBtn small onClick={() => toggleFullscreen(() => toast({ title: 'Fullscreen isn’t available in this browser', desc: 'The game already fills your screen — on iPhone, “Add to Home Screen” hides the browser bars.', tone: 'neutral' }))} label="Fullscreen"><Maximize2 size={14} /></IconBtn>
               </div>
-              <div className="phone-controls flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 pt-3" style={{ paddingRight: 'max(12px, env(safe-area-inset-right))' }}>{controls}</div>
+              <div className="phone-controls min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 pt-3" style={{ paddingRight: 'max(12px, env(safe-area-inset-right))' }}>{controls}</div>
             </aside>
-            {portrait && <RotatePrompt name={g.name} />}
+            {rulesModal}
           </div>,
           document.body,
         )}
-        {rulesModal}
       </PhoneGameCtx.Provider>
     );
   }
@@ -181,22 +189,3 @@ function BelowGame({ id }: { id: GameId }) {
   );
 }
 
-/** Shown while a phone is held upright: the games are played sideways. */
-function RotatePrompt({ name }: { name: string }) {
-  return (
-    <div className="fixed inset-0 z-[66] flex flex-col items-center justify-center gap-5 bg-ink/97 px-8 text-center backdrop-blur-xl">
-      <div className="relative h-28 w-28">
-        <div className="rotate-phone absolute inset-0 m-auto h-24 w-14 rounded-[14px] border-[3px] border-gold/90 shadow-gold">
-          <span className="absolute left-1/2 top-1.5 h-1 w-4 -translate-x-1/2 rounded-full bg-gold/70" />
-        </div>
-        <RotateCw className="absolute -right-2 -top-1 text-gold/70" size={22} />
-      </div>
-      <div>
-        <div className="h-display text-2xl text-gold-grad">Turn your phone</div>
-        <p className="mt-2 text-sm text-cream/75">{name} plays in landscape (16:9). Rotate your phone sideways to start.</p>
-      </div>
-      <button type="button" className="btn-gold px-6 py-3 text-sm" onClick={() => enterLandscape()}><Maximize2 size={16} />Play fullscreen</button>
-      <Link to="/games" className="text-xs font-semibold text-smoke underline underline-offset-4">Back to games</Link>
-    </div>
-  );
-}

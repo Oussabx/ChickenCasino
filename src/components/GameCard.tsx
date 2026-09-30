@@ -4,13 +4,14 @@ import { GameMeta } from '../lib/data';
 import GameArt from './GameArt';
 import { useStore } from '../store';
 import { Tilt } from '../lib/motion';
+import { enterLandscape, isPhoneDevice } from '../lib/phone';
 
 export default function GameCard({ g, size = 'md' }: { g: GameMeta; size?: 'md' | 'lg' }) {
   const fav = useStore((s) => s.favorites.includes(g.id));
   const toggle = useStore((s) => s.toggleFav);
   return (
     <Tilt max={14} scale={1.04} className="rounded-2xl">
-      <Link to={`/games/${g.id}`} className="group relative block rounded-2xl card overflow-hidden transition-[border-color,box-shadow] duration-300 hover:border-gold/40 hover:shadow-gold [transform-style:preserve-3d]">
+      <Link to={`/games/${g.id}`} onClick={() => { if (isPhoneDevice()) enterLandscape(); }} className="group relative block rounded-2xl card overflow-hidden transition-[border-color,box-shadow] duration-300 hover:border-gold/40 hover:shadow-gold [transform-style:preserve-3d]">
         <GameArt id={g.id} wide={size === 'lg'} className={`${size === 'lg' ? 'aspect-[4/3]' : 'aspect-square'} w-full transition duration-700 group-hover:scale-[1.08]`} />
         <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/20 to-transparent" />
         <div className="absolute left-2.5 top-2.5 flex gap-1.5 [transform:translateZ(30px)]">
