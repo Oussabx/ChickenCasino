@@ -19,7 +19,7 @@ export default function MobileNav() {
             {({ isActive }) => (
               <>
                 {isActive && <span className="absolute top-0 h-0.5 w-8 rounded-b bg-gold shadow-gold" />}
-                <i.icon size={21} strokeWidth={isActive ? 2.4 : 2} />
+                <i.icon size={21} strokeWidth={isActive ? 2.4 : 2} className={isActive ? "animate-pop" : ""} />
                 {i.label}
               </>
             )}

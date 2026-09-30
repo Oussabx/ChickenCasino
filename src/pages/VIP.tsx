@@ -5,6 +5,7 @@ import { TIERS, xpForLevel } from '../lib/data';
 import { fmt } from '../lib/format';
 import { Coin } from '../components/Icons';
 import { sfx } from '../lib/sound';
+import { Reveal, Tilt } from '../lib/motion';
 
 export default function VIP() {
   const { level, tier, xp } = useLevel();
@@ -59,7 +60,8 @@ export default function VIP() {
           {TIERS.map((t, i) => {
             const unlocked = i <= idx;
             return (
-              <div key={t.name} className={`card p-5 relative ${t === tier ? 'ring-2' : ''}`} style={t === tier ? { boxShadow: `0 0 0 2px ${t.color}, 0 10px 40px -10px ${t.color}` } : undefined}>
+              <Reveal key={t.name} delay={i * 90} className="h-full"><Tilt className={`card p-5 h-full ${t === tier ? 'ring-2' : ''}`}>
+                <div className="pointer-events-none absolute inset-0 rounded-2xl" style={t === tier ? { boxShadow: `0 0 0 2px ${t.color}, 0 10px 40px -10px ${t.color}` } : undefined} />
                 <div className="flex items-center justify-between">
                   <Crown style={{ color: t.color }} size={22} />
                   {unlocked ? <Check size={16} className="text-emerald-400" /> : <Lock size={14} className="text-smoke" />}
@@ -69,7 +71,7 @@ export default function VIP() {
                 <ul className="mt-3 space-y-1.5 text-sm">
                   {t.perks.map((p) => <li key={p} className="flex gap-2"><span style={{ color: t.color }}>•</span><span className="text-cream/80">{p}</span></li>)}
                 </ul>
-              </div>
+              </Tilt></Reveal>
             );
           })}
         </div>
