@@ -125,9 +125,13 @@ export default function Baccarat({ variant = 'classic' }: { variant?: 'classic' 
         sfx.tick();
         // classic: squeeze the first four together, then any third cards one by one
         if (meshes.length === 4 || i === 2) {
-          for (const m of meshes.splice(0)) {
-            await sc.flip(m.c3, m.card, true);
-            shown[m.side].push(m.card);
+          // flip each side's cards together: player first, then banker
+          const batch = meshes.splice(0);
+          for (const side of ['player', 'banker'] as const) {
+            const group = batch.filter((m) => m.side === side);
+            if (!group.length) continue;
+            await Promise.all(group.map((m) => sc.flip(m.c3, m.card, true)));
+            group.forEach((m) => shown[side].push(m.card));
             setTotals({ p: shown.player.length ? bacTotal(shown.player) : null, b: shown.banker.length ? bacTotal(shown.banker) : null });
             sfx.reveal();
           }
