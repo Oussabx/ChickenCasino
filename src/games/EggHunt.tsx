@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { EggHuntScene } from './three/egghunt3d';
 import { Shuffle } from 'lucide-react';
-import GameShell from '../components/GameShell';
-import BetControls, { confirmBet } from '../components/BetControls';
+import GameShell, { GameAction } from '../components/GameShell';
+import BetControls, { MiniBet, confirmBet } from '../components/BetControls';
 import { useStore } from '../store';
 import { shuffle } from '../lib/rng';
 import { sfx } from '../lib/sound';
@@ -101,16 +101,18 @@ export default function EggHunt() {
           ))}
         </div>
       </div>
-      {playing ? (
-        <>
-          <button className="btn-gold w-full py-4 text-base" disabled={picks === 0} onClick={() => cashOut()}>
-            Cash out <span className="tabular">{fmt(stake * cur)}</span>
-          </button>
-          <button className="btn-dark w-full py-2.5 text-sm" onClick={randomPick}><Shuffle size={14} />Pick random nest</button>
-        </>
-      ) : (
-        <button className="btn-gold w-full py-4 text-base" onClick={start}>{status === 'idle' ? 'Start hunt' : 'Hunt again'}</button>
-      )}
+      <GameAction extra={<MiniBet value={bet} onChange={setBet} disabled={playing} />}>
+        {playing ? (
+          <div className="grid grid-cols-[1fr_auto] gap-2">
+            <button className="btn-gold py-4 text-base" disabled={picks === 0} onClick={() => cashOut()}>
+              Cash out <span className="tabular">{fmt(stake * cur)}</span>
+            </button>
+            <button className="btn-dark px-4 py-4 text-sm" onClick={randomPick} aria-label="Pick random nest" title="Pick random nest"><Shuffle size={16} /></button>
+          </div>
+        ) : (
+          <button className="btn-gold w-full py-4 text-base" onClick={start}>{status === 'idle' ? 'Start hunt' : 'Hunt again'}</button>
+        )}
+      </GameAction>
       <div className="grid grid-cols-2 gap-2">
         <Stat label="Current" value={fmtMult(cur)} tone="gold" />
         <Stat label="Next egg" value={picks < N - mines ? fmtMult(next) : '—'} />

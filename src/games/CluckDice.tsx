@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeftRight } from 'lucide-react';
-import GameShell from '../components/GameShell';
-import BetControls, { Seg, confirmBet } from '../components/BetControls';
+import GameShell, { GameAction } from '../components/GameShell';
+import BetControls, { MiniBet, Seg, confirmBet } from '../components/BetControls';
 import { useStore } from '../store';
 import { rand } from '../lib/rng';
 import { sfx } from '../lib/sound';
@@ -112,13 +112,15 @@ export default function CluckDice() {
           <Seg options={[10, 25, 50, 100] as const} value={autoCount as 10} onChange={setAutoCount} disabled={autoLeft > 0} />
         </div>
       )}
-      {mode === 'manual' ? (
-        <button className="btn-gold w-full py-4 text-base" disabled={rolling} onClick={() => confirmBet(bet) && doRoll()}>Roll the egg</button>
-      ) : autoLeft > 0 ? (
-        <button className="btn-red w-full py-4 text-base" onClick={() => setAutoLeft(0)}>Stop ({autoLeft} left)</button>
-      ) : (
-        <button className="btn-gold w-full py-4 text-base" onClick={() => confirmBet(bet) && setAutoLeft(autoCount)}>Start auto-roll</button>
-      )}
+      <GameAction extra={<MiniBet value={bet} onChange={setBet} disabled={autoLeft > 0} />}>
+        {mode === 'manual' ? (
+          <button className="btn-gold w-full py-4 text-base" disabled={rolling} onClick={() => confirmBet(bet) && doRoll()}>Roll the egg</button>
+        ) : autoLeft > 0 ? (
+          <button className="btn-red w-full py-4 text-base" onClick={() => setAutoLeft(0)}>Stop ({autoLeft} left)</button>
+        ) : (
+          <button className="btn-gold w-full py-4 text-base" onClick={() => confirmBet(bet) && setAutoLeft(autoCount)}>Start auto-roll</button>
+        )}
+      </GameAction>
     </>
   );
 

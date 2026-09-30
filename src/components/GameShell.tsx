@@ -1,4 +1,5 @@
 import { ReactNode, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, Info, Star, Volume2, VolumeX, Zap } from 'lucide-react';
 import { GameId, gameById } from '../lib/data';
@@ -17,7 +18,7 @@ export default function GameShell({ id, controls, children, rules }: { id: GameI
   const [info, setInfo] = useState(false);
 
   return (
-    <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-6 pt-4 lg:pt-6">
+    <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-6 pt-4 lg:pt-6 pb-48 lg:pb-0">
       <div className="mb-4 flex items-center gap-2">
         <Link to="/games" className="grid h-9 w-9 place-items-center rounded-xl bg-ink-700 hover:bg-ink-600" aria-label="Back to games"><ChevronLeft size={18} /></Link>
         <div className="min-w-0">
@@ -49,6 +50,27 @@ export default function GameShell({ id, controls, children, rules }: { id: GameI
         <div className="mt-5 rounded-xl bg-ink-900 p-3 text-xs text-smoke">Outcomes use your browser's cryptographic RNG (<code>crypto.getRandomValues</code>). Max win: <b className="text-gold">{g.maxWin}</b>. RTP ≈ 99%.</div>
       </Modal>
     </div>
+  );
+}
+
+/**
+ * The game's main button(s). On desktop it renders in place inside the
+ * controls panel; on phones it's pinned above the bottom nav so it's always
+ * reachable without scrolling.
+ */
+export function GameAction({ children, extra }: { children: ReactNode; extra?: ReactNode }) {
+  return (
+    <>
+      <div className="hidden lg:block">{children}</div>
+      {createPortal(
+        <div className="lg:hidden fixed inset-x-0 z-40 px-3 pt-6 pb-2 bg-gradient-to-t from-ink via-ink/95 to-transparent"
+          style={{ bottom: 'calc(58px + env(safe-area-inset-bottom))' }}>
+          {extra && <div className="mb-2">{extra}</div>}
+          {children}
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { WheelScene } from './three/wheel3d';
-import GameShell from '../components/GameShell';
-import BetControls, { Seg, confirmBet } from '../components/BetControls';
+import GameShell, { GameAction } from '../components/GameShell';
+import BetControls, { MiniBet, Seg, confirmBet } from '../components/BetControls';
 import { useStore } from '../store';
 import { rand } from '../lib/rng';
 import { sfx } from '../lib/sound';
@@ -85,7 +85,9 @@ export default function GoldenWheel() {
         <div className="label mb-1.5">Risk</div>
         <Seg options={['low', 'medium', 'high'] as const} value={risk} onChange={(v) => { setRisk(v); setHit(null); }} disabled={spinning} render={(v) => v[0].toUpperCase() + v.slice(1)} />
       </div>
-      <button className="btn-gold w-full py-4 text-base" disabled={spinning} onClick={spin}>{spinning ? 'Spinning…' : 'Spin the wheel'}</button>
+      <GameAction extra={<MiniBet value={bet} onChange={setBet} disabled={spinning} />}>
+        <button className="btn-gold w-full py-4 text-base" disabled={spinning} onClick={spin}>{spinning ? 'Spinning…' : 'Spin the wheel'}</button>
+      </GameAction>
       <div>
         <div className="label mb-2">Payout table</div>
         <div className="space-y-1.5">

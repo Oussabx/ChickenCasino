@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import GameShell from '../components/GameShell';
-import BetControls, { Seg, confirmBet } from '../components/BetControls';
+import GameShell, { GameAction } from '../components/GameShell';
+import BetControls, { MiniBet, Seg, confirmBet } from '../components/BetControls';
 import { useStore } from '../store';
 import { rand } from '../lib/rng';
 import { sfx } from '../lib/sound';
@@ -154,6 +154,7 @@ export default function ChickenCross() {
         <Seg options={['easy', 'medium', 'hard', 'hardcore'] as const} value={diff} onChange={setDiff} disabled={status === 'playing'} render={(v) => DIFF[v].label} />
         <p className="mt-1.5 text-[11px] text-smoke">{DIFF[diff].lanes} lanes · {Math.round(DIFF[diff].death * 100)}% crash chance per lane · top {fmtMult(mults[lanes - 1])}</p>
       </div>
+      <GameAction extra={<MiniBet value={bet} onChange={setBet} disabled={status === 'playing'} />}>
       {status === 'playing' ? (
         <div className="grid grid-cols-2 gap-2">
           <button className="btn-gold py-4 text-base" disabled={busy} onClick={go}>
@@ -166,6 +167,7 @@ export default function ChickenCross() {
       ) : (
         <button className="btn-gold w-full py-4 text-base" disabled={busy} onClick={start}>{status === 'idle' ? 'Start crossing' : 'Play again'}</button>
       )}
+      </GameAction>
       <div className="rounded-xl bg-ink-900 p-3 grid grid-cols-2 gap-2 text-center">
         <div><div className="label">Current</div><div className="font-display text-lg font-black text-gold tabular">{fmtMult(cur)}</div></div>
         <div><div className="label">Payout</div><div className="font-display text-lg font-black tabular flex items-center justify-center gap-1"><Coin className="h-4 w-4" />{fmt(status === 'idle' ? 0 : stake * cur)}</div></div>

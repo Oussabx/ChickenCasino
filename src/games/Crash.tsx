@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import GameShell from '../components/GameShell';
-import BetControls, { confirmBet } from '../components/BetControls';
+import GameShell, { GameAction } from '../components/GameShell';
+import BetControls, { MiniBet, confirmBet } from '../components/BetControls';
 import { useStore } from '../store';
 import { rand, pick, randInt } from '../lib/rng';
 import { sfx } from '../lib/sound';
@@ -164,7 +164,7 @@ export default function Crash() {
           <span className="text-smoke font-bold">×</span>
         </div>
       </div>
-      {action}
+      <GameAction extra={<MiniBet value={bet} onChange={setBet} disabled={!!my && phase !== 'crashed'} />}>{action}</GameAction>
       {my && (
         <div className={`rounded-xl p-3 text-sm ${my.cashed ? 'bg-emerald-500/10 text-emerald-300' : phase === 'crashed' ? 'bg-blood/10 text-blood' : 'bg-ink-700'}`}>
           {my.cashed ? `Cashed out at ${fmtMult(my.cashed)} · +${fmt(my.bet * my.cashed - my.bet)}` : phase === 'crashed' ? `Fried! Lost ${fmt(my.bet)}` : `In play: ${fmt(my.bet)}`}
