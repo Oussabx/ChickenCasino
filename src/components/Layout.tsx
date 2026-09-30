@@ -7,7 +7,7 @@ import Toaster from './Toaster';
 import AuthModal from './AuthModal';
 import Celebration from './Celebration';
 import Ambient from './Ambient';
-import { toast, useStore } from '../store';
+import { toast, useStore, useUI } from '../store';
 import { migrateLegacyProfile } from '../lib/auth';
 
 export default function Layout() {
@@ -17,7 +17,8 @@ export default function Layout() {
   const start = useRef(Date.now());
 
   useEffect(() => { migrateLegacyProfile(); }, []);
-  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  // new page: back to the top, and close the account dialog if it was left open (e.g. browser back)
+  useEffect(() => { window.scrollTo(0, 0); useUI.getState().openAuth(null); }, [pathname]);
   useEffect(() => { document.documentElement.classList.toggle('reduce-motion', reduce); }, [reduce]);
   useEffect(() => {
     if (!reminder) return;

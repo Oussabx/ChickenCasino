@@ -30,7 +30,7 @@ export default function Games() {
         <div className="relative">
           <div className="label text-gold">The Coop</div>
           <h1 className="h-display text-4xl sm:text-5xl mt-1">All games</h1>
-          <p className="mt-2 text-cream/70 max-w-md">Six chicken originals plus the classic casino tables — all in 3D.</p>
+          <p className="mt-2 text-cream/70 max-w-md">Six chicken originals and six classic casino tables — all in 3D.</p>
         </div>
       </div>
       <div className="mt-6 flex flex-col sm:flex-row gap-3">

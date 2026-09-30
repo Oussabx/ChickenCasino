@@ -416,9 +416,9 @@ function StrengthMeter({ pw }: { pw: string }) {
         {[0, 1, 2, 3].map((i) => <span key={i} className={`h-1.5 flex-1 rounded-full transition-colors ${pw && i < Math.max(1, s) ? colors[valid ? s : Math.min(s, 1)] : 'bg-ink-500'}`} />)}
         <span className="ml-1 w-20 text-right text-[11px] font-semibold text-smoke">{pw ? labels[valid ? s : Math.min(s, 1)] : ''}</span>
       </div>
-      <ul className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
+      <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
         {passwordChecks(pw).map((c) => (
-          <li key={c.label} className={`flex items-center gap-1.5 text-[11px] ${c.ok ? 'text-emerald-400' : 'text-smoke'}`}>
+          <li key={c.label} className={`flex items-center gap-1.5 whitespace-nowrap text-[11px] ${c.ok ? 'text-emerald-400' : 'text-smoke'}`}>
             {c.ok ? <Check size={11} strokeWidth={3} /> : c.optional ? <span className="h-1 w-1 mx-[3px] rounded-full bg-smoke/60" /> : <XCircle size={11} />}
             {c.label}{c.optional && !c.ok && <span className="opacity-60">(bonus)</span>}
           </li>
