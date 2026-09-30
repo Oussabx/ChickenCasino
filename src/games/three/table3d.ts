@@ -638,6 +638,9 @@ export class TableScene extends Stage3D {
     return this.tween(520, (k) => { const e = k * k * (3 - 2 * k); p.position.lerpVectors(from, to, e); p.position.y = Math.sin(Math.PI * k) * 0.35; });
   }
 
+  /** Show/hide a card mesh (the poker table swaps landed cards for crisp HTML cards). */
+  setCardVisible(c3: Card3D, v: boolean) { c3.mesh.visible = v; }
+
   /** Turn a face-down card up in place (showdown). */
   reveal(c3: Card3D, card: Card) { return this.flip(c3, card); }
 

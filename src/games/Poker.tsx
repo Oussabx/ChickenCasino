@@ -9,6 +9,7 @@ import { Card, HAND_NAMES, Shoe, bestHand } from '../lib/cards';
 import { BOT_ROSTER, Game, PotResult, Seat, act, alive, botDecision, inHand, legal, nextStreet, pot, returnUncalled, roundOver, showdown, startHand } from '../lib/holdem';
 import { Card3D, TableScene } from './three/table3d';
 import { Anchor, ResultBanner } from '../components/TableUI';
+import PlayingCard from '../components/PlayingCard';
 import Avatar from '../components/Avatar';
 import { usePhoneLayout } from '../lib/phone';
 
@@ -45,7 +46,9 @@ export default function Poker() {
   const [countdown, setCountdown] = useState(0);
   const phoneUI = usePhoneLayout().phone;
   // small views get crisp 2D cards on top of the 3D ones so they stay readable
-  const [compact, setCompact] = useState(false);
+  const [hostW, setHostW] = useState(800);
+  const [revealed, setRevealed] = useState<Set<number>>(new Set());
+  const [winCards, setWinCards] = useState<Set<string>>(new Set());
 
   const hostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<TableScene | null>(null);
@@ -77,7 +80,7 @@ export default function Poker() {
   }, [portrait]);
   useEffect(() => {
     const el = hostRef.current!;
-    const ro = new ResizeObserver(() => { setCompact(el.clientWidth < 760); if (!inHandRef.current) setPortrait(el.clientHeight > el.clientWidth * 1.05); });
+    const ro = new ResizeObserver(() => { setHostW(el.clientWidth); if (!inHandRef.current) setPortrait(el.clientHeight > el.clientWidth * 1.05); });
     ro.observe(el);
     return () => { ro.disconnect(); alivePage.current = false; decide.current = null; };
   }, []);
@@ -112,7 +115,7 @@ export default function Poker() {
     const st = useStore.getState();
     const err = st.betError(bb * 10);
     if (err) { if (err === 'signup') st.placeBet(bb); else toast({ title: bb * 10 > st.balance ? `You need at least ${fmt(bb * 10)} to sit at these stakes` : err, tone: 'red' }); return; }
-    const you: Seat = { id: 0, name: st.user?.name ?? 'You', avatar: '🧑', human: true, stack: st.balance, hole: [], bet: 0, total: 0, folded: false, allIn: false, acted: false, sittingOut: false, style: { loose: 0, aggro: 0 } };
+    const you: Seat = { id: 0, name: st.user?.name ?? 'You', avatar: '', human: true, stack: st.balance, hole: [], bet: 0, total: 0, folded: false, allIn: false, acted: false, sittingOut: false, style: { loose: 0, aggro: 0 } };
     const g: Game = { seats: [you], button: 0, sb, bb, board: [], street: 'preflop', toAct: 0, currentBet: 0, minRaise: bb, shoe: Shoe.fresh(), handNo: 0 };
     game.current = g;
     slots.current = slotsFor(players);
@@ -181,6 +184,7 @@ export default function Poker() {
     g.sb = sb; g.bb = bb;
     sc.clear();
     holeMeshes.current = new Map(); boardMeshes.current = [];
+    setRevealed(new Set()); setWinCards(new Set());
     const { posts } = startHand(g);
     const humanPaid = (amt: number) => { if (amt > 0) useStore.setState((s) => ({ balance: +(s.balance - amt).toFixed(2) })); };
     rerender();
@@ -202,6 +206,8 @@ export default function Poker() {
       const tan = { x: -e.n.z, z: e.n.x };
       const c3 = await sc.deal(seat.human ? seat.hole[r] : null, geo.x + tan.x * side, geo.z + tan.z * side, { scale: seat.human ? 1.42 : 0.9, rot, up: seat.human });
       const list = holeMeshes.current.get(s) ?? []; list.push(c3); holeMeshes.current.set(s, list);
+      // your cards: the 3D card lands, then the crisp HTML card takes over
+      if (seat.human) { sc.setCardVisible(c3, false); rerender(); }
       sfx.tick();
       if (!alivePage.current) return;
     }
@@ -229,7 +235,7 @@ export default function Poker() {
         if (seat.human) humanPaid(moved);
         const geo = seatGeo(sc, who);
         if (seat.folded) {
-          (holeMeshes.current.get(who) ?? []).forEach((m) => sc.discard(m)); sfx.click();
+          (holeMeshes.current.get(who) ?? []).forEach((m) => { sc.setCardVisible(m, true); sc.discard(m); }); sfx.click();
         } else if (moved > 0) { sc.setChips(`b${who}`, seat.bet, geo.bet.x, geo.bet.z); sfx.bet(); }
         else sfx.tick();
         rerender();
@@ -253,7 +259,10 @@ export default function Poker() {
       rerender();
       for (const c of dealt) {
         const k = g.board.indexOf(c);
-        boardMeshes.current.push(await sc.deal(c, BOARD_X(k), portraitRef.current ? 0.2 : -0.35, { scale: 1.24 }));
+        const m = await sc.deal(c, BOARD_X(k), portraitRef.current ? 0.2 : -0.35, { scale: 1.24 });
+        sc.setCardVisible(m, false);
+        boardMeshes.current.push(m);
+        rerender();
         sfx.reveal();
       }
       await sleep(turboRef.current ? 150 : 450);
@@ -273,13 +282,9 @@ export default function Poker() {
     const main = res[0];
     const winner = main.winners[0];
     if (contenders.length > 1) {
+      // outline the five cards that won
       const best = bestHand([...g.seats[winner].hole, ...g.board]).cards;
-      const mine = holeMeshes.current.get(winner) ?? [];
-      best.forEach((c) => {
-        const bi = g.board.indexOf(c); const hi = g.seats[winner].hole.indexOf(c);
-        const m = bi >= 0 ? boardMeshes.current[bi] : hi >= 0 ? mine[hi] : null;
-        if (m) sc.lift(m, true);
-      });
+      setWinCards(new Set(best.map((c) => `${c.r}${c.s}`)));
     }
     const wgeo = seatGeo(sc, winner);
     sc.dealerGesture(wgeo.bet.x, wgeo.bet.z);
@@ -309,13 +314,18 @@ export default function Poker() {
     rerender();
   };
 
+  /** Showdown: players still in turn their cards face up (shown as crisp HTML cards). */
   const revealAll = async (g: Game, sc: TableScene) => {
+    const show = new Set<number>();
     for (let s = 0; s < g.seats.length; s++) {
       const seat = g.seats[s];
       if (seat.human || !inHand(seat)) continue;
-      const ms = holeMeshes.current.get(s) ?? [];
-      await Promise.all(ms.map((m, k) => (m.up ? Promise.resolve() : sc.flip(m, seat.hole[k]))));
+      (holeMeshes.current.get(s) ?? []).forEach((m) => sc.setCardVisible(m, false));
+      show.add(s);
     }
+    setRevealed(show);
+    sfx.reveal();
+    await sleep(turboRef.current ? 250 : 600);
     rerender();
   };
 
@@ -422,7 +432,7 @@ export default function Poker() {
       <div className="table-vignette pointer-events-none absolute inset-0" />
       {g && scene && g.seats.map((s, i) => slots.current[i] !== undefined && (
         <Anchor key={s.id} scene={scene} at={[seatGeo(scene, i).pod.x, 0.3, seatGeo(scene, i).pod.z]}>
-          <SeatPod seat={s} dealer={g.button === i && phase !== 'joining'} active={turn === i} shown={results.length > 0 && results[0].hand !== ''}
+          <SeatPod seat={s} dealer={g.button === i && phase !== 'joining'} active={turn === i}
             winner={results.some((r) => r.winners.includes(i))} />
         </Anchor>
       ))}
@@ -442,21 +452,34 @@ export default function Poker() {
           <span className={`whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-black shadow-lg ${myHand.score[0] >= 1 ? 'bg-gold text-ink' : 'bg-black/75 text-cream'}`}>{myHand.name}</span>
         </Anchor>
       )}
-      {compact && g && scene && phase !== 'lobby' && phase !== 'joining' && (
-        <>
-          {me && me.hole.length === 2 && !me.folded && (
-            <Anchor scene={scene} at={[seatGeo(scene, 0).cards.x, 0.3, seatGeo(scene, 0).cards.z]}>
-              <div className="flex gap-1">{me.hole.map((c, k) => <BigCard key={k} c={c} size="lg" />)}</div>
-            </Anchor>
-          )}
-          {g.board.length > 0 && (
-            <Anchor scene={scene} at={[0, 0.3, portrait ? 0.2 : -0.35]}>
-              <div className="flex gap-1">{g.board.map((c, k) => <BigCard key={k} c={c} size="md" />)}</div>
-            </Anchor>
-          )}
-        </>
-      )}
-      {outcome && <ResultBanner key={g?.handNo} tone={outcome.tone} title={outcome.title} sub={outcome.sub} amount={outcome.amount} big={outcome.amount >= (g?.bb ?? 1) * 50} />}
+      {g && scene && phase !== 'lobby' && phase !== 'joining' && (() => {
+        const heroW = Math.round(Math.min(92, Math.max(46, hostW * 0.075)));
+        const boardW = Math.round(Math.min(80, Math.max(40, hostW * 0.066)));
+        const botW = Math.round(Math.min(52, Math.max(30, hostW * 0.046)));
+        const key = (c: Card) => `${c.r}${c.s}`;
+        const done = winCards.size > 0;
+        const shownHole = holeMeshes.current.get(0)?.length ?? 0;
+        return (
+          <>
+            {me && !me.folded && shownHole > 0 && (
+              <Anchor scene={scene} at={[seatGeo(scene, 0).cards.x, 0.3, seatGeo(scene, 0).cards.z]}>
+                <div className="flex gap-1.5">{me.hole.slice(0, shownHole).map((c, k) => <PlayingCard key={k} c={c} w={heroW} highlight={winCards.has(key(c))} dim={done && !winCards.has(key(c))} />)}</div>
+              </Anchor>
+            )}
+            {g.board.length > 0 && boardMeshes.current.length > 0 && (
+              <Anchor scene={scene} at={[0, 0.3, portrait ? 0.2 : -0.35]}>
+                <div className="flex gap-1.5">{g.board.slice(0, boardMeshes.current.length).map((c, k) => <PlayingCard key={k} c={c} w={boardW} highlight={winCards.has(key(c))} dim={done && !winCards.has(key(c))} />)}</div>
+              </Anchor>
+            )}
+            {[...revealed].map((s) => g.seats[s] && !g.seats[s].folded && (
+              <Anchor key={`r${s}`} scene={scene} at={[seatGeo(scene, s).cards.x, 0.3, seatGeo(scene, s).cards.z]}>
+                <div className="flex gap-1">{g.seats[s].hole.map((c, k) => <PlayingCard key={k} c={c} w={botW} highlight={winCards.has(key(c))} dim={done && !winCards.has(key(c))} />)}</div>
+              </Anchor>
+            ))}
+          </>
+        );
+      })()}
+      {outcome && <ResultBanner key={g?.handNo} tone={outcome.tone} title={outcome.title} sub={outcome.sub} amount={outcome.amount} big={outcome.amount >= (g?.bb ?? 1) * 50} top />}
       {phase === 'lobby' && (
         <div className="absolute inset-0 z-10 grid place-items-center p-4">
           <div className="result-in max-w-sm rounded-2xl border border-gold/30 bg-black/75 p-5 text-center shadow-2xl backdrop-blur-md">
@@ -489,13 +512,12 @@ function Stat({ label, value, tone = '' }: { label: string; value: string; tone?
   return <div className="rounded-xl bg-ink-900 px-2 py-2"><div className="text-[10px] uppercase tracking-wider text-smoke">{label}</div><div className={`font-display text-sm font-black tabular ${tone}`}>{value}</div></div>;
 }
 
-function SeatPod({ seat, dealer, active, winner, shown }: { seat: Seat; dealer: boolean; active: boolean; winner: boolean; shown: boolean }) {
+function SeatPod({ seat, dealer, active, winner }: { seat: Seat; dealer: boolean; active: boolean; winner: boolean }) {
   const out = seat.folded || seat.sittingOut;
-  const showCards = shown && !seat.human && !seat.folded && seat.hole.length === 2;
   return (
     <div className={`animate-pop relative flex items-center gap-1.5 whitespace-nowrap rounded-full border py-1 pl-1 pr-2.5 shadow-xl backdrop-blur-md transition-all duration-300 sm:gap-2 sm:pr-3 ${winner ? 'border-gold bg-gradient-to-b from-gold-300/90 to-gold/90 text-ink shadow-gold' : active ? 'border-gold bg-black/85 text-cream ring-2 ring-gold/60' : 'border-white/15 bg-black/75 text-cream'} ${out && !winner ? 'opacity-45' : ''} ${seat.human ? 'scale-110' : ''}`}>
-      <span className={`relative grid h-7 w-7 place-items-center rounded-full text-base sm:h-9 sm:w-9 sm:text-lg ${seat.human ? 'bg-gold/25' : 'bg-white/10'}`}>
-        {seat.human ? <Avatar size={36} className="!h-full !w-full" /> : seat.avatar}
+      <span className={`relative grid place-items-center rounded-full ${seat.human ? 'h-9 w-9 sm:h-11 sm:w-11' : 'h-7 w-7 bg-white/10 text-base sm:h-9 sm:w-9 sm:text-lg'}`}>
+        {seat.human ? <Avatar size={44} className="!h-full !w-full ring-gold" /> : seat.avatar}
         {active && <span className="absolute inset-0 animate-ping rounded-full ring-2 ring-gold" />}
       </span>
       <span className="flex flex-col leading-tight">
@@ -504,32 +526,10 @@ function SeatPod({ seat, dealer, active, winner, shown }: { seat: Seat; dealer: 
       </span>
       {dealer && <span className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-cream text-[8px] font-black text-ink shadow">D</span>}
       {seat.last && !winner && (
-        <span key={seat.last + seat.total} className={`animate-pop absolute -top-5 left-1/2 -translate-x-1/2 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide shadow ${seat.last === 'Fold' ? 'bg-ink-500 text-smoke' : seat.last === 'Raise' || seat.last === 'Bet' || seat.last === 'All-in' ? 'bg-blood text-white' : seat.last === 'SB' || seat.last === 'BB' ? 'bg-sky-600 text-white' : 'bg-emerald-600 text-white'}`}>{seat.last}</span>
-      )}
-      {showCards && (
-        <span className="absolute -bottom-5 left-1/2 flex -translate-x-1/2 gap-0.5">
-          {seat.hole.map((c, k) => <MiniCard key={k} c={c} />)}
-        </span>
+        <span key={seat.last + seat.total} className={`animate-pop absolute ${seat.human ? 'left-full top-1/2 ml-1.5 -translate-y-1/2' : '-top-5 left-1/2 -translate-x-1/2'} rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide shadow ${seat.last === 'Fold' ? 'bg-ink-500 text-smoke' : seat.last === 'Raise' || seat.last === 'Bet' || seat.last === 'All-in' ? 'bg-blood text-white' : seat.last === 'SB' || seat.last === 'BB' ? 'bg-sky-600 text-white' : 'bg-emerald-600 text-white'}`}>{seat.last}</span>
       )}
     </div>
   );
 }
 
-function MiniCard({ c }: { c: Card }) {
-  const red = c.s === 'H' || c.s === 'D';
-  return <span className={`rounded bg-cream px-1 text-[10px] font-black leading-4 shadow ${red ? 'text-[#C8102E]' : 'text-ink'}`}>{c.r <= 10 ? c.r : 'JQKA'[c.r - 11]}{{ S: '♠', H: '♥', D: '♦', C: '♣' }[c.s]}</span>;
-}
 
-/** Crisp 2D card used over the 3D table on small screens. */
-function BigCard({ c, size }: { c: Card; size: 'md' | 'lg' }) {
-  const red = c.s === 'H' || c.s === 'D';
-  const rank = c.r <= 10 ? String(c.r) : 'JQKA'[c.r - 11];
-  const suit = { S: '♠', H: '♥', D: '♦', C: '♣' }[c.s];
-  const dims = size === 'lg' ? 'h-[62px] w-11 text-base' : 'h-[50px] w-9 text-sm';
-  return (
-    <span className={`animate-pop relative flex flex-col items-center justify-center rounded-md border border-black/10 bg-gradient-to-b from-white to-[#f1ede2] font-display font-black leading-none shadow-lg ${dims} ${red ? 'text-[#C8102E]' : 'text-ink'}`}>
-      <span>{rank}</span>
-      <span className={size === 'lg' ? 'text-xl' : 'text-lg'}>{suit}</span>
-    </span>
-  );
-}
