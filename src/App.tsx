@@ -1,5 +1,5 @@
 import { HashRouter, Route, Routes } from 'react-router-dom';
-import { lazy } from 'react';
+import { lazy, Suspense } from 'react';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import Games from './pages/Games';
@@ -19,11 +19,13 @@ const ChickenCross = lazy(() => import('./games/ChickenCross'));
 const EggHunt = lazy(() => import('./games/EggHunt'));
 const CluckDice = lazy(() => import('./games/CluckDice'));
 const GoldenWheel = lazy(() => import('./games/GoldenWheel'));
+const Showcase = lazy(() => import('./pages/Showcase'));
 
 export default function App() {
   return (
     <HashRouter>
         <Routes>
+        <Route path="showcase/:id" element={<Suspense fallback={null}><Showcase /></Suspense>} />
           <Route element={<Layout />}>
             <Route index element={<Home />} />
             <Route path="games" element={<Games />} />

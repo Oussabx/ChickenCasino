@@ -1,0 +1,206 @@
+import * as THREE from 'three';
+
+export const BOX = new THREE.BoxGeometry(1, 1, 1);
+
+export function box(mat: THREE.Material, s: number[], p: number[] = [0, 0, 0], shadow = true) {
+  const m = new THREE.Mesh(BOX, mat);
+  m.scale.set(s[0], s[1], s[2]);
+  m.position.set(p[0], p[1], p[2]);
+  m.castShadow = shadow;
+  return m;
+}
+
+export const std = (color: number, o: Partial<THREE.MeshStandardMaterialParameters> = {}) =>
+  new THREE.MeshStandardMaterial({ color, roughness: 0.6, ...o });
+
+export const MAT = {
+  red: std(0xe63946),
+  orange: std(0xf6a623),
+  black: std(0x0b0b0b, { roughness: 0.4 }),
+  white: std(0xffffff),
+  gold: std(0xf4c430, { metalness: 0.75, roughness: 0.28, emissive: 0x3a2800 }),
+  goldBright: std(0xffd84d, { metalness: 0.8, roughness: 0.2, emissive: 0x6b4a00, emissiveIntensity: 0.8 }),
+  straw: std(0xb88a3e, { roughness: 0.95 }),
+  strawDark: std(0x7a5424, { roughness: 1 }),
+  wood: std(0x5b3a1e, { roughness: 1 }),
+  glass: std(0x1a2233, { metalness: 0.5, roughness: 0.15 }),
+  fox: std(0xf97316, { roughness: 0.7 }),
+  cream: std(0xf8f6ef, { roughness: 0.75 }),
+  flame: new THREE.MeshBasicMaterial({ color: 0xffb03a }),
+  flameRed: new THREE.MeshBasicMaterial({ color: 0xe63946 }),
+};
+
+/** Voxel rooster with sunglasses, facing +X. */
+export function makeChicken(color = '#F8F6EF') {
+  const root = new THREE.Group();
+  const body = new THREE.Group();
+  root.add(body);
+  const skin = std(new THREE.Color(color).getHex(), { roughness: 0.75 });
+  const parts: [THREE.Material, number[], number[]][] = [
+    [skin, [0.9, 0.75, 0.8], [0, 0.72, 0]],
+    [skin, [0.62, 0.62, 0.62], [0.28, 1.35, 0]],
+    [skin, [0.2, 0.45, 0.6], [-0.52, 0.95, 0]],
+    [skin, [0.5, 0.35, 0.12], [-0.05, 0.75, 0.45]],
+    [skin, [0.5, 0.35, 0.12], [-0.05, 0.75, -0.45]],
+    [MAT.red, [0.34, 0.22, 0.14], [0.25, 1.76, 0]],
+    [MAT.red, [0.18, 0.16, 0.14], [0.05, 1.72, 0]],
+    [MAT.orange, [0.26, 0.14, 0.24], [0.7, 1.28, 0]],
+    [MAT.red, [0.1, 0.2, 0.12], [0.62, 1.1, 0]],
+    [MAT.black, [0.12, 0.16, 0.7], [0.6, 1.44, 0]],
+    [MAT.black, [0.05, 0.2, 0.26], [0.63, 1.43, 0.19]],
+    [MAT.black, [0.05, 0.2, 0.26], [0.63, 1.43, -0.19]],
+    [MAT.orange, [0.09, 0.4, 0.09], [0.05, 0.2, 0.18]],
+    [MAT.orange, [0.09, 0.4, 0.09], [0.05, 0.2, -0.18]],
+    [MAT.orange, [0.3, 0.05, 0.16], [0.14, 0.02, 0.18]],
+    [MAT.orange, [0.3, 0.05, 0.16], [0.14, 0.02, -0.18]],
+  ];
+  for (const [m, s, p] of parts) body.add(box(m, s, p));
+  body.add(box(new THREE.MeshBasicMaterial({ color: 0xffffff }), [0.02, 0.05, 0.1], [0.66, 1.48, 0.23], false));
+  return { root, body, skin };
+}
+
+/** Voxel fox head + shoulders, facing +Z (towards the camera). */
+export function makeFox() {
+  const g = new THREE.Group();
+  const white = MAT.cream, dark = std(0x7c2d12), nose = MAT.black;
+  const parts: [THREE.Material, number[], number[]][] = [
+    [MAT.fox, [0.9, 0.7, 0.8], [0, 0.35, 0]], // shoulders
+    [MAT.fox, [0.8, 0.62, 0.7], [0, 1.0, 0.05]], // head
+    [white, [0.5, 0.3, 0.36], [0, 0.85, 0.42]], // muzzle
+    [nose, [0.14, 0.12, 0.1], [0, 0.95, 0.62]],
+    [MAT.fox, [0.22, 0.34, 0.16], [-0.26, 1.46, 0.05]], // ears
+    [MAT.fox, [0.22, 0.34, 0.16], [0.26, 1.46, 0.05]],
+    [dark, [0.12, 0.2, 0.06], [-0.26, 1.46, 0.13]],
+    [dark, [0.12, 0.2, 0.06], [0.26, 1.46, 0.13]],
+    [white, [0.5, 0.36, 0.1], [0, 0.35, 0.42]], // chest
+  ];
+  for (const [m, s, p] of parts) g.add(box(m, s, p));
+  // evil eyes
+  const eye = new THREE.MeshBasicMaterial({ color: 0xffe066 });
+  g.add(box(eye, [0.14, 0.08, 0.04], [-0.2, 1.1, 0.41], false), box(eye, [0.14, 0.08, 0.04], [0.2, 1.1, 0.41], false));
+  g.add(box(nose, [0.05, 0.08, 0.05], [-0.2, 1.1, 0.43], false), box(nose, [0.05, 0.08, 0.05], [0.2, 1.1, 0.43], false));
+  return g;
+}
+
+const EGG_GEO = new THREE.SphereGeometry(0.5, 28, 20);
+export function makeEgg(color = 0xf4c430, glow = true) {
+  const mat = new THREE.MeshStandardMaterial({ color, metalness: glow ? 0.8 : 0.1, roughness: glow ? 0.18 : 0.5, emissive: glow ? 0x5a3f00 : 0x000000, emissiveIntensity: 0.6 });
+  const m = new THREE.Mesh(EGG_GEO, mat);
+  m.scale.set(1, 1.28, 1);
+  m.castShadow = true;
+  return m;
+}
+
+export function makeCoin(r = 0.35) {
+  const g = new THREE.Mesh(new THREE.CylinderGeometry(r, r, r * 0.22, 28), MAT.gold);
+  g.castShadow = true;
+  return g;
+}
+
+export function makeChip(color: number, r = 0.5) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(r, r, r * 0.22, 32), std(color, { roughness: 0.5 }));
+  body.castShadow = true;
+  g.add(body);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const stripe = box(MAT.cream, [r * 0.28, r * 0.23, r * 0.14], [Math.cos(a) * r * 0.9, 0, Math.sin(a) * r * 0.9], false);
+    stripe.rotation.y = -a;
+    g.add(stripe);
+  }
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(r * 0.6, r * 0.03, 6, 32), MAT.cream);
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = r * 0.115;
+  g.add(ring);
+  return g;
+}
+
+/** A cartoon rocket pointing along +X. */
+export function makeRocket() {
+  const g = new THREE.Group();
+  const bodyMat = std(0xf8f6ef, { metalness: 0.3, roughness: 0.35 });
+  const hull = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 2.2, 24), bodyMat);
+  hull.rotation.z = -Math.PI / 2;
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.45, 0.9, 24), MAT.red);
+  nose.rotation.z = -Math.PI / 2;
+  nose.position.x = 1.55;
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.47, 0.47, 0.25, 24), MAT.gold);
+  band.rotation.z = -Math.PI / 2;
+  band.position.x = 0.7;
+  const win = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.1, 20), MAT.glass);
+  win.rotation.x = Math.PI / 2;
+  win.position.set(0.3, 0.1, 0.44);
+  g.add(hull, nose, band, win);
+  for (const a of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+    const fin = box(MAT.red, [0.6, 0.06, 0.5], [-0.95, Math.sin(a) * 0.55, Math.cos(a) * 0.55]);
+    fin.rotation.x = a;
+    g.add(fin);
+  }
+  const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 0.3, 20), MAT.black);
+  nozzle.rotation.z = -Math.PI / 2;
+  nozzle.position.x = -1.2;
+  g.add(nozzle);
+  g.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true; });
+  return g;
+}
+
+/** Canvas texture with centred text (Montserrat 900). */
+export function textTexture(text: string, o: { w?: number; h?: number; size?: number; color?: string; bg?: string; stroke?: string; radius?: number } = {}) {
+  const w = o.w ?? 256, h = o.h ?? 128;
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  const draw = () => {
+    const g = c.getContext('2d')!;
+    g.clearRect(0, 0, w, h);
+    if (o.bg) {
+      g.fillStyle = o.bg;
+      const r = o.radius ?? 18;
+      g.beginPath(); g.moveTo(r, 0); g.arcTo(w, 0, w, h, r); g.arcTo(w, h, 0, h, r); g.arcTo(0, h, 0, 0, r); g.arcTo(0, 0, w, 0, r); g.fill();
+    }
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    let size = o.size ?? h * 0.55;
+    g.font = `900 ${size}px Montserrat, system-ui, sans-serif`;
+    while (g.measureText(text).width > w * 0.9 && size > 8) { size -= 2; g.font = `900 ${size}px Montserrat, system-ui, sans-serif`; }
+    if (o.stroke) { g.lineWidth = size * 0.14; g.strokeStyle = o.stroke; g.strokeText(text, w / 2, h / 2 + size * 0.04); }
+    g.fillStyle = o.color ?? '#0B0B0B';
+    g.fillText(text, w / 2, h / 2 + size * 0.04);
+    tex.needsUpdate = true;
+  };
+  draw();
+  document.fonts?.ready.then(draw);
+  return tex;
+}
+
+export function labelPlane(tex: THREE.Texture, w: number, h: number) {
+  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
+}
+
+/** Soft radial glow sprite. */
+export function glowSprite(color: string, size: number, opacity = 0.6) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d')!;
+  const grd = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grd.addColorStop(0, color); grd.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending }));
+  s.scale.set(size, size, 1);
+  return s;
+}
+
+export function starField(count = 600, spread = 120, size = 0.18) {
+  const pos = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    pos[i * 3] = (Math.random() - 0.5) * spread;
+    pos[i * 3 + 1] = (Math.random() - 0.3) * spread * 0.6;
+    pos[i * 3 + 2] = -10 - Math.random() * spread * 0.5;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  return new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size, sizeAttenuation: true, transparent: true, opacity: 0.8, depthWrite: false }));
+}

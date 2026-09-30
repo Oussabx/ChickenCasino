@@ -6,13 +6,12 @@ import { useStore } from '../store';
 import { rand } from '../lib/rng';
 import { sfx } from '../lib/sound';
 import { fmt, fmtMult } from '../lib/format';
-import { Egg } from '../components/Icons';
+import { DiceScene } from './three/dice3d';
 
 export default function CluckDice() {
   const [bet, setBet] = useState(useStore.getState().settings.defaultBet);
   const [target, setTarget] = useState(50.5);
   const [over, setOver] = useState(true);
-  const [roll, setRoll] = useState<number | null>(null);
   const [shown, setShown] = useState(0);
   const [won, setWon] = useState<boolean | null>(null);
   const [rolling, setRolling] = useState(false);
@@ -21,6 +20,15 @@ export default function CluckDice() {
   const [autoCount, setAutoCount] = useState(10);
   const [autoLeft, setAutoLeft] = useState(0);
   const seq = useRef(0);
+
+  const hostRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<DiceScene | null>(null);
+  useEffect(() => {
+    const sc = new DiceScene(hostRef.current!);
+    sceneRef.current = sc;
+    return () => { sc.dispose(); sceneRef.current = null; };
+  }, []);
+  useEffect(() => { sceneRef.current?.setTarget(target, over); }, [target, over]);
 
   const chance = over ? 100 - target : target;
   const mult = Math.floor((99 / chance) * 10000) / 10000;
@@ -33,7 +41,8 @@ export default function CluckDice() {
     const w = over ? r > target : r < target;
     setRolling(true); setWon(null);
     const turbo = useStore.getState().settings.turbo;
-    const dur = turbo ? 180 : 520;
+    const dur = turbo ? 280 : 950;
+    sceneRef.current?.roll(r, w, dur);
     const t0 = performance.now();
     const from = shown;
     const anim = (now: number) => {
@@ -42,7 +51,7 @@ export default function CluckDice() {
       setShown(from + (r - from) * e);
       if (k < 1) requestAnimationFrame(anim);
       else {
-        setShown(r); setRoll(r); setWon(w); setRolling(false);
+        setShown(r); setWon(w); setRolling(false);
         useStore.getState().settle('cluck-dice', bet, w ? mult : 0, `Roll ${r.toFixed(2)} ${over ? '>' : '<'} ${target}`);
         w ? sfx.win() : sfx.lose();
         setRecent((l) => [{ v: r, w, id: ++seq.current }, ...l].slice(0, 10));
@@ -67,6 +76,32 @@ export default function CluckDice() {
     <>
       <Seg options={['manual', 'auto'] as const} value={mode} onChange={setMode} disabled={autoLeft > 0} render={(v) => (v === 'manual' ? 'Manual' : 'Auto')} />
       <BetControls value={bet} onChange={setBet} disabled={autoLeft > 0} />
+        <div className="space-y-3">
+          <div className="relative rounded-2xl bg-ink-900 p-4 border border-white/5">
+            <div className="relative h-10">
+              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-3 rounded-full overflow-hidden flex">
+                <div className={over ? 'bg-blood' : 'bg-emerald-500'} style={{ width: `${target}%` }} />
+                <div className={`flex-1 ${over ? 'bg-emerald-500' : 'bg-blood'}`} />
+              </div>
+              <input type="range" min={2} max={98} step={0.5} value={target} disabled={rolling || autoLeft > 0}
+                onChange={(e) => { setTarget(+e.target.value); sfx.tick(); }} className="range absolute inset-0 h-10" aria-label="Target" />
+
+            </div>
+            <div className="mt-1 flex justify-between text-[10px] font-bold text-smoke tabular"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <Field label="Multiplier" value={mult.toFixed(4)} suffix="×" onChange={(v) => setChance(99 / Math.max(1.0102, v))} disabled={rolling} />
+            <div>
+              <div className="label mb-1">{over ? 'Roll over' : 'Roll under'}</div>
+              <button onClick={() => { setOver((o) => !o); setTarget((t) => +(100 - t).toFixed(2)); sfx.click(); }} disabled={rolling}
+                className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-ink-900 px-3 py-2.5 font-display font-bold tabular hover:border-gold/50">
+                {target.toFixed(2)} <ArrowLeftRight size={14} className="text-gold" />
+              </button>
+            </div>
+            <Field label="Win chance" value={chance.toFixed(2)} suffix="%" onChange={setChance} disabled={rolling} />
+          </div>
+        </div>
+
       <div className="rounded-xl bg-ink-900 p-3 flex justify-between items-center">
         <span className="label">Profit on win</span>
         <span className="font-display font-black text-emerald-400 tabular">+{fmt(bet * mult - bet)}</span>
@@ -87,7 +122,6 @@ export default function CluckDice() {
     </>
   );
 
-  const pos = roll ?? 50;
 
   return (
     <GameShell id="cluck-dice" controls={controls} rules={[
@@ -96,54 +130,24 @@ export default function CluckDice() {
       'A random number between 0.00 and 100.00 is rolled.',
       'Land on the green side of the target to win bet × multiplier.',
     ]}>
+      <div ref={hostRef} className="absolute inset-0" aria-hidden />
       <div className="absolute inset-0 flex flex-col p-4 sm:p-8">
         <div className="flex gap-1.5 justify-end min-h-[28px]">
           {recent.map((r) => (
             <span key={r.id} className={`chip animate-pop tabular ${r.w ? 'bg-emerald-500/15 text-emerald-300' : 'bg-ink-600 text-smoke'}`}>{r.v.toFixed(2)}</span>
           ))}
         </div>
-        <div className="flex-1 grid place-items-center">
-          <div className="text-center">
-            <div className={`h-display text-7xl sm:text-9xl tabular transition-colors ${won === null ? 'text-cream' : won ? 'text-emerald-400 drop-shadow-[0_0_30px_rgba(16,185,129,.5)]' : 'text-blood neon-red'}`}>
-              {shown.toFixed(2)}
-            </div>
-            <div className="mt-2 h-6 font-display font-bold tracking-widest text-sm">
-              {won === true && <span className="text-emerald-400 animate-pop inline-block">WINNER · {fmtMult(mult)}</span>}
-              {won === false && <span className="text-smoke animate-pop inline-block">SO CLOSE. CLUCK AGAIN?</span>}
-            </div>
+        <div className="pointer-events-none text-center">
+          <div className={`h-display text-5xl sm:text-7xl tabular transition-colors drop-shadow-[0_4px_20px_rgba(0,0,0,.8)] ${won === null ? 'text-cream' : won ? 'text-emerald-400' : 'text-blood neon-red'}`}>
+            {shown.toFixed(2)}
+          </div>
+          <div className="mt-1 h-6 font-display font-bold tracking-widest text-sm">
+            {won === true && <span className="text-emerald-400 animate-pop inline-block">WINNER · {fmtMult(mult)}</span>}
+            {won === false && <span className="text-smoke animate-pop inline-block">SO CLOSE. CLUCK AGAIN?</span>}
           </div>
         </div>
+        <div className="flex-1" />
 
-        <div className="mx-auto w-full max-w-2xl">
-          <div className="relative rounded-2xl bg-ink-700/80 p-4 sm:p-5 border border-white/5">
-            <div className="relative h-10">
-              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-3 rounded-full overflow-hidden flex">
-                <div className={over ? 'bg-blood' : 'bg-emerald-500'} style={{ width: `${target}%` }} />
-                <div className={`flex-1 ${over ? 'bg-emerald-500' : 'bg-blood'}`} />
-              </div>
-              <input type="range" min={2} max={98} step={0.5} value={target} disabled={rolling || autoLeft > 0}
-                onChange={(e) => { setTarget(+e.target.value); sfx.tick(); }} className="range absolute inset-0 h-10" aria-label="Target" />
-              {roll !== null && (
-                <div className="pointer-events-none absolute -top-9 -translate-x-1/2 transition-all duration-500" style={{ left: `${pos}%` }}>
-                  <div className={`rounded-md px-1.5 py-0.5 text-[11px] font-black text-ink ${won ? 'bg-emerald-400' : 'bg-blood text-white'}`}>{roll.toFixed(2)}</div>
-                  <Egg className="mx-auto h-5 w-5" />
-                </div>
-              )}
-            </div>
-            <div className="mt-1 flex justify-between text-[10px] font-bold text-smoke tabular"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
-          </div>
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            <Field label="Multiplier" value={mult.toFixed(4)} suffix="×" onChange={(v) => setChance(99 / Math.max(1.0102, v))} disabled={rolling} />
-            <div>
-              <div className="label mb-1">{over ? 'Roll over' : 'Roll under'}</div>
-              <button onClick={() => { setOver((o) => !o); setTarget((t) => +(100 - t).toFixed(2)); sfx.click(); }} disabled={rolling}
-                className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-ink-900 px-3 py-2.5 font-display font-bold tabular hover:border-gold/50">
-                {target.toFixed(2)} <ArrowLeftRight size={14} className="text-gold" />
-              </button>
-            </div>
-            <Field label="Win chance" value={chance.toFixed(2)} suffix="%" onChange={setChance} disabled={rolling} />
-          </div>
-        </div>
       </div>
     </GameShell>
   );
