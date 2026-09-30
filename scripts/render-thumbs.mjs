@@ -11,7 +11,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, rmSync } from 'node:fs';
 
 const BASE = process.env.BASE ?? 'http://localhost:4173';
-const GAMES = ['chicken-cross', 'crash', 'plinko', 'egg-hunt', 'cluck-dice', 'golden-wheel'];
+const GAMES = (process.env.GAMES ?? 'chicken-cross,crash,plinko,egg-hunt,cluck-dice,golden-wheel,blackjack,roulette,baccarat,punto-banco,poker,video-poker').split(',');
 const SHAPES = { sq: { width: 900, height: 900 }, wide: { width: 1200, height: 900 } };
 const tmp = '.thumbs-tmp';
 mkdirSync(tmp, { recursive: true });
