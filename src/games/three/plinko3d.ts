@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Stage3D } from './stage';
-import { MAT, box, glowSprite, labelPlane, makeChip, makeEgg, std, textTexture } from './models';
+import { MAT, box, glowSprite, labelPlane, makeChicken, makeChip, makeEgg, std, textTexture } from './models';
 
 interface Ball {
   id: number;
@@ -35,6 +35,11 @@ export class PlinkoScene extends Stage3D {
   private ballColor = new THREE.Color(0xf4c430);
   private pegGeo = new THREE.CylinderGeometry(PEG_R, PEG_R, 0.3, 16);
   private capGeo = new THREE.SphereGeometry(PEG_R * 1.25, 16, 12);
+  /** The hen that lays each egg at the top of the board. */
+  private hen = makeChicken('#F8F6EF');
+  private lay = 0;
+  private auto = false;
+  private grow = 1; // board pop-in progress after a difficulty change
 
   constructor(host: HTMLElement) {
     super(host, { fov: 34, bg: 0x0d0a08 });
@@ -49,12 +54,20 @@ export class PlinkoScene extends Stage3D {
     const red = glowSprite('rgba(230,57,70,0.6)', 26, 0.25);
     red.position.set(0, -12, -3);
     this.scene.add(red);
+    // the dropper hen, facing the camera
+    this.hen.root.rotation.y = -Math.PI / 2;
+    this.hen.root.scale.setScalar(0.75);
+    this.scene.add(this.hen.root);
   }
+
+  setAuto(on: boolean) { this.auto = on; }
 
   setBallColor(hex: string) { this.ballColor.set(hex); }
 
   setBoard(rows: number, mults: number[]) {
+    const changed = rows !== this.rows;
     this.rows = rows;
+    if (changed) this.grow = 0;
     this.board.clear();
     this.pegs = []; this.pegGlow = []; this.buckets = [];
     const n = rows;
@@ -123,13 +136,14 @@ export class PlinkoScene extends Stage3D {
 
   protected onResize() {
     if (!this.pegs) return; // called from the base constructor before fields exist
-    const n = this.rows;
+    // Frame for the biggest (16-row) board so smaller difficulties look physically
+    // smaller, but centre on the current board.
+    const n = this.rows, N = 16;
     const bottomY = -n * VS - 0.2;
-    const H = -bottomY + 2;
-    const fw = (n + 2) * S + 1.4, fh = H + 1.2, cy = bottomY / 2 + 0.6;
-    // include the chip stacks on the sides on wide screens only
+    const cy = bottomY / 2 + 1.1;
+    const fw = (N + 2) * S + 1.4, fh = N * VS + 2.2 + 2.2;
     const w = this.aspect > 1 ? fw + 3.6 : fw + 0.4;
-    this.frame(new THREE.Vector3(0, cy, 0), w, fh + 0.4, new THREE.Vector3(this.aspect > 1 ? 0.28 : 0.12, 0.16, 1), this.aspect > 1 ? 1.12 : 1.04);
+    this.frame(new THREE.Vector3(0, cy, 0), w, fh + 0.4, new THREE.Vector3(this.aspect > 1 ? 0.28 : 0.12, 0.16, 1), this.aspect > 1 ? 1.06 : 1.02);
   }
 
   drop(id: number, path: number[], cb: { onPeg: (row: number) => void; onLand: () => void }) {
@@ -141,6 +155,7 @@ export class PlinkoScene extends Stage3D {
     glow.scale.set(1.4 / mesh.scale.x, 1.4 / mesh.scale.y, 1);
     this.scene.add(mesh);
     this.balls.push({ id, path, rows: this.rows, start: performance.now(), mesh, glow, hits: new Set(), done: false, onPeg: cb.onPeg, onLand: cb.onLand });
+    this.lay = 1;
   }
 
   private contact(b: Ball, r: number) {
@@ -151,6 +166,21 @@ export class PlinkoScene extends Stage3D {
   }
 
   protected update(dt: number, t: number) {
+    // hen: sits above the first peg, bobs (faster in auto mode) and squats to lay
+    const top = PEG_R + BALL_R + 1.35;
+    this.lay = Math.max(0, this.lay - dt * 5);
+    const bob = Math.abs(Math.sin(t * (this.auto ? 9 : 3))) * (this.auto ? 0.12 : 0.06);
+    this.hen.root.position.set(0, top + 0.1 + bob - this.lay * 0.18, 0.1);
+    this.hen.body.scale.set(1 + this.lay * 0.2, 1 - this.lay * 0.25, 1 + this.lay * 0.2);
+    this.hen.body.rotation.y = this.auto ? Math.sin(t * 6) * 0.25 : Math.sin(t * 1.2) * 0.15;
+
+    // board pops in after a difficulty change
+    if (this.grow < 1) {
+      this.grow = Math.min(1, this.grow + dt * 2.2);
+      const g = this.grow, e = 1 + 2.70158 * Math.pow(g - 1, 3) + 1.70158 * Math.pow(g - 1, 2);
+      this.board.scale.setScalar(0.6 + 0.4 * e);
+    }
+
     const seg = this.turbo ? 0.06 : 0.11;
     const now = performance.now();
     for (const b of this.balls) {
@@ -158,7 +188,7 @@ export class PlinkoScene extends Stage3D {
       const pos = new THREE.Vector3();
       if (s < 1) {
         const p0 = this.contact(b, 0);
-        pos.set(p0.x, p0.y + 1.6 * (1 - s * s), 0.1);
+        pos.set(p0.x, p0.y + 1.35 * (1 - s * s), 0.1);
       } else if (s < b.rows + 1) {
         const r = Math.floor(s) - 1, k = s - Math.floor(s);
         if (!b.hits.has(r)) {

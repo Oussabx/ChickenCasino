@@ -19,6 +19,9 @@ export abstract class Stage3D {
   protected turbo = false;
   /** Where the camera sits before shake/parallax, and what it looks at. */
   protected baseCam = { pos: new THREE.Vector3(0, 0, 10), look: new THREE.Vector3() };
+  /** Where the camera is easing towards; `frame()` sets it. */
+  private camGoal = { pos: new THREE.Vector3(0, 0, 10), look: new THREE.Vector3() };
+  private camReady = false;
   protected parallax = 0.35;
   protected key: THREE.DirectionalLight;
   private ro: ResizeObserver;
@@ -77,9 +80,11 @@ export abstract class Stage3D {
 
   get aspect() { return this.camera.aspect; }
 
+  private snapNext = false;
   protected resize() {
     const w = this.host.clientWidth, h = this.host.clientHeight;
     if (!w || !h) return;
+    this.snapNext = true;
     this.renderer.setSize(w, h, false);
     this.renderer.domElement.style.width = `${w}px`;
     this.renderer.domElement.style.height = `${h}px`;
@@ -109,6 +114,9 @@ export abstract class Stage3D {
       sx = (Math.random() - 0.5) * this.shake;
       sy = (Math.random() - 0.5) * this.shake;
     }
+    const ease = 1 - Math.exp(-dt * 5);
+    this.baseCam.pos.lerp(this.camGoal.pos, ease);
+    this.baseCam.look.lerp(this.camGoal.look, ease);
     const { pos, look } = this.baseCam;
     this.camera.position.set(pos.x + p.x * this.parallax * 2 + sx, pos.y - p.y * this.parallax + sy, pos.z);
     this.camera.lookAt(look);
@@ -158,8 +166,15 @@ export abstract class Stage3D {
     const distH = (height * margin) / 2 / Math.tan(vFov / 2);
     const distW = (width * margin) / 2 / Math.tan(vFov / 2) / this.camera.aspect;
     const d = Math.max(distH, distW);
-    this.baseCam.pos.copy(center).addScaledVector(dir.clone().normalize(), d);
-    this.baseCam.look.copy(center);
+    this.camGoal.pos.copy(center).addScaledVector(dir.clone().normalize(), d);
+    this.camGoal.look.copy(center);
+    // first framing (and resizes) snap; later re-framing glides
+    if (!this.camReady || this.snapNext) {
+      this.baseCam.pos.copy(this.camGoal.pos);
+      this.baseCam.look.copy(this.camGoal.look);
+      this.camReady = true;
+      this.snapNext = false;
+    }
   }
 
   /** Point the camera at a region (used for posed screenshots). */
