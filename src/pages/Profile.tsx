@@ -30,7 +30,7 @@ export default function Profile() {
   const ACH = [
     { t: 'First Peck', d: 'Play your first round', ok: s.stats.rounds >= 1 },
     { t: 'Regular', d: 'Play 100 rounds', ok: s.stats.rounds >= 100 },
-    { t: 'Coop Tourist', d: 'Play all 6 games', ok: played.size >= 6 },
+    { t: 'Coop Tourist', d: 'Play 6 different games', ok: played.size >= 6 },
     { t: 'Double Yolk', d: 'Hit a 10× multiplier', ok: s.stats.biggestMult >= 10 },
     { t: 'Golden Goose', d: 'Hit a 100× multiplier', ok: s.stats.biggestMult >= 100 },
     { t: 'Big Cluckin’ Win', d: 'Win 10,000+ in one round', ok: s.stats.biggestWin >= 10000 },

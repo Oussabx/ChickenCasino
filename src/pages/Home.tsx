@@ -71,7 +71,7 @@ export default function Home() {
         <Reveal as="section" className="card p-5 sm:p-6">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-xl sm:text-2xl font-extrabold">Featured Games</h2>
-            <Link to="/games" className="text-xs font-semibold text-gold hover:underline flex items-center gap-1">View all <ChevronRight size={14} /></Link>
+            <Link to="/games" className="shrink-0 whitespace-nowrap py-2 text-xs font-semibold text-gold hover:underline flex items-center gap-1">View all <ChevronRight size={14} /></Link>
           </div>
           <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
             {GAMES.filter((g) => g.category === 'original').map((g, i) => <Reveal key={g.id} variant="zoom" delay={i * 70}><GameCard g={g} /></Reveal>)}
@@ -99,7 +99,7 @@ export default function Home() {
           <Reveal as="section" variant="right" delay={120} className="card p-5">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-lg font-extrabold">Popular Tournaments</h2>
-              <Link to="/tournaments" className="text-xs font-semibold text-gold hover:underline">View all</Link>
+              <Link to="/tournaments" className="shrink-0 whitespace-nowrap py-2 text-xs font-semibold text-gold hover:underline">View all</Link>
             </div>
             <div className="mt-4 rounded-2xl bg-ink-700/60 border border-white/5 p-4">
               <div className="flex items-center gap-3">
@@ -148,7 +148,7 @@ export default function Home() {
             <h2 className="font-display text-xl sm:text-2xl font-extrabold">Casino Tables</h2>
             <p className="text-xs text-smoke">Blackjack, roulette, baccarat and poker — dealt in 3D.</p>
           </div>
-          <Link to="/games" className="text-xs font-semibold text-gold hover:underline flex items-center gap-1">View all <ChevronRight size={14} /></Link>
+          <Link to="/games" className="shrink-0 whitespace-nowrap py-2 text-xs font-semibold text-gold hover:underline flex items-center gap-1">View all <ChevronRight size={14} /></Link>
         </div>
         <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
           {GAMES.filter((g) => g.category === 'table').map((g, i) => <Reveal key={g.id} variant="zoom" delay={i * 60}><GameCard g={g} /></Reveal>)}

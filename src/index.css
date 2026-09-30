@@ -72,9 +72,9 @@ input[type='range'].range::-webkit-slider-runnable-track { height: 8px; border-r
 input[type='range'].range::-moz-range-track { height: 8px; background: transparent; }
 
 /* ---------- motion ---------- */
-.reveal { transition: opacity .7s cubic-bezier(.2,.8,.2,1), transform .8s cubic-bezier(.2,.8,.2,1), filter .7s ease; }
-.reveal:not(.is-in) { opacity: 0; filter: blur(6px); }
-.reveal-up:not(.is-in) { transform: translate3d(0, 36px, 0) scale(.98); }
+.reveal { transition: opacity .45s cubic-bezier(.2,.8,.2,1), transform .55s cubic-bezier(.2,.8,.2,1), filter .45s ease; }
+.reveal:not(.is-in) { opacity: 0; filter: blur(3px); }
+.reveal-up:not(.is-in) { transform: translate3d(0, 22px, 0) scale(.99); }
 .reveal-zoom:not(.is-in) { transform: perspective(900px) rotateX(14deg) scale(.92); }
 .reveal-left:not(.is-in) { transform: translate3d(-40px, 0, 0); }
 .reveal-right:not(.is-in) { transform: translate3d(40px, 0, 0); }

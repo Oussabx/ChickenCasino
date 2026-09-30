@@ -119,12 +119,12 @@ export function Reveal({ children, className = '', delay = 0, as: Tag = 'div', v
   useEffect(() => {
     const el = ref.current;
     if (!el || !ok) return setShown(true);
-    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setShown(true); io.disconnect(); } }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setShown(true); io.disconnect(); } }, { rootMargin: '0px 0px 12% 0px', threshold: 0 });
     io.observe(el);
     return () => io.disconnect();
   }, [ok]);
   return (
-    <Tag ref={ref} className={`reveal reveal-${variant} ${shown ? 'is-in' : ''} ${className}`} style={{ transitionDelay: shown ? `${delay}ms` : '0ms' }}>
+    <Tag ref={ref} className={`reveal reveal-${variant} ${shown ? 'is-in' : ''} ${className}`} style={{ transitionDelay: shown ? `${Math.min(delay, 240)}ms` : '0ms' }}>
       {children}
     </Tag>
   );

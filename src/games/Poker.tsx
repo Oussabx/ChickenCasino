@@ -9,6 +9,8 @@ import { Card, HAND_NAMES, Shoe, bestHand } from '../lib/cards';
 import { BOT_ROSTER, Game, PotResult, Seat, act, alive, botDecision, inHand, legal, nextStreet, pot, returnUncalled, roundOver, showdown, startHand } from '../lib/holdem';
 import { Card3D, TableScene } from './three/table3d';
 import { Anchor, ResultBanner } from '../components/TableUI';
+import Avatar from '../components/Avatar';
+import { usePhoneLayout } from '../lib/phone';
 
 /* Texas Hold'em (no limit) against chicken bots. The chicken croupier deals but never plays. */
 
@@ -41,6 +43,9 @@ export default function Poker() {
   const [results, setResults] = useState<PotResult[]>([]);
   const [session, setSession] = useState({ hands: 0, net: 0, biggest: 0 });
   const [countdown, setCountdown] = useState(0);
+  const phoneUI = usePhoneLayout().phone;
+  // small views get crisp 2D cards on top of the 3D ones so they stay readable
+  const [compact, setCompact] = useState(false);
 
   const hostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<TableScene | null>(null);
@@ -72,7 +77,7 @@ export default function Poker() {
   }, [portrait]);
   useEffect(() => {
     const el = hostRef.current!;
-    const ro = new ResizeObserver(() => { if (!inHandRef.current) setPortrait(el.clientHeight > el.clientWidth * 1.05); });
+    const ro = new ResizeObserver(() => { setCompact(el.clientWidth < 760); if (!inHandRef.current) setPortrait(el.clientHeight > el.clientWidth * 1.05); });
     ro.observe(el);
     return () => { ro.disconnect(); alivePage.current = false; decide.current = null; };
   }, []);
@@ -335,8 +340,8 @@ export default function Poker() {
   const step = (dir: number) => setRaiseTo(clampRaise(raiseTo + dir * (g?.bb ?? 1)));
   const raisePanel = L && raiseOpen && L.canRaise ? (
     <div className="rounded-xl border border-gold/25 bg-ink-900/95 p-3">
+      <div className="label mb-1.5">{L.isBet ? 'Bet amount' : 'Raise to'}</div>
       <div className="flex items-center gap-2">
-        <span className="label shrink-0">{L.isBet ? 'Bet' : 'Raise to'}</span>
         <button type="button" className="btn-dark h-9 w-9 shrink-0 !p-0 text-lg" onClick={() => step(-1)} aria-label="Less">−</button>
         <input type="text" inputMode="decimal" aria-label="Raise amount" value={raiseText}
           onChange={(e) => typed(e.target.value)} onBlur={() => setRaiseTo(raiseTo)}
@@ -345,7 +350,7 @@ export default function Poker() {
         <button type="button" className="btn-dark h-9 w-9 shrink-0 !p-0 text-lg" onClick={() => step(1)} aria-label="More">+</button>
       </div>
       <input type="range" className="mt-2 w-full accent-[#F4C430]" min={L.minTo} max={L.maxTo} step={Math.max(0.01, Math.min(g!.sb, (L.maxTo - L.minTo) / 400))} value={raiseTo} onChange={(e) => setRaiseTo(clampRaise(+e.target.value))} aria-label="Raise slider" />
-      <div className="mt-1 flex justify-between text-[10px] text-smoke tabular"><span>min {fmt(L.minTo)}</span><span>max {fmt(L.maxTo)}</span></div>
+      <div className="phone-hide mt-1 flex justify-between text-[10px] text-smoke tabular"><span>min {fmt(L.minTo)}</span><span>max {fmt(L.maxTo)}</span></div>
       <div className="mt-2 grid grid-cols-5 gap-1">
         {presets.map(([l, v]) => (
           <button key={l} type="button" onClick={() => setRaiseTo(v)} className={`rounded-lg py-1.5 text-[11px] font-bold transition ${raiseTo === v ? 'bg-gold text-ink' : 'bg-ink-700 text-smoke hover:text-cream'}`}>{l}</button>
@@ -378,7 +383,7 @@ export default function Poker() {
 
   const controls = (
     <>
-      <div className={phase === 'lobby' ? '' : 'pointer-events-none opacity-50'}>
+      <div className={phase === 'lobby' ? '' : phoneUI ? 'hidden' : 'pointer-events-none opacity-50'}>
         <div className="label mb-1.5">Blinds</div>
         <Seg options={STAKES.map((_, i) => i)} value={stakeIdx} onChange={setStakeIdx} render={(i) => `${STAKES[i][0]}/${STAKES[i][1]}`} />
         <div className="label mb-1.5 mt-3">Players at the table</div>
@@ -437,6 +442,20 @@ export default function Poker() {
           <span className={`whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-black shadow-lg ${myHand.score[0] >= 1 ? 'bg-gold text-ink' : 'bg-black/75 text-cream'}`}>{myHand.name}</span>
         </Anchor>
       )}
+      {compact && g && scene && phase !== 'lobby' && phase !== 'joining' && (
+        <>
+          {me && me.hole.length === 2 && !me.folded && (
+            <Anchor scene={scene} at={[seatGeo(scene, 0).cards.x, 0.3, seatGeo(scene, 0).cards.z]}>
+              <div className="flex gap-1">{me.hole.map((c, k) => <BigCard key={k} c={c} size="lg" />)}</div>
+            </Anchor>
+          )}
+          {g.board.length > 0 && (
+            <Anchor scene={scene} at={[0, 0.3, portrait ? 0.2 : -0.35]}>
+              <div className="flex gap-1">{g.board.map((c, k) => <BigCard key={k} c={c} size="md" />)}</div>
+            </Anchor>
+          )}
+        </>
+      )}
       {outcome && <ResultBanner key={g?.handNo} tone={outcome.tone} title={outcome.title} sub={outcome.sub} amount={outcome.amount} big={outcome.amount >= (g?.bb ?? 1) * 50} />}
       {phase === 'lobby' && (
         <div className="absolute inset-0 z-10 grid place-items-center p-4">
@@ -476,11 +495,11 @@ function SeatPod({ seat, dealer, active, winner, shown }: { seat: Seat; dealer: 
   return (
     <div className={`animate-pop relative flex items-center gap-1.5 whitespace-nowrap rounded-full border py-1 pl-1 pr-2.5 shadow-xl backdrop-blur-md transition-all duration-300 sm:gap-2 sm:pr-3 ${winner ? 'border-gold bg-gradient-to-b from-gold-300/90 to-gold/90 text-ink shadow-gold' : active ? 'border-gold bg-black/85 text-cream ring-2 ring-gold/60' : 'border-white/15 bg-black/75 text-cream'} ${out && !winner ? 'opacity-45' : ''} ${seat.human ? 'scale-110' : ''}`}>
       <span className={`relative grid h-7 w-7 place-items-center rounded-full text-base sm:h-9 sm:w-9 sm:text-lg ${seat.human ? 'bg-gold/25' : 'bg-white/10'}`}>
-        {seat.avatar}
+        {seat.human ? <Avatar size={36} className="!h-full !w-full" /> : seat.avatar}
         {active && <span className="absolute inset-0 animate-ping rounded-full ring-2 ring-gold" />}
       </span>
       <span className="flex flex-col leading-tight">
-        <span className="max-w-[80px] truncate text-[10px] font-bold sm:text-[11px]">{seat.human ? 'You' : seat.name}</span>
+        <span className="flex max-w-[96px] items-center gap-1 truncate text-[10px] font-bold sm:text-[11px]">{seat.human && <span className="rounded bg-gold px-1 text-[8px] font-black leading-3 text-ink">YOU</span>}<span className="truncate">{seat.name}</span></span>
         <span className={`font-display text-[11px] font-black tabular sm:text-xs ${winner ? '' : 'text-gold'}`}>{seat.allIn && !out ? 'ALL-IN' : fmt(seat.stack, 0)}</span>
       </span>
       {dealer && <span className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-cream text-[8px] font-black text-ink shadow">D</span>}
@@ -499,4 +518,18 @@ function SeatPod({ seat, dealer, active, winner, shown }: { seat: Seat; dealer: 
 function MiniCard({ c }: { c: Card }) {
   const red = c.s === 'H' || c.s === 'D';
   return <span className={`rounded bg-cream px-1 text-[10px] font-black leading-4 shadow ${red ? 'text-[#C8102E]' : 'text-ink'}`}>{c.r <= 10 ? c.r : 'JQKA'[c.r - 11]}{{ S: '♠', H: '♥', D: '♦', C: '♣' }[c.s]}</span>;
+}
+
+/** Crisp 2D card used over the 3D table on small screens. */
+function BigCard({ c, size }: { c: Card; size: 'md' | 'lg' }) {
+  const red = c.s === 'H' || c.s === 'D';
+  const rank = c.r <= 10 ? String(c.r) : 'JQKA'[c.r - 11];
+  const suit = { S: '♠', H: '♥', D: '♦', C: '♣' }[c.s];
+  const dims = size === 'lg' ? 'h-[62px] w-11 text-base' : 'h-[50px] w-9 text-sm';
+  return (
+    <span className={`animate-pop relative flex flex-col items-center justify-center rounded-md border border-black/10 bg-gradient-to-b from-white to-[#f1ede2] font-display font-black leading-none shadow-lg ${dims} ${red ? 'text-[#C8102E]' : 'text-ink'}`}>
+      <span>{rank}</span>
+      <span className={size === 'lg' ? 'text-xl' : 'text-lg'}>{suit}</span>
+    </span>
+  );
 }

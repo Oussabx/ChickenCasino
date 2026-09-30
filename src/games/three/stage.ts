@@ -29,17 +29,33 @@ export abstract class Stage3D {
   private last = performance.now();
   private pointer = { x: 0, y: 0, tx: 0, ty: 0 };
   private onPointer = (e: PointerEvent) => {
-    const r = this.host.getBoundingClientRect();
-    this.pointer.tx = ((e.clientX - r.left) / r.width) * 2 - 1;
-    this.pointer.ty = ((e.clientY - r.top) / r.height) * 2 - 1;
+    const n = this.toNdc(e, this.host);
+    this.pointer.tx = n.x;
+    this.pointer.ty = -n.y;
   };
+
+  /**
+   * Client (screen) coordinates → normalised device coordinates for `el`.
+   * Handles the phone "rotated landscape" mode, where the whole game is
+   * turned 90° clockwise with CSS while the phone is held upright.
+   */
+  protected toNdc(e: { clientX: number; clientY: number }, el: Element = this.renderer.domElement) {
+    const r = el.getBoundingClientRect();
+    if (document.documentElement.dataset.gameRotated === '1') {
+      // rotate(90deg): local x runs down the screen, local y runs right-to-left
+      const w = r.height, h = r.width;
+      const lx = e.clientY - r.top, ly = r.right - e.clientX;
+      return new THREE.Vector2((lx / w) * 2 - 1, -(ly / h) * 2 + 1);
+    }
+    return new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  }
   private onLeave = () => { this.pointer.tx = 0; this.pointer.ty = 0; };
 
   constructor(host: HTMLElement, opts: { fov?: number; bg?: number; fog?: [number, number] } = {}) {
     this.host = host;
     this.camera = new THREE.PerspectiveCamera(opts.fov ?? 38, 1, 0.1, 500);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: false });
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio > 2 ? 2.5 : 2, window.devicePixelRatio || 1));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -138,7 +154,11 @@ export abstract class Stage3D {
     const w = this.host.clientWidth, h = this.host.clientHeight, v = new THREE.Vector3();
     this.anchors.forEach((p, el) => {
       v.copy(p).project(this.camera);
-      el.style.transform = `translate3d(${(((v.x + 1) / 2) * w).toFixed(1)}px, ${(((1 - v.y) / 2) * h).toFixed(1)}px, 0) translate(-50%, -50%)`;
+      // keep labels fully inside the view (seats near the edges would otherwise be cut off)
+      const hw = el.offsetWidth / 2 + 4, hh = el.offsetHeight / 2 + 4;
+      const x = Math.min(w - hw, Math.max(hw, ((v.x + 1) / 2) * w));
+      const y = Math.min(h - hh, Math.max(hh, ((1 - v.y) / 2) * h));
+      el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, -50%)`;
     });
   }
 
@@ -170,8 +190,7 @@ export abstract class Stage3D {
 
   /** Raycast from a DOM pointer event against `objects`. */
   pick(e: { clientX: number; clientY: number }, objects: THREE.Object3D[]) {
-    const r = this.renderer.domElement.getBoundingClientRect();
-    const ndc = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    const ndc = this.toNdc(e);
     const ray = new THREE.Raycaster();
     ray.setFromCamera(ndc, this.camera);
     return ray.intersectObjects(objects, true)[0];
