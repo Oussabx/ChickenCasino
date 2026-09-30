@@ -61,7 +61,7 @@ function TCard({ t, active, onClick }: { t: T; active: boolean; onClick: () => v
   return (
     <Tilt className="rounded-2xl h-full"><button onClick={onClick} className={`card w-full h-full text-left overflow-hidden transition ${active ? 'ring-2 ring-gold shadow-gold' : 'hover:border-gold/30'}`}>
       <div className="relative h-28">
-        {t.game ? <GameArt id={t.game} className="absolute inset-0" /> : <img src="./img/mood-chips.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />}
+        {t.game ? <GameArt id={t.game} wide className="absolute inset-0" /> : <img src="./img/mood-chips.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />}
         <div className="absolute inset-0 bg-gradient-to-t from-ink-800 to-transparent" />
         {joined && <span className="chip absolute right-3 top-3 bg-emerald-500 text-ink">Joined</span>}
       </div>

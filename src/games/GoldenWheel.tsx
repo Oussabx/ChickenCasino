@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { WheelScene } from './three/wheel3d';
 import GameShell from '../components/GameShell';
 import BetControls, { Seg, confirmBet } from '../components/BetControls';
 import { useStore } from '../store';
@@ -45,6 +46,14 @@ export default function GoldenWheel() {
   const segs = useMemo(() => build(risk), [risk]);
   const turbo = useStore((s) => s.settings.turbo);
   const dur = turbo ? 1400 : 4200;
+  const hostRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<WheelScene | null>(null);
+  useEffect(() => {
+    const sc = new WheelScene(hostRef.current!);
+    sceneRef.current = sc;
+    return () => { sc.dispose(); sceneRef.current = null; };
+  }, []);
+  useEffect(() => { sceneRef.current?.setSegments(segs); }, [segs]);
 
   const spin = () => {
     if (spinning || !confirmBet(bet) || !useStore.getState().placeBet(bet)) return;
@@ -55,21 +64,19 @@ export default function GoldenWheel() {
     const base = rot - (((rot % 360) + 360) % 360);
     const target = base + 360 * (turbo ? 3 : 6) + (360 - a);
     setSpinning(true); setHit(null); setRot(target);
-    // ticking
-    let ticks = 0;
-    const tickIv = setInterval(() => { sfx.tick(ticks++ % 5); }, turbo ? 60 : 110);
-    setTimeout(() => {
-      clearInterval(tickIv);
+    const finish = () => {
       const m = segs[idx];
       setHit(idx); setSpinning(false);
+      sceneRef.current?.highlight(idx);
       setRecent((l) => [{ m, id: ++seq.current }, ...l].slice(0, 8));
       useStore.getState().settle('golden-wheel', bet, m, `${risk} risk`);
       m > 1 ? sfx.win() : m > 0 ? sfx.reveal() : sfx.lose();
-    }, dur);
+    };
+    if (sceneRef.current) sceneRef.current.spin(target, dur, () => sfx.tick()).then(finish);
+    else setTimeout(finish, dur);
   };
 
   const counts = DIST[risk];
-  const R = 150;
 
   const controls = (
     <>
@@ -100,54 +107,17 @@ export default function GoldenWheel() {
       'Spin! The slice under the golden pointer decides your multiplier.',
       'Low risk pays often but small. High risk has one 29.70× golden slice.',
     ]}>
-      <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-        <div className="absolute right-3 top-3 flex flex-col gap-1.5">
+      <div ref={hostRef} className="absolute inset-0" aria-hidden />
+      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-end p-4">
+        <div className="absolute right-3 top-3 flex flex-col gap-1.5 pointer-events-auto">
           {recent.map((r) => (
             <span key={r.id} className="animate-pop rounded-lg px-2 py-1 text-center font-display text-[11px] font-black min-w-[52px]"
               style={{ background: COLOR[String(r.m)], color: r.m === 0 ? '#A0A0A0' : '#0B0B0B' }}>{fmtMult(r.m)}</span>
           ))}
         </div>
-        <div className="relative w-[min(88vw,440px)] aspect-square">
-          {/* glow */}
-          <div className="absolute inset-[6%] rounded-full bg-gold/20 blur-3xl" />
-          {/* pointer */}
-          <div className="absolute left-1/2 -top-1 z-10 -translate-x-1/2">
-            <svg width="34" height="40" viewBox="0 0 34 40"><path d="M17 38 3 6a14 14 0 0 1 28 0Z" fill="#F4C430" stroke="#0B0B0B" strokeWidth="3" /><circle cx="17" cy="10" r="4" fill="#0B0B0B" /></svg>
-          </div>
-          <svg viewBox="-170 -170 340 340" className="relative h-full w-full">
-            {/* bulbs ring */}
-            <circle r="166" fill="#140a02" stroke="#F4C430" strokeWidth="4" />
-            {Array.from({ length: 30 }).map((_, i) => {
-              const a = (i / 30) * Math.PI * 2;
-              return <circle key={i} cx={Math.sin(a) * 159} cy={-Math.cos(a) * 159} r="3.2" fill={i % 2 === (spinning ? Math.floor(Date.now() / 200) % 2 : 0) ? '#FFE08A' : '#E63946'} className={spinning ? 'animate-pulse' : ''} />;
-            })}
-            <g style={{ transform: `rotate(${rot}deg)`, transition: spinning ? `transform ${dur}ms cubic-bezier(.12,.72,.14,1)` : 'none' }}>
-              {segs.map((m, i) => {
-                const a0 = (i / SEGMENTS) * Math.PI * 2, a1 = ((i + 1) / SEGMENTS) * Math.PI * 2;
-                const p = (a: number, r: number) => `${Math.sin(a) * r} ${-Math.cos(a) * r}`;
-                const mid = (a0 + a1) / 2;
-                const isHit = hit === i && !spinning;
-                return (
-                  <g key={i}>
-                    <path d={`M0 0 L${p(a0, R)} A${R} ${R} 0 0 1 ${p(a1, R)}Z`} fill={COLOR[String(m)]} stroke="#0B0B0B" strokeWidth="1.5" opacity={hit !== null && !isHit && !spinning ? 0.45 : 1} />
-                    {m > 0 && (
-                      <text x={Math.sin(mid) * 118} y={-Math.cos(mid) * 118} transform={`rotate(${(mid * 180) / Math.PI} ${Math.sin(mid) * 118} ${-Math.cos(mid) * 118})`}
-                        textAnchor="middle" dominantBaseline="middle" fontFamily="Montserrat" fontWeight="900" fontSize="10" fill={m === 1.2 ? '#0B0B0B' : '#0B0B0B'}>
-                        {m}
-                      </text>
-                    )}
-                  </g>
-                );
-              })}
-              <circle r="72" fill="#0B0B0B" opacity=".25" />
-            </g>
-            <circle r="52" fill="#0B0B0B" stroke="#F4C430" strokeWidth="3" />
-            <image href="./img/head.webp" x="-46" y="-46" width="92" height="92" clipPath="circle(46px)" style={{ clipPath: 'circle(46px at 46px 46px)' }} />
-          </svg>
-        </div>
-        <div className="mt-4 h-10 text-center">
+        <div className="h-10 text-center">
           {hit !== null && !spinning && (
-            <div className="animate-pop font-display text-2xl font-black">
+            <div className="animate-pop rounded-2xl bg-black/60 px-4 py-1.5 backdrop-blur font-display text-2xl font-black">
               {segs[hit] > 0 ? <span className="text-gold-grad">{fmtMult(segs[hit])} · +{fmt(bet * segs[hit] - bet)}</span> : <span className="text-smoke">Empty slice — spin again!</span>}
             </div>
           )}

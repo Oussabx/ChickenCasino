@@ -6,16 +6,20 @@
 
 ## Games
 
-| Game | Type | What makes it different |
+Every game is a real-time 3D scene (Three.js, loaded only when you open the game):
+
+| Game | Type | In 3D |
 | --- | --- | --- |
-| **Chicken Cross** | Original risk ladder | Hop across a live highway, lane by lane. 4 difficulties, keyboard controls, animated traffic, barriers and a very flat chicken. |
-| **Rocket Rooster** | Multiplayer crash | Continuous rounds with countdown, live curve on canvas, simulated players cashing out, auto cash-out, queue-next-round, feather explosion. |
-| **Plinko Coop** | Plinko | Canvas-rendered peg board, 8–16 rows, 3 risk levels, multi-ball + auto-drop, glowing pegs and bouncing buckets. |
-| **Egg Hunt** | Mines | 5×5 henhouse, 1–24 foxes, 3D flip tiles, random pick, live odds. |
-| **Cluck Dice** | Dice | Over/under slider (2–98%), editable multiplier / chance, animated roll counter, auto-roll. |
-| **Golden Wheel** | Wheel | 30-slice neon wheel with 3 risk profiles and a single 29.7× golden slice. |
+| **Chicken Cross** | Original risk ladder | Voxel chicken hops across a highway; the crash lane is decided (and hashed) at round start like Crash; safe-lane cars brake behind barriers. |
+| **Rocket Rooster** | Multiplayer crash | The rooster rides a rocket along a glowing flight path through space; flames, exhaust, explosion on crash. |
+| **Plinko Coop** | Plinko | Metal pegs on a gold-framed board, glowing golden eggs, 3D prize buckets that bounce. |
+| **Egg Hunt** | Mines | Barn floor with 25 straw nests; golden eggs rise out, foxes pop up. |
+| **Cluck Dice** | Dice | A golden egg bounces along a red/green track to the rolled number on a casino table. |
+| **Golden Wheel** | Wheel | Upright carnival wheel with extruded slices, chasing bulbs and a flicking pointer. |
 
 All games use `crypto.getRandomValues` and are tuned to ≈99% RTP.
+
+Game card thumbnails are rendered from these same scenes: `npm run build`, `npx vite preview --port 4173`, then `node scripts/render-thumbs.mjs` (needs Playwright and Python/Pillow).
 
 ## The rest of the site
 
@@ -34,7 +38,7 @@ All games use `crypto.getRandomValues` and are tuned to ≈99% RTP.
 
 ## Stack
 
-React 18 · TypeScript · Vite · Tailwind CSS · Zustand (persisted) · React Router (hash) · lucide-react · self-hosted fonts (Montserrat, Inter, Kaushan Script).
+React 18 · TypeScript · Vite · Tailwind CSS · Three.js · Zustand (persisted) · React Router (hash) · lucide-react · self-hosted fonts (Montserrat, Inter, Kaushan Script).
 
 ## Run it
 
