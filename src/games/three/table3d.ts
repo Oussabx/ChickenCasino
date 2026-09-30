@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Stage3D } from './stage';
-import { MAT, box, glowSprite, makeChip, std, textTexture } from './models';
+import { MAT, box, glowSprite, makeChicken, makeChip, std, textTexture } from './models';
 import { Card } from '../../lib/cards';
 import { backTexture, faceTexture, roundRect } from './cardArt';
 
@@ -52,6 +52,8 @@ export interface TableOpts {
   texts?: FeltText[];
   /** Where the faint logo watermark sits (z), or null for none. */
   logoZ?: number | null;
+  /** Oval poker table (long axis vertical when `portrait`) instead of the D-shaped table. */
+  oval?: { portrait: boolean };
   /** Camera framing: [centre z, width, height] for wide and narrow viewports. */
   view?: { wide?: [number, number, number]; narrow?: [number, number, number] };
 }
@@ -103,6 +105,20 @@ export class TableScene extends Stage3D {
     this.lamp = new THREE.PointLight(0xffe0b0, this.lampBase, 20, 1.3); this.lamp.position.set(0, 6.5, 0.5); this.scene.add(this.lamp);
     const pool = glowSprite('rgba(255,236,190,0.9)', 13, 0.045); pool.position.set(0, 0.3, 0); this.scene.add(pool);
 
+    if (opts.oval) this.buildOval(felt, opts.oval.portrait);
+    else this.buildD(felt);
+
+    // floating dust in the lamp light
+    const n = 160, dp = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { dp[i * 3] = (Math.random() - 0.5) * 12; dp[i * 3 + 1] = 0.3 + Math.random() * 4.5; dp[i * 3 + 2] = -3 + Math.random() * 6; }
+    const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(dp, 3));
+    this.dust = new THREE.Points(dg, new THREE.PointsMaterial({ color: 0xffe2a8, size: 0.035, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
+    this.scene.add(this.dust);
+
+    this.onResize();
+  }
+
+  private buildD(felt: number) {
     // felt top: rounded "D" shape (flat edge at the dealer side)
     const shape = new THREE.Shape();
     shape.moveTo(-W, -D); shape.lineTo(W, -D);
@@ -155,15 +171,137 @@ export class TableScene extends Stage3D {
     const cols = [0xf8f6ef, 0xe63946, 0x10b981, 0xf4c430, 0x1e1e1e, 0x7c3aed];
     cols.forEach((c, i) => { for (let k = 0; k < 6; k++) { const ch = makeChip(c, 0.23); ch.rotation.x = Math.PI / 2; ch.position.set(-1.55 + i * 0.62, 0.2, -0.28 + k * 0.1); tray.add(ch); } });
     tray.position.set(0, 0.16, this.trayPos.z); this.scene.add(tray);
+  }
 
-    // floating dust in the lamp light
-    const n = 160, dp = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) { dp[i * 3] = (Math.random() - 0.5) * 12; dp[i * 3 + 1] = 0.3 + Math.random() * 4.5; dp[i * 3 + 2] = -3 + Math.random() * 6; }
-    const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(dp, 3));
-    this.dust = new THREE.Points(dg, new THREE.PointsMaterial({ color: 0xffe2a8, size: 0.035, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
-    this.scene.add(this.dust);
+  // ---------- oval poker table ----------
+  private ov = { L: 3.7, R: 3.7, portrait: false };
+  private chicken: ReturnType<typeof makeChicken> | null = null;
+  private chickenLook = -Math.PI / 2;
+  private chickenHop = 0;
 
-    this.onResize();
+  /** Point on the table edge at arc-length fraction f (0 = bottom centre, then clockwise on screen), pushed `out` along the outward normal. */
+  edge(f: number, out = 0) {
+    const { L, R, portrait } = this.ov;
+    const straight = 2 * L, arc = Math.PI * R, P = 2 * straight + 2 * arc;
+    let d = (((f % 1) + 1) % 1) * P;
+    let x: number, z: number, nx: number, nz: number;
+    const cap = (cx: number, cz: number, th: number) => { x = cx + R * Math.cos(th); z = cz + R * Math.sin(th); nx = Math.cos(th); nz = Math.sin(th); };
+    if (!portrait) {
+      if (d < L) { x = -d; z = R; nx = 0; nz = 1; }
+      else if ((d -= L) < arc) cap(-L, 0, Math.PI / 2 + d / R);
+      else if ((d -= arc) < straight) { x = -L + d; z = -R; nx = 0; nz = -1; }
+      else if ((d -= straight) < arc) cap(L, 0, -Math.PI / 2 + d / R);
+      else { d -= arc; x = L - d; z = R; nx = 0; nz = 1; }
+    } else {
+      if (d < arc / 2) cap(0, L, Math.PI / 2 + d / R);
+      else if ((d -= arc / 2) < straight) { x = -R; z = L - d; nx = -1; nz = 0; }
+      else if ((d -= straight) < arc) cap(0, -L, Math.PI + d / R);
+      else if ((d -= arc) < straight) { x = R; z = -L + d; nx = 1; nz = 0; }
+      else { d -= straight; cap(0, L, d / R); }
+    }
+    return { p: new THREE.Vector3(x! + nx! * out, 0, z! + nz! * out), n: new THREE.Vector3(nx!, 0, nz!) };
+  }
+
+  private buildOval(felt: number, portrait: boolean) {
+    this.ov.portrait = portrait;
+    const { L, R } = this.ov;
+    const pts: THREE.Vector2[] = [];
+    for (let i = 0; i < 200; i++) { const e = this.edge(i / 200); pts.push(new THREE.Vector2(e.p.x, e.p.z)); }
+    const shape = new THREE.Shape(pts);
+    const top = new THREE.ExtrudeGeometry(shape, { depth: 0.3, bevelEnabled: true, bevelSize: 0.06, bevelThickness: 0.06, bevelSegments: 3 });
+    top.rotateX(Math.PI / 2);
+    const X = portrait ? R : L + R, Z = portrait ? L + R : R;
+    const uv = top.attributes.uv as THREE.BufferAttribute, pos = top.attributes.position as THREE.BufferAttribute;
+    for (let i = 0; i < pos.count; i++) uv.setXY(i, (pos.getX(i) + X) / (2 * X), 1 - (pos.getZ(i) + Z) / (2 * Z));
+    top.computeVertexNormals();
+    const feltMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92, map: this.ovalFelt(felt, X, Z) });
+    const topMesh = new THREE.Mesh(top, [feltMat, std(0x2b160b, { roughness: 0.7 })]);
+    topMesh.receiveShadow = true;
+    this.scene.add(topMesh);
+    // rail, brass trim and a dark wood skirt
+    const railPts = Array.from({ length: 240 }, (_, i) => this.edge(i / 240, 0.14).p.setY(0.14));
+    const rail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(railPts, true), 360, 0.32, 16, true), std(0x2a1209, { roughness: 0.36 }));
+    rail.castShadow = true; rail.receiveShadow = true; this.scene.add(rail);
+    const trimPts = Array.from({ length: 240 }, (_, i) => this.edge(i / 240, -0.22).p.setY(FELT_Y + 0.02));
+    this.scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(trimPts, true), 360, 0.035, 8, true), MAT.gold));
+    const skirt = new THREE.Mesh(new THREE.ExtrudeGeometry(new THREE.Shape(Array.from({ length: 200 }, (_, i) => { const e = this.edge(i / 200, 0.3); return new THREE.Vector2(e.p.x, -e.p.z); })), { depth: 1.2, bevelEnabled: false }), std(0x1c0c06, { roughness: 0.5 }));
+    skirt.rotateX(-Math.PI / 2); skirt.position.y = -1.35; this.scene.add(skirt);
+
+    // the chicken dealer stands behind the top of the table
+    const top5 = this.edge(0.5, 1.05);
+    const ch = makeChicken('#F8F6EF');
+    ch.root.scale.setScalar(1.35);
+    ch.root.position.copy(top5.p).setY(-0.55);
+    ch.root.rotation.y = -Math.PI / 2; // face the players (the model faces +x)
+    // bow tie + visor so it looks like a croupier
+    const tie = box(MAT.red, [0.1, 0.16, 0.34], [0.5, 1.02, 0]);
+    const visor = box(std(0x10b981, { roughness: 0.5 }), [0.4, 0.05, 0.62], [0.42, 1.72, 0]);
+    ch.body.add(tie, visor);
+    this.scene.add(ch.root);
+    this.chicken = ch;
+
+    // shoe + discard next to the dealer
+    const inward = top5.n.clone().negate();
+    const side = new THREE.Vector3(-inward.z, 0, inward.x);
+    this.shoePos.copy(this.edge(0.5, -1.0).p).addScaledVector(side, 1.9).setY(0.62);
+    this.discardPos.copy(this.edge(0.5, -1.0).p).addScaledVector(side, -1.9).setY(0.45);
+    this.trayPos.copy(this.edge(0.5, -1.0).p).setY(0.3);
+    const shoe = new THREE.Group();
+    shoe.add(box(std(0x121214, { metalness: 0.45, roughness: 0.2 }), [1.0, 0.5, 1.4], [0, 0, 0]));
+    shoe.add(box(MAT.gold, [1.02, 0.05, 0.05], [0, 0.26, 0.7]));
+    const stack = new THREE.Mesh(new THREE.BoxGeometry(CW * 0.9, 0.36, 0.9), [EDGE, EDGE, EDGE, EDGE, new THREE.MeshStandardMaterial({ map: backTexture(), roughness: 0.5 }), EDGE]);
+    stack.position.set(0, 0.06, 0.25); shoe.add(stack);
+    shoe.position.copy(this.shoePos).setY(0.32); shoe.rotation.y = Math.atan2(-this.shoePos.x, -this.shoePos.z); this.scene.add(shoe);
+    const holder = new THREE.Group();
+    holder.add(box(std(0x121214, { metalness: 0.45, roughness: 0.22 }), [1.1, 0.3, 1.5], [0, 0, 0]));
+    holder.add(box(MAT.gold, [1.12, 0.05, 0.05], [0, 0.16, 0.75]));
+    holder.position.copy(this.discardPos).setY(0.2); holder.rotation.y = Math.atan2(-this.discardPos.x, -this.discardPos.z); this.scene.add(holder);
+  }
+
+  private ovalFelt(felt: number, X: number, Z: number) {
+    const S = 1024 / Math.max(X, Z);
+    const cv = document.createElement('canvas'); cv.width = Math.round(2 * X * S); cv.height = Math.round(2 * Z * S);
+    const g = cv.getContext('2d')!;
+    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+    const col = new THREE.Color(felt);
+    const hex = (dl: number) => `#${col.clone().offsetHSL(0, 0, dl).getHexString()}`;
+    const logo = new Image(); logo.src = './img/head.webp';
+    const toC = (x: number, z: number) => [(x + X) * S, (z + Z) * S] as const;
+    const draw = () => {
+      const W2 = cv.width, H2 = cv.height;
+      const grd = g.createRadialGradient(W2 / 2, H2 / 2, 40, W2 / 2, H2 / 2, Math.max(W2, H2) * 0.6);
+      grd.addColorStop(0, hex(0.05)); grd.addColorStop(0.6, hex(0)); grd.addColorStop(1, hex(-0.1));
+      g.fillStyle = grd; g.fillRect(0, 0, W2, H2);
+      const id = g.getImageData(0, 0, W2, H2);
+      for (let i = 0; i < id.data.length; i += 4) { const v = (Math.random() - 0.5) * 10; id.data[i] += v; id.data[i + 1] += v; id.data[i + 2] += v; }
+      g.putImageData(id, 0, 0);
+      // double pinstripe following the table edge
+      for (const [inset, w] of [[0.55, 4], [0.7, 1.5]] as const) {
+        g.strokeStyle = 'rgba(244,196,48,.6)'; g.lineWidth = w; g.beginPath();
+        for (let i = 0; i <= 200; i++) { const p = this.edge(i / 200, -inset).p; const [cx, cy] = toC(p.x, p.z); if (i) g.lineTo(cx, cy); else g.moveTo(cx, cy); }
+        g.stroke();
+      }
+      // betting line inside which bets are placed
+      g.setLineDash([16, 12]); g.strokeStyle = 'rgba(248,246,239,.18)'; g.lineWidth = 3; g.beginPath();
+      for (let i = 0; i <= 200; i++) { const p = this.edge(i / 200, -2.9).p; const [cx, cy] = toC(p.x, p.z); if (i) g.lineTo(cx, cy); else g.moveTo(cx, cy); }
+      g.stroke(); g.setLineDash([]);
+      const [cx, cy] = toC(0, 0);
+      // title printed above the board, logo faintly under the pot
+      if (logo.complete && logo.naturalWidth) { g.save(); g.globalAlpha = 0.07; g.filter = 'grayscale(1) brightness(2)'; g.drawImage(logo, cx - 110, cy - 1.45 * S - 110, 220, 220); g.restore(); }
+      g.fillStyle = 'rgba(244,196,48,.8)'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.font = `900 ${0.26 * S}px Montserrat, system-ui, sans-serif`; g.fillText('TEXAS HOLD\'EM · NO LIMIT', cx, cy - 0.98 * S);
+      tex.needsUpdate = true;
+    };
+    draw(); logo.onload = draw; document.fonts?.ready.then(draw);
+    return tex;
+  }
+
+  /** Turn the chicken dealer towards a point and give a little hop (dealing, pushing the pot). */
+  dealerGesture(x: number, z: number) {
+    if (!this.chicken) return;
+    const p = this.chicken.root.position;
+    this.chickenLook = Math.atan2(-(z - p.z), x - p.x);
+    this.chickenHop = 1;
   }
 
   // ---------- felt artwork ----------
@@ -261,6 +399,12 @@ export class TableScene extends Stage3D {
 
   protected onResize() {
     if (!this.cards) return;
+    if (this.opts.oval) {
+      const { L, R, portrait } = this.ov;
+      if (portrait) this.frame(new THREE.Vector3(0, 0, 0.1), 2 * R + 2.6, 2 * (L + R) + 2.6, new THREE.Vector3(0, 3.2, 1), 1);
+      else this.frame(new THREE.Vector3(0, 0, 0.15), 2 * (L + R) + 2.6, 2 * R + 3.8, new THREE.Vector3(0, 1.8, 1), 1);
+      return;
+    }
     const narrow = this.aspect < 1;
     const v = narrow ? this.opts.view?.narrow ?? [-0.1, 8.4, 7.6] : this.opts.view?.wide ?? [-0.35, 11, 5.8];
     this.frame(new THREE.Vector3(0, 0, v[0]), v[1], v[2], narrow ? new THREE.Vector3(0, 2.5, 1) : new THREE.Vector3(0, 1.45, 1), 1);
@@ -302,12 +446,14 @@ export class TableScene extends Stage3D {
   }
 
   /** Deal a card from the shoe to (x, z). `card` null = face down. `rot` turns it on the table. */
-  deal(card: Card | null, x: number, z: number, opts: { delay?: number; rot?: number; up?: boolean } = {}): Promise<Card3D> {
+  deal(card: Card | null, x: number, z: number, opts: { delay?: number; rot?: number; up?: boolean; scale?: number } = {}): Promise<Card3D> {
     const c3 = { card, up: false } as Card3D;
     const mesh = this.makeCard(c3);
     mesh.position.copy(this.shoePos);
     mesh.rotation.set(0, -0.4, Math.PI);
     mesh.visible = false;
+    if (opts.scale) mesh.scale.setScalar(opts.scale);
+    if (this.chicken) this.dealerGesture(x, z);
     this.scene.add(mesh);
     this.cards.push(c3);
     const faceUp = opts.up ?? card !== null;
@@ -337,7 +483,7 @@ export class TableScene extends Stage3D {
   flip(c3: Card3D, card: Card, slow = false) {
     c3.card = card;
     (c3.mesh.children[1] as THREE.Mesh).material = this.faceMat(card);
-    const dur = slow ? (this.turbo ? 520 : 1400) : this.turbo ? 200 : 380;
+    const dur = slow ? (this.turbo ? 320 : 620) : this.turbo ? 200 : 380;
     const y0 = c3.mesh.position.y, rz0 = c3.mesh.rotation.z, rx0 = c3.mesh.rotation.x;
     return new Promise<void>((res) => this.anim(dur, (k) => {
       let e: number;
@@ -441,6 +587,54 @@ export class TableScene extends Stage3D {
       pay.position.lerpVectors(this.trayPos, dest, e); pay.position.y += Math.sin(Math.PI * k) * 1.1;
     }, () => { Promise.all([toPlayer(g, 700 * slow), toPlayer(pay, 760 * slow)]).then(() => res()); }));
   }
+
+  /** Slide bet stacks into the pot at (x, z), then show one pot stack of `total`. */
+  gatherChips(keys: string[], x: number, z: number, total: number) {
+    const to = new THREE.Vector3(x, 0, z);
+    const moving = keys.map((k) => this.chips.get(k)).filter(Boolean) as THREE.Group[];
+    keys.forEach((k) => this.chips.delete(k));
+    return new Promise<void>((res) => {
+      if (!moving.length) { if (total > 0) this.setChips('pot', total, x, z); res(); return; }
+      const froms = moving.map((g) => g.position.clone());
+      this.anim(this.turbo ? 220 : 420, (k) => {
+        const e = k * k * (3 - 2 * k);
+        moving.forEach((g, i) => { g.position.lerpVectors(froms[i], to, e); g.position.y = Math.sin(Math.PI * k) * 0.4; });
+      }, () => { moving.forEach((g) => this.scene.remove(g)); this.setChips('pot', total, x, z); res(); });
+    });
+  }
+
+  /** Push a stack (e.g. the pot) to (x, z) and remove it. */
+  pushChips(key: string, x: number, z: number) {
+    const g = this.chips.get(key);
+    if (!g) return Promise.resolve();
+    this.chips.delete(key);
+    const from = g.position.clone(), to = new THREE.Vector3(x, 0, z);
+    if (this.chicken) this.dealerGesture(x, z);
+    return new Promise<void>((res) => this.anim(this.turbo ? 300 : 650, (k) => {
+      const e = 1 - Math.pow(1 - k, 3);
+      g.position.lerpVectors(from, to, e); g.position.y = Math.sin(Math.PI * k) * 0.6;
+    }, () => { setTimeout(() => { this.scene.remove(g); res(); }, this.turbo ? 150 : 450); }));
+  }
+
+  /** Run a custom animation on the scene clock (k: 0 → 1). */
+  tween(dur: number, step: (k: number) => void) { return new Promise<void>((res) => this.anim(this.turbo ? dur * 0.5 : dur, step, res)); }
+
+  /** The dealer button puck (created on first use), slid to (x, z). */
+  private puck: THREE.Group | null = null;
+  moveButton(x: number, z: number) {
+    if (!this.puck) {
+      const g = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.1, 32), [std(0xf8f6ef, { roughness: 0.4 }), new THREE.MeshStandardMaterial({ map: textTexture('D', { w: 128, h: 128, size: 88, color: '#0B0B0B', bg: '#F8F6EF', radius: 64 }) }), std(0xf8f6ef)]);
+      body.castShadow = true; body.position.y = 0.11; g.add(body);
+      g.position.set(x, 0, z); this.scene.add(g); this.puck = g;
+      return Promise.resolve();
+    }
+    const from = this.puck.position.clone(), to = new THREE.Vector3(x, 0, z), p = this.puck;
+    return this.tween(520, (k) => { const e = k * k * (3 - 2 * k); p.position.lerpVectors(from, to, e); p.position.y = Math.sin(Math.PI * k) * 0.35; });
+  }
+
+  /** Turn a face-down card up in place (showdown). */
+  reveal(c3: Card3D, card: Card) { return this.flip(c3, card); }
 
   // ---------- highlights & effects ----------
   private addGlow(x: number, z: number, w: number, h: number, color: number, pulse: boolean, circle = false) {
@@ -570,6 +764,16 @@ export class TableScene extends Stage3D {
         const target = g.pulse ? g.base * (0.7 + Math.sin(t * 5) * 0.3) : g.base;
         m.opacity += (target - m.opacity) * Math.min(1, dt * 8);
       }
+    }
+    if (this.chicken) {
+      const r = this.chicken.root;
+      // turn part-way towards whoever is being dealt to, then settle back to face the room
+      const base = -Math.PI / 2;
+      r.rotation.y += (base + (this.chickenLook - base) * 0.7 - r.rotation.y) * Math.min(1, dt * 6);
+      this.chickenHop = Math.max(0, this.chickenHop - dt * 3);
+      this.chicken.body.position.y = Math.sin(t * 2.2) * 0.03 + Math.sin(this.chickenHop * Math.PI) * 0.18;
+      this.chicken.body.rotation.x = Math.sin(t * 1.3) * 0.03;
+      if (this.chickenHop === 0) this.chickenLook += (base - this.chickenLook) * Math.min(1, dt * 1.5);
     }
     // lamp flash on wins, gentle flicker otherwise
     this.flash = Math.max(0, this.flash - dt * 1.4);

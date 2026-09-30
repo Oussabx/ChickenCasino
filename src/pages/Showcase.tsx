@@ -59,10 +59,28 @@ export default function Showcase() {
           s.spin(30, 300, () => {}).then(() => { s.highlight(1); setTimeout(ready, 600); });
           break;
         }
-        case 'blackjack': case 'baccarat': case 'punto-banco': case 'poker': case 'video-poker': {
+        case 'poker': {
+          const { TableScene } = await import('../games/three/table3d');
+          const s = new TableScene(el, { felt: 0x0f4d33, oval: { portrait: false }, logoZ: null }); dispose = () => s.dispose();
+          s.setTurbo(true);
+          const C = (r: number, suit: 'S' | 'H' | 'D' | 'C') => ({ r, s: suit });
+          s.setView([0, 0, 0.3], 11.5, 7.6, [0, 1.6, 1], 1);
+          for (const [i, c] of [C(14, 'H'), C(13, 'H'), C(12, 'H'), C(7, 'C'), C(2, 'S')].entries()) await s.deal(c, -2.3 + i * 1.15, 0.05, { scale: 1.05 });
+          await s.deal(C(11, 'H'), -0.6, 2.25, { scale: 1.12 }); await s.deal(C(10, 'H'), 0.6, 2.25, { scale: 1.12 });
+          for (const f of [0.2, 0.35, 0.65, 0.8]) {
+            const e = s.edge(f); const p = e.p.clone().addScaledVector(e.n, -1.45); const rot = Math.atan2(e.n.x, e.n.z) * 0.9;
+            await s.deal(null, p.x - 0.2, p.z, { scale: 0.72, rot }); await s.deal(null, p.x + 0.2, p.z, { scale: 0.72, rot });
+            const b = e.p.clone().addScaledVector(e.n, -2.45); s.setChips(`b${f}`, 50, b.x, b.z);
+          }
+          s.setChips('pot', 400, 0, -1.45);
+          s.moveButton(1.4, 2.3);
+          s.highlight(0, 1.2, 6.3, 3.9);
+          setTimeout(ready, 900);
+          break;
+        }
+        case 'blackjack': case 'baccarat': case 'punto-banco': case 'video-poker': {
           const { TableScene } = await import('../games/three/table3d');
           const cfg = id === 'blackjack' ? (await import('../games/Blackjack')).TABLE
-            : id === 'poker' ? (await import('../games/Poker')).TABLE
             : id === 'video-poker' ? (await import('../games/VideoPoker')).TABLE
             : (await import('../games/Baccarat')).tableFor(id === 'punto-banco');
           const s = new TableScene(el, cfg); dispose = () => s.dispose();
@@ -77,12 +95,6 @@ export default function Showcase() {
             s.setChips('b', 100, 2.45, 1.4); s.setChips('p', 25, -2.45, 1.4);
             await s.deal(C(9, 'H'), -2.5, -1.05); await s.deal(C(8, 'C'), 1.4, -1.05); await s.deal(C(12, 'S'), -1.4, -1.05); await s.deal(C(id === 'baccarat' ? 13 : 8, 'D'), 2.5, -1.05);
             s.highlight(-1.95, -1.05, 2.5, 1.85);
-          } else if (id === 'poker') {
-            s.setChips('ante', 50, -2.15, 1.45); s.setChips('call', 100, 2.15, 1.45);
-            for (const [i, c] of [C(14, 'H'), C(13, 'H'), C(12, 'H'), C(7, 'C'), C(2, 'S')].entries()) await s.deal(c, -2.3 + i * 1.15, -0.45);
-            await s.deal(C(11, 'H'), -0.56, 1.15); await s.deal(C(10, 'H'), 0.56, 1.15);
-            await s.deal(null, -0.56, -2.1); await s.deal(null, 0.56, -2.1);
-            s.highlight(0, 1.15, 2.4, 1.8);
           } else {
             s.setChips('bet', 100, 0, 1.55);
             for (const [i, c] of [C(10, 'S'), C(11, 'S'), C(12, 'S'), C(13, 'S'), C(14, 'S')].entries()) await s.deal(c, -2.4 + i * 1.2, -0.15);

@@ -27,7 +27,7 @@ All dealt on a shared 3D felt table (cards fly from the shoe and flip; chip stac
 | **Roulette** | European single zero, 3D wheel and ball; straight 35:1, dozens/columns 2:1, even-money bets 1:1. |
 | **Baccarat** | 8 decks, standard third-card tableau, slow card squeeze, bead road. Player 1:1, Banker 0.95:1, Tie 8:1. |
 | **Punto Banco** | Fast baccarat with Player Pair / Banker Pair side bets at 11:1. |
-| **Casino Hold'em** | Ante, flop, then call (2× ante) or fold; dealer qualifies with 4s or better; ante pays up to 100:1. |
+| **Texas Hold'em** | No-limit poker with 2–8 players (you + chicken bots) and a chicken croupier who deals but never plays. Button, small/big blinds, pre-flop/flop/turn/river betting (fold, check, call, bet, raise, all-in; min-raise rules), uncalled bets returned, side pots and split pots at showdown. |
 | **5 Card Poker** | Five-card draw, Jacks or Better 9/6 pay table, hold suggestions. |
 
 Cards are drawn from shoes shuffled with `crypto.getRandomValues`; the originals are tuned to ≈99% RTP and the table games use their standard casino rules.
