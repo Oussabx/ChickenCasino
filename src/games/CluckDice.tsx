@@ -77,7 +77,7 @@ export default function CluckDice() {
       <Seg options={['manual', 'auto'] as const} value={mode} onChange={setMode} disabled={autoLeft > 0} render={(v) => (v === 'manual' ? 'Manual' : 'Auto')} />
       <BetControls value={bet} onChange={setBet} disabled={autoLeft > 0} />
         <div className="space-y-3">
-          <div className="relative rounded-2xl bg-ink-900 p-4 border border-white/5">
+          <div className="relative rounded-2xl bg-ink-900 p-4 border border-white/5 [.phone-controls_&]:p-2">
             <div className="relative h-10">
               <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-3 rounded-full overflow-hidden flex">
                 <div className={over ? 'bg-blood' : 'bg-emerald-500'} style={{ width: `${target}%` }} />
@@ -87,7 +87,7 @@ export default function CluckDice() {
                 onChange={(e) => { setTarget(+e.target.value); sfx.tick(); }} className="range absolute inset-0 h-10" aria-label="Target" />
 
             </div>
-            <div className="mt-1 flex justify-between text-[10px] font-bold text-smoke tabular"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+            <div className="phone-hide mt-1 flex justify-between text-[10px] font-bold text-smoke tabular"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
           </div>
           <div className="grid grid-cols-3 gap-2">
             <Field label="Multiplier" value={mult.toFixed(4)} suffix="×" onChange={(v) => setChance(99 / Math.max(1.0102, v))} disabled={rolling} />
@@ -102,7 +102,7 @@ export default function CluckDice() {
           </div>
         </div>
 
-      <div className="rounded-xl bg-ink-900 p-3 flex justify-between items-center">
+      <div className="phone-hide rounded-xl bg-ink-900 p-3 flex justify-between items-center">
         <span className="label">Profit on win</span>
         <span className="font-display font-black text-emerald-400 tabular">+{fmt(bet * mult - bet)}</span>
       </div>

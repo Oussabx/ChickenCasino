@@ -118,3 +118,14 @@ input[type='range'].range::-moz-range-track { height: 8px; background: transpare
 .chip-lose { animation: chip-lose 1.1s ease-in forwards; }
 @keyframes chip-win { 0%, 100% { transform: translate(-50%, -50%) scale(1); filter: drop-shadow(0 0 0 rgba(244,196,48,0)); } 50% { transform: translate(-50%, -62%) scale(1.15); filter: drop-shadow(0 0 8px rgba(244,196,48,.9)); } }
 .chip-win { animation: chip-win 1s ease-in-out infinite; }
+
+/* phone landscape game mode */
+@keyframes rotate-phone { 0%, 20% { transform: rotate(0deg); } 55%, 80% { transform: rotate(-90deg); } 100% { transform: rotate(0deg); } }
+.rotate-phone { animation: rotate-phone 2.6s cubic-bezier(.6,0,.3,1) infinite; }
+.phone-controls .label { font-size: 10px; }
+.phone-controls .seg button { padding-top: 5px; padding-bottom: 5px; }
+/* on phones only the essentials fit beside the game: hide the info that follows the action button */
+.phone-controls > .sticky ~ * { display: none !important; }
+.phone-controls .phone-hide { display: none !important; }
+.phone-controls input { padding-top: 6px; padding-bottom: 6px; }
+.phone-controls .btn-gold, .phone-controls .btn-red, .phone-controls .btn-dark, .phone-controls .btn-double, .phone-controls .btn-split { padding-top: 10px; padding-bottom: 10px; }

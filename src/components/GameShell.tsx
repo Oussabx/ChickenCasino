@@ -1,7 +1,8 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, Info, Star, Volume2, VolumeX, Zap } from 'lucide-react';
+import { ChevronLeft, Info, Maximize2, RotateCw, Star, Volume2, VolumeX, Zap } from 'lucide-react';
+import { PhoneGameCtx, enterLandscape, usePhoneGame, usePhoneLayout } from '../lib/phone';
 import { GameId, gameById } from '../lib/data';
 import { useStore } from '../store';
 import { fmt, fmtMult, timeAgo } from '../lib/format';
@@ -16,6 +17,59 @@ export default function GameShell({ id, controls, children, rules, tall }: { id:
   const { sound, turbo } = useStore((s) => s.settings);
   const update = useStore((s) => s.updateSettings);
   const [info, setInfo] = useState(false);
+  const { phone, portrait } = usePhoneLayout();
+  const balance = useStore((s) => s.balance);
+
+  // phones: a full-screen landscape game with the controls beside it — nothing on the page scrolls
+  useEffect(() => {
+    if (!phone) return;
+    const html = document.documentElement, body = document.body;
+    const prev = [html.style.overflow, body.style.overflow, html.style.overscrollBehavior];
+    html.style.overflow = 'hidden'; body.style.overflow = 'hidden'; html.style.overscrollBehavior = 'none';
+    window.scrollTo(0, 0);
+    return () => { [html.style.overflow, body.style.overflow, html.style.overscrollBehavior] = prev; };
+  }, [phone]);
+
+  const rulesModal = (
+    <Modal open={info} onClose={() => setInfo(false)} title={`How to play ${g.name}`}>
+      <p className="text-sm text-smoke">{g.description}</p>
+      <ol className="mt-4 space-y-2.5">
+        {rules.map((r, i) => (
+          <li key={i} className="flex gap-3 text-sm"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-gold/15 font-display text-xs font-black text-gold">{i + 1}</span><span>{r}</span></li>
+        ))}
+      </ol>
+      <div className="mt-5 rounded-xl bg-ink-900 p-3 text-xs text-smoke">Outcomes use your browser's cryptographic RNG (<code>crypto.getRandomValues</code>). Max win: <b className="text-gold">{g.maxWin}</b>. RTP ≈ 99%.</div>
+    </Modal>
+  );
+
+  if (phone) {
+    return (
+      <PhoneGameCtx.Provider value={true}>
+        {createPortal(
+          <div className="fixed inset-0 z-[65] flex bg-ink" style={{ height: '100dvh' }}>
+            <section className="relative min-w-0 flex-1 felt grain">{children}</section>
+            <aside className="flex w-[clamp(230px,36vw,330px)] shrink-0 flex-col border-l border-white/[0.06] bg-ink-800">
+              <div className="flex items-center gap-1.5 border-b border-white/[0.06] px-2 py-1.5" style={{ paddingTop: 'max(6px, env(safe-area-inset-top))' }}>
+                <Link to="/games" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-ink-700" aria-label="Back to games"><ChevronLeft size={16} /></Link>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-display text-xs font-black leading-tight">{g.name}</div>
+                  <div className="flex items-center gap-1 text-[11px] font-bold text-gold tabular"><Coin className="h-3 w-3" />{fmt(balance)}</div>
+                </div>
+                <IconBtn small onClick={() => update({ turbo: !turbo })} active={turbo} label="Turbo mode"><Zap size={14} /></IconBtn>
+                <IconBtn small onClick={() => update({ sound: !sound })} active={sound} label="Sound">{sound ? <Volume2 size={14} /> : <VolumeX size={14} />}</IconBtn>
+                <IconBtn small onClick={() => setInfo(true)} label="How to play"><Info size={14} /></IconBtn>
+                <IconBtn small onClick={() => enterLandscape()} label="Fullscreen"><Maximize2 size={14} /></IconBtn>
+              </div>
+              <div className="phone-controls flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 pt-3" style={{ paddingRight: 'max(12px, env(safe-area-inset-right))' }}>{controls}</div>
+            </aside>
+            {portrait && <RotatePrompt name={g.name} />}
+          </div>,
+          document.body,
+        )}
+        {rulesModal}
+      </PhoneGameCtx.Provider>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-6 pt-4 lg:pt-6 pb-48 lg:pb-0">
@@ -40,15 +94,7 @@ export default function GameShell({ id, controls, children, rules, tall }: { id:
 
       <BelowGame id={id} />
 
-      <Modal open={info} onClose={() => setInfo(false)} title={`How to play ${g.name}`}>
-        <p className="text-sm text-smoke">{g.description}</p>
-        <ol className="mt-4 space-y-2.5">
-          {rules.map((r, i) => (
-            <li key={i} className="flex gap-3 text-sm"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-gold/15 font-display text-xs font-black text-gold">{i + 1}</span><span>{r}</span></li>
-          ))}
-        </ol>
-        <div className="mt-5 rounded-xl bg-ink-900 p-3 text-xs text-smoke">Outcomes use your browser's cryptographic RNG (<code>crypto.getRandomValues</code>). Max win: <b className="text-gold">{g.maxWin}</b>. RTP ≈ 99%.</div>
-      </Modal>
+      {rulesModal}
     </div>
   );
 }
@@ -59,6 +105,14 @@ export default function GameShell({ id, controls, children, rules, tall }: { id:
  * reachable without scrolling.
  */
 export function GameAction({ children, extra }: { children: ReactNode; extra?: ReactNode }) {
+  const phone = usePhoneGame();
+  // phone game mode: pinned to the bottom of the side panel, always visible
+  if (phone) return (
+    <div className="sticky bottom-0 z-10 -mx-3 space-y-2 border-t border-white/[0.06] bg-ink-800/95 px-3 pb-2 pt-2 backdrop-blur" style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}>
+      {extra}
+      {children}
+    </div>
+  );
   return (
     <>
       <div className="hidden lg:block">{children}</div>
@@ -74,10 +128,10 @@ export function GameAction({ children, extra }: { children: ReactNode; extra?: R
   );
 }
 
-function IconBtn({ children, onClick, active, label }: { children: ReactNode; onClick: () => void; active?: boolean; label: string }) {
+function IconBtn({ children, onClick, active, label, small }: { children: ReactNode; onClick: () => void; active?: boolean; label: string; small?: boolean }) {
   return (
     <button onClick={onClick} title={label} aria-label={label} aria-pressed={active}
-      className={`grid h-9 w-9 place-items-center rounded-xl border transition ${active ? 'border-gold/40 bg-gold/10 text-gold' : 'border-white/5 bg-ink-700 text-smoke hover:text-cream'}`}>
+      className={`grid ${small ? 'h-8 w-8 shrink-0 rounded-lg' : 'h-9 w-9 rounded-xl'} place-items-center border transition ${active ? 'border-gold/40 bg-gold/10 text-gold' : 'border-white/5 bg-ink-700 text-smoke hover:text-cream'}`}>
       {children}
     </button>
   );
@@ -123,6 +177,26 @@ function BelowGame({ id }: { id: GameId }) {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+/** Shown while a phone is held upright: the games are played sideways. */
+function RotatePrompt({ name }: { name: string }) {
+  return (
+    <div className="fixed inset-0 z-[66] flex flex-col items-center justify-center gap-5 bg-ink/97 px-8 text-center backdrop-blur-xl">
+      <div className="relative h-28 w-28">
+        <div className="rotate-phone absolute inset-0 m-auto h-24 w-14 rounded-[14px] border-[3px] border-gold/90 shadow-gold">
+          <span className="absolute left-1/2 top-1.5 h-1 w-4 -translate-x-1/2 rounded-full bg-gold/70" />
+        </div>
+        <RotateCw className="absolute -right-2 -top-1 text-gold/70" size={22} />
+      </div>
+      <div>
+        <div className="h-display text-2xl text-gold-grad">Turn your phone</div>
+        <p className="mt-2 text-sm text-cream/75">{name} plays in landscape (16:9). Rotate your phone sideways to start.</p>
+      </div>
+      <button type="button" className="btn-gold px-6 py-3 text-sm" onClick={() => enterLandscape()}><Maximize2 size={16} />Play fullscreen</button>
+      <Link to="/games" className="text-xs font-semibold text-smoke underline underline-offset-4">Back to games</Link>
     </div>
   );
 }
