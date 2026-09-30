@@ -26,10 +26,10 @@ export default function Home() {
         <div className="px-6 py-10 sm:px-10 sm:py-16 lg:py-20 max-w-xl min-h-[520px] sm:min-h-0">
           <span className="chip bg-blood/15 text-blood border border-blood/30 mb-5"><span className="h-1.5 w-1.5 rounded-full bg-blood animate-pulse" />{fmt(1284 + (Date.now() / 60000) % 400, 0)} players online</span>
           <h1 className="h-display text-5xl sm:text-6xl lg:text-7xl">
-            <span className="word-in" style={{ animationDelay: '60ms' }}>Play</span>{' '}
-            <span className="word-in" style={{ animationDelay: '160ms' }}>big.</span><br />
-            <span className="word-in text-gold-grad" style={{ animationDelay: '300ms' }}>Win</span>{' '}
-            <span className="word-in text-gold-grad" style={{ animationDelay: '420ms' }}>bigger.</span>
+            <span className="word-in inline-block" style={{ animationDelay: '60ms' }}>Play</span>{' '}
+            <span className="word-in inline-block" style={{ animationDelay: '160ms' }}>big.</span><br />
+            <span className="word-in inline-block text-gold-grad" style={{ animationDelay: '300ms' }}>Win</span>{' '}
+            <span className="word-in inline-block text-gold-grad" style={{ animationDelay: '420ms' }}>bigger.</span>
           </h1>
           <p className="mt-5 text-lg text-cream/80 max-w-sm word-in" style={{ animationDelay: '600ms' }}>Your favorite casino games, with a little more chicken.</p>
           <div className="mt-8 flex flex-wrap gap-3 word-in" style={{ animationDelay: '720ms' }}>
@@ -38,7 +38,7 @@ export default function Home() {
             ) : (
               <button onClick={() => openAuth('signup')} className="btn-gold px-6 py-3.5 text-base">Join Now <ArrowRight size={18} /></button>
             )}
-            <Link to="/games" className="btn-ghost px-6 py-3.5 text-base">Browse games</Link>
+            <Link to="/games" className="btn px-6 py-3.5 text-base text-cream bg-black/55 backdrop-blur-md border border-white/25 shadow-[0_8px_24px_-8px_rgba(0,0,0,.8)] hover:bg-black/70 hover:border-gold/60 hover:text-gold">Browse games</Link>
           </div>
           <div className="mt-10 flex gap-6 sm:gap-10">
             {[{ i: Zap, t: 'Instant Payouts' }, { i: ShieldCheck, t: 'Crypto-grade RNG' }, { i: Smartphone, t: 'Play Anywhere' }].map((f, k) => (

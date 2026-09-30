@@ -81,7 +81,7 @@ input[type='range'].range::-moz-range-track { height: 8px; background: transpare
 .page-in { animation: page-in .55s cubic-bezier(.2,.8,.2,1) both; }
 
 @keyframes word-in { from { opacity: 0; transform: perspective(600px) translate3d(0, .6em, 0) rotateX(-70deg); } to { opacity: 1; transform: none; } }
-.word-in { display: inline-block; animation: word-in .9s cubic-bezier(.2,.9,.25,1.15) both; transform-origin: 50% 100%; }
+.word-in { animation: word-in .9s cubic-bezier(.2,.9,.25,1.15) both; transform-origin: 50% 100%; }
 
 @keyframes bob { 0%, 100% { transform: translate3d(0, 0, 0) rotate(var(--r0, 0deg)); } 50% { transform: translate3d(0, -14px, 0) rotate(var(--r1, 6deg)); } }
 .bob { animation: bob var(--dur, 6s) ease-in-out infinite; animation-delay: var(--delay, 0s); }

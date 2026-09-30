@@ -31,6 +31,8 @@ export default function HeroScene({ children }: { children: ReactNode }) {
             className="h-full w-auto max-w-none object-cover [mask-image:linear-gradient(to_right,transparent,black_32%)] opacity-95" />
         </div>
         <div className="absolute inset-0 sm:hidden bg-gradient-to-b from-ink-900/40 via-ink-900/60 to-ink-900/90" />
+        {/* keep the copy readable wherever the rooster ends up */}
+        <div className="absolute inset-y-0 left-0 hidden sm:block w-[62%] bg-gradient-to-r from-ink-900 via-ink-900/85 to-transparent" />
 
         {/* near: floating 3D props */}
         {ok && (
