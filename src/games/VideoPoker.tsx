@@ -4,9 +4,9 @@ import GameShell, { GameAction } from '../components/GameShell';
 import BetControls, { MiniBet, confirmBet } from '../components/BetControls';
 import { useStore } from '../store';
 import { sfx } from '../lib/sound';
-import { fmt } from '../lib/format';
 import { Card, Shoe, eval5 } from '../lib/cards';
 import { Card3D, TableScene } from './three/table3d';
+import { Anchor, HandBadge, ResultBanner, TableHint } from '../components/TableUI';
 
 /** Jacks or Better 9/6 — total return per unit bet (99.5% with perfect play). */
 const PAYTABLE: { name: string; pays: number; test: (s: number[]) => boolean }[] = [
@@ -48,8 +48,22 @@ function suggestHolds(cards: Card[]): boolean[] {
 }
 
 type Phase = 'bet' | 'dealing' | 'hold' | 'done';
-const X = (i: number) => -2.3 + i * 1.15;
-const Z = 0.1;
+const X = (i: number) => -2.4 + i * 1.2;
+const Z = -0.15, BET: [number, number] = [0, 1.55];
+export const TABLE = {
+  felt: 0x341062,
+  zones: [
+    ...[0, 1, 2, 3, 4].map((i) => ({ x: X(i), z: Z, w: 1.12, h: 1.56, dashed: true, color: 'rgba(244,196,48,.35)', fill: 'rgba(0,0,0,.14)' })),
+    { x: BET[0], z: BET[1], r: 0.46, label: 'BET' },
+  ],
+  texts: [
+    { text: 'JACKS OR BETTER', z: -2.02, size: 0.3 },
+    { text: 'ROYAL FLUSH PAYS 800 TO 1', z: -1.62, size: 0.14, weight: 700, color: 'rgba(248,246,239,.6)' },
+    { text: '5 CARD POKER', z: 2.42, size: 0.28, arc: true },
+  ],
+  logoZ: null,
+  view: { wide: [-0.2, 8.4, 5.6] as [number, number, number], narrow: [-0.2, 6.3, 5.2] as [number, number, number] },
+};
 
 export default function VideoPoker() {
   const [bet, setBet] = useState(useStore.getState().settings.defaultBet);
@@ -60,6 +74,7 @@ export default function VideoPoker() {
 
   const hostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<TableScene | null>(null);
+  const [scene, setScene] = useState<TableScene | null>(null);
   const shoe = useRef<Shoe>(Shoe.fresh());
   const meshes = useRef<Card3D[]>([]);
   const stateRef = useRef({ phase, held });
@@ -67,13 +82,13 @@ export default function VideoPoker() {
   const turbo = useStore((s) => s.settings.turbo);
 
   useEffect(() => {
-    const sc = new TableScene(hostRef.current!, { felt: 0x3b1466, text: ['5 CARD POKER', 'JACKS OR BETTER · ROYAL FLUSH PAYS 800×'], sub: 'TAP A CARD TO HOLD IT' });
-    sceneRef.current = sc;
+    const sc = new TableScene(hostRef.current!, TABLE);
+    sceneRef.current = sc; setScene(sc);
     sc.onCardClick((c) => {
       const i = meshes.current.indexOf(c);
       if (i >= 0 && stateRef.current.phase === 'hold') toggle(i);
     });
-    return () => { sc.dispose(); sceneRef.current = null; };
+    return () => { sc.dispose(); sceneRef.current = null; setScene(null); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => { sceneRef.current?.setTurbo(turbo); }, [turbo]);
@@ -97,11 +112,12 @@ export default function VideoPoker() {
     if (!sc || !confirmBet(bet) || !useStore.getState().placeBet(bet)) return;
     sfx.bet();
     sc.clear(); setResult(null); setHeld([false, false, false, false, false]);
+    sc.setChips('bet', bet, ...BET);
     setPhase('dealing');
     shoe.current = Shoe.fresh();
     const hand = Array.from({ length: 5 }, () => shoe.current.draw());
     meshes.current = [];
-    for (let i = 0; i < 5; i++) { meshes.current.push(await sc.deal(hand[i], X(i), Z, { delay: 0 })); sfx.tick(); }
+    for (let i = 0; i < 5; i++) { meshes.current.push(await sc.deal(hand[i], X(i), Z)); sfx.tick(); }
     setCards(hand);
     setPhase('hold');
   };
@@ -110,7 +126,7 @@ export default function VideoPoker() {
     const sc = sceneRef.current; if (!sc || phase !== 'hold') return;
     setPhase('dealing');
     const hand = [...cards];
-    for (let i = 0; i < 5; i++) if (!held[i]) sc.discard(meshes.current[i]);
+    for (let i = 0; i < 5; i++) if (!held[i]) sc.discard(meshes.current[i]); else sc.lift(meshes.current[i], false);
     await new Promise((r) => setTimeout(r, turbo ? 120 : 260));
     for (let i = 0; i < 5; i++) {
       if (held[i]) continue;
@@ -124,7 +140,8 @@ export default function VideoPoker() {
     useStore.getState().settle('video-poker', bet, pays, r ? r.name : 'No win');
     setResult({ name: r?.name ?? null, pays });
     pays > 1 ? sfx.win() : pays === 1 ? sfx.reveal() : sfx.lose();
-    if (pays >= 1) sc.celebrate(0, Z, pays > 1, 3.6);
+    if (pays > 1) sc.celebrate(0, Z, true, 6.1, 1.8);
+    sc.settleChips('bet', pays > 1 ? 'win' : pays === 1 ? 'push' : 'lose', bet * (pays - 1));
     setPhase('done');
   };
 
@@ -176,20 +193,20 @@ export default function VideoPoker() {
       'Your final hand pays by the table — a pair of jacks or better returns your bet, a royal flush pays 800×.',
     ]}>
       <div ref={hostRef} className="absolute inset-0" aria-label="5 card poker table" />
-      <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
-        <div className="rounded-xl bg-black/60 px-4 py-1.5 text-center backdrop-blur">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-smoke">{phase === 'hold' ? 'You have' : phase === 'done' ? 'Final hand' : 'Five card draw'}</div>
-          <div className={`font-display text-lg font-black ${shownRank ? 'text-gold' : ''}`}>{shownRank ? shownRank.name : phase === 'hold' || phase === 'done' ? 'Nothing yet' : 'Jacks or Better'}</div>
-        </div>
-      </div>
-      {result && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-5 flex justify-center px-4">
-          <div className={`animate-pop rounded-2xl border px-6 py-3 text-center backdrop-blur-md ${result.pays > 1 ? 'border-gold/60 bg-black/60' : 'border-white/20 bg-black/60'}`}>
-            <div className={`h-display text-3xl ${result.pays > 1 ? 'text-gold-grad' : result.pays === 1 ? 'text-cream' : 'text-smoke'}`}>{result.name ? `${result.name.toUpperCase()}` : 'NO WIN'}</div>
-            <div className="mt-1 text-sm text-cream/85">{result.pays > 0 ? `${result.pays}× · paid ${fmt(bet * result.pays)}` : 'Deal again?'}</div>
-          </div>
-        </div>
+      <div className="table-vignette pointer-events-none absolute inset-0" />
+      {(phase === 'hold' || phase === 'done') && (
+        <Anchor scene={scene} at={[0, 0.2, Z + 1.2]}>
+          <HandBadge label={phase === 'hold' ? 'You have' : 'Final hand'} value={shownRank ? shownRank.name : 'Nothing'} tone={shownRank ? (phase === 'done' ? 'win' : 'active') : phase === 'done' ? 'lose' : 'neutral'} sub={shownRank ? `${shownRank.pays}×` : undefined} />
+        </Anchor>
       )}
+      {phase === 'hold' && held.map((h, i) => h && (
+        <Anchor key={i} scene={scene} at={[X(i), 0.4, Z - 1.0]}>
+          <span className="animate-pop rounded-md bg-gold px-2 py-0.5 font-display text-[10px] font-black tracking-widest text-ink shadow-gold">HELD</span>
+        </Anchor>
+      ))}
+      {result && <ResultBanner key={cards.map((c) => c.r + c.s).join()} tone={result.pays > 1 ? 'win' : result.pays === 1 ? 'push' : 'lose'} title={result.name ? result.name.toUpperCase() : 'NO WIN'} sub={result.pays > 0 ? `${result.pays}× · paid` : 'Deal again?'} amount={result.pays > 0 ? bet * result.pays : 0} big={result.pays >= 25} />}
+      {phase === 'bet' && <TableHint>Set your bet and press <b className="text-gold">Deal</b></TableHint>}
+      {phase === 'hold' && <div className="pointer-events-none absolute inset-x-0 top-3 z-10 flex justify-center"><span className="rounded-full bg-black/60 px-3 py-1 text-[11px] font-semibold text-cream/80 backdrop-blur">Tap cards to hold · then Draw</span></div>}
     </GameShell>
   );
 }

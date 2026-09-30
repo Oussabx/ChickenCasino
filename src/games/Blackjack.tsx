@@ -3,17 +3,33 @@ import GameShell, { GameAction } from '../components/GameShell';
 import BetControls, { MiniBet, confirmBet } from '../components/BetControls';
 import { useStore } from '../store';
 import { sfx } from '../lib/sound';
-import { fmt } from '../lib/format';
 import { Card, Shoe, bjValue, isBlackjack } from '../lib/cards';
 import { Card3D, TableScene } from './three/table3d';
+import { Anchor, HandBadge, ResultBanner, TableHint } from '../components/TableUI';
 
 interface Hand { cards: Card[]; bet: number; done: boolean; doubled: boolean; fromSplit: boolean; result?: 'win' | 'lose' | 'push' | 'bj' }
 type Phase = 'bet' | 'dealing' | 'player' | 'dealer' | 'done';
 
-const DEALER_Z = -1.7, PLAYER_Z = 1.0;
-const dealerX = (i: number) => -0.9 + i * 0.62;
-const handBaseX = (h: number, n: number) => (n === 1 ? 0 : h === 0 ? -2.2 : 2.2);
-const cardX = (base: number, i: number) => base - 0.45 + i * 0.5;
+const DEALER_Z = -1.85, PLAYER_Z = 1.05, BET_Z = 2.35, SPLIT_X = 2.3;
+const dealerX = (i: number) => -0.62 + i * 0.62;
+const handBaseX = (h: number, n: number) => (n === 1 ? 0 : h === 0 ? -SPLIT_X : SPLIT_X);
+const cardX = (base: number, i: number) => base - 0.3 + i * 0.52;
+const chipZ = (n: number) => (n === 1 ? BET_Z : BET_Z - 0.3);
+
+export const TABLE = {
+  felt: 0x0c5234,
+  zones: [
+    { x: 0, z: BET_Z, r: 0.5 },
+    { x: -SPLIT_X, z: BET_Z - 0.3, r: 0.42, dashed: true, color: 'rgba(244,196,48,.45)' },
+    { x: SPLIT_X, z: BET_Z - 0.3, r: 0.42, dashed: true, color: 'rgba(244,196,48,.45)' },
+  ],
+  texts: [
+    { text: 'BLACKJACK PAYS 3 TO 2', z: -0.12, size: 0.36, arc: true },
+    { text: 'DEALER MUST DRAW TO 16 AND STAND ON ALL 17s', z: -0.56, size: 0.13, arc: true, weight: 700, color: 'rgba(248,246,239,.55)' },
+  ],
+  logoZ: null,
+  view: { wide: [-0.25, 9.6, 5.9] as [number, number, number], narrow: [-0.2, 6.3, 6.4] as [number, number, number] },
+};
 
 export default function Blackjack() {
   const [bet, setBet] = useState(useStore.getState().settings.defaultBet);
@@ -26,6 +42,7 @@ export default function Blackjack() {
 
   const hostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<TableScene | null>(null);
+  const [scene, setScene] = useState<TableScene | null>(null);
   const shoe = useRef(new Shoe(6));
   const hole = useRef<{ c3: Card3D; card: Card } | null>(null);
   const handsRef = useRef<Hand[]>([]);
@@ -34,9 +51,9 @@ export default function Blackjack() {
   const turbo = useStore((s) => s.settings.turbo);
 
   useEffect(() => {
-    const sc = new TableScene(hostRef.current!, { felt: 0x0e5a3a, text: ['BLACKJACK PAYS 3 TO 2', 'DEALER STANDS ON ALL 17s'], sub: 'CHICKEN CASINO' });
-    sceneRef.current = sc;
-    return () => { sc.dispose(); sceneRef.current = null; };
+    const sc = new TableScene(hostRef.current!, TABLE);
+    sceneRef.current = sc; setScene(sc);
+    return () => { sc.dispose(); sceneRef.current = null; setScene(null); };
   }, []);
   useEffect(() => { sceneRef.current?.setTurbo(turbo); }, [turbo]);
 
@@ -53,10 +70,10 @@ export default function Blackjack() {
     const p1 = shoe.current.draw(), d1 = shoe.current.draw(), p2 = shoe.current.draw(), d2 = shoe.current.draw();
     const h: Hand = { cards: [], bet, done: false, doubled: false, fromSplit: false };
     sync([h]); setActive(0); setDealer([]);
-    sc.setChips('h0', bet, 0, 2.15);
+    sc.setChips('h0', bet, 0, BET_Z);
     const m1 = await sc.deal(p1, cardX(0, 0), PLAYER_Z); sfx.tick(); h.cards.push(p1); sync([h]);
     await sc.deal(d1, dealerX(0), DEALER_Z); sfx.tick(); setDealer([d1]);
-    const m2 = await sc.deal(p2, cardX(0, 1), PLAYER_Z - 0.06); sfx.tick(); h.cards.push(p2); sync([h]);
+    const m2 = await sc.deal(p2, cardX(0, 1), PLAYER_Z - 0.08); sfx.tick(); h.cards.push(p2); sync([h]);
     firstCards.current = [m1, m2];
     const c3 = await sc.deal(null, dealerX(1), DEALER_Z); sfx.tick();
     hole.current = { c3, card: d2 };
@@ -96,11 +113,11 @@ export default function Blackjack() {
     if (double) {
       if (!useStore.getState().placeBet(h.bet)) return;
       h.bet *= 2; h.doubled = true; sfx.bet();
-      sc.setChips(`h${active}`, h.bet, handBaseX(active, hs.length), 2.15);
+      sc.setChips(`h${active}`, h.bet, handBaseX(active, hs.length), chipZ(hs.length));
     }
     setPhase('dealing');
     const c = shoe.current.draw();
-    await sc.deal(c, cardX(handBaseX(active, hs.length), h.cards.length), PLAYER_Z - h.cards.length * 0.06);
+    await sc.deal(c, cardX(handBaseX(active, hs.length), h.cards.length), PLAYER_Z - h.cards.length * 0.08);
     sfx.step();
     h.cards.push(c);
     const v = bjValue(h.cards).total;
@@ -127,11 +144,11 @@ export default function Blackjack() {
     const b: Hand = { cards: [h.cards[1]], bet: h.bet, done: false, doubled: false, fromSplit: true };
     // slide the two cards apart
     const [m1, m2] = firstCards.current;
-    await Promise.all([sc.move(m1, cardX(-2.2, 0), PLAYER_Z), sc.move(m2, cardX(2.2, 0), PLAYER_Z)]);
-    sc.setChips('h0', h.bet, -2.2, 2.15); sc.setChips('h1', h.bet, 2.2, 2.15);
+    await Promise.all([sc.move(m1, cardX(-SPLIT_X, 0), PLAYER_Z), sc.move(m2, cardX(SPLIT_X, 0), PLAYER_Z)]);
+    sc.setChips('h0', h.bet, -SPLIT_X, chipZ(2)); sc.setChips('h1', h.bet, SPLIT_X, chipZ(2));
     const c1 = shoe.current.draw(), c2 = shoe.current.draw();
-    await sc.deal(c1, cardX(-2.2, 1), PLAYER_Z - 0.06); a.cards.push(c1);
-    await sc.deal(c2, cardX(2.2, 1), PLAYER_Z - 0.06); b.cards.push(c2);
+    await sc.deal(c1, cardX(-SPLIT_X, 1), PLAYER_Z - 0.08); a.cards.push(c1);
+    await sc.deal(c2, cardX(SPLIT_X, 1), PLAYER_Z - 0.08); b.cards.push(c2);
     const aces = a.cards[0].r === 14;
     for (const x of [a, b]) if (aces || bjValue(x.cards).total === 21) x.done = true;
     const next = [a, b];
@@ -176,7 +193,15 @@ export default function Blackjack() {
     const text = hs.some((h) => h.result === 'bj') ? 'BLACKJACK!' : tone === 'win' ? (dv > 21 ? 'DEALER BUSTS!' : 'YOU WIN!') : tone === 'push' ? 'PUSH' : hs.every((h) => bjValue(h.cards).total > 21) ? 'BUST' : 'DEALER WINS';
     setSummary({ text, tone, payout });
     tone === 'win' ? sfx.win() : tone === 'push' ? sfx.click() : sfx.lose();
-    sc?.celebrate(0, tone === 'win' ? PLAYER_Z : DEALER_Z, tone === 'win', hs.length > 1 ? 3.2 : 1.6);
+    if (sc) {
+      hs.forEach((h, i) => {
+        const bx = handBaseX(i, hs.length), n = h.cards.length;
+        const won = h.result === 'win' || h.result === 'bj';
+        if (won || h.result === 'lose') sc.celebrate(bx - 0.3 + (n - 1) * 0.26, PLAYER_Z - (n - 1) * 0.04, won, 1.1 + (n - 1) * 0.52, 1.55 + (n - 1) * 0.08);
+        sc.settleChips(`h${i}`, won ? 'win' : h.result === 'push' ? 'push' : 'lose', h.result === 'bj' ? h.bet * 1.5 : h.bet);
+      });
+      if (tone === 'lose' && dv <= 21) sc.highlight(dealerX(0) + (dh.length - 1) * 0.31, DEALER_Z, 1.1 + (dh.length - 1) * 0.62, 1.55);
+    }
     setPhase('done');
   };
 
@@ -218,33 +243,26 @@ export default function Blackjack() {
       'The dealer draws to 16 and stands on all 17s. Wins pay 1:1, a blackjack (ace + ten) pays 3:2, ties push.',
     ]}>
       <div ref={hostRef} className="absolute inset-0" aria-label="Blackjack table" />
-      <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
-        {dv && <Badge label="Dealer" value={dv.total > 21 ? 'BUST' : String(dv.total)} soft={dv.soft && dv.total < 21 && holeShown} />}
-      </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center gap-3">
-        {hands.map((hh, i) => {
-          const v = bjValue(hh.cards);
-          return <Badge key={i} label={hands.length > 1 ? `Hand ${i + 1}` : 'You'} value={v.total > 21 ? 'BUST' : isBlackjack(hh.cards) && !hh.fromSplit ? 'BJ' : String(v.total)} soft={v.soft && v.total < 21} active={phase === 'player' && i === active && hands.length > 1} />;
-        })}
-      </div>
-      {summary && (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center">
-          <div className={`animate-pop rounded-2xl border px-6 py-3 text-center backdrop-blur-md ${summary.tone === 'win' ? 'border-gold/60 bg-black/60' : summary.tone === 'push' ? 'border-white/30 bg-black/60' : 'border-blood/60 bg-blood/20'}`}>
-            <div className={`h-display text-4xl ${summary.tone === 'win' ? 'text-gold-grad' : summary.tone === 'push' ? 'text-cream' : 'text-blood neon-red'}`}>{summary.text}</div>
-            <div className="mt-1 text-sm text-cream/85">{summary.payout > 0 ? `Paid ${fmt(summary.payout)}` : 'Better luck next hand'}</div>
-          </div>
-        </div>
+      <div className="table-vignette pointer-events-none absolute inset-0" />
+      {dv && (
+        <Anchor scene={scene} at={[dealerX(0) - 1.25, 0.2, DEALER_Z - 0.2]}>
+          <HandBadge label="Dealer" value={dv.total > 21 ? 'BUST' : dealer.length === 2 && holeShown && isBlackjack(dealer) ? 'BJ' : dv.total} sub={dv.soft && dv.total < 21 && holeShown ? 'soft' : undefined}
+            tone={dv.total > 21 ? 'lose' : phase === 'done' && summary?.tone === 'lose' ? 'win' : 'neutral'} />
+        </Anchor>
       )}
+      {hands.map((hh, i) => {
+        const v = bjValue(hh.cards);
+        const base = handBaseX(i, hands.length);
+        const tone = hh.result === 'win' || hh.result === 'bj' ? 'win' : hh.result === 'lose' ? 'lose' : hh.result === 'push' ? 'push' : phase === 'player' && i === active ? 'active' : 'neutral';
+        return (
+          <Anchor key={i} scene={scene} at={hands.length > 1 ? [base, 0.2, PLAYER_Z - 1.05] : [base - 1.25, 0.2, PLAYER_Z]}>
+            <HandBadge label={hands.length > 1 ? `Hand ${i + 1}` : 'You'} tone={tone}
+              value={v.total > 21 ? 'BUST' : isBlackjack(hh.cards) && !hh.fromSplit ? 'BJ' : v.total} sub={v.soft && v.total < 21 ? 'soft' : hh.doubled ? '2×' : undefined} />
+          </Anchor>
+        );
+      })}
+      {summary && <ResultBanner key={dealer.length + summary.text} tone={summary.tone} title={summary.text} amount={summary.payout} sub={summary.payout > 0 ? 'Paid' : 'Better luck next hand'} big={summary.text === 'BLACKJACK!'} />}
+      {phase === 'bet' && <TableHint>Set your bet and press <b className="text-gold">Deal</b></TableHint>}
     </GameShell>
   );
 }
-
-function Badge({ label, value, soft, active }: { label: string; value: string; soft?: boolean; active?: boolean }) {
-  return (
-    <div className={`rounded-xl px-3 py-1.5 text-center backdrop-blur ${active ? 'bg-gold text-ink shadow-gold' : 'bg-black/60'}`}>
-      <div className={`text-[10px] font-semibold uppercase tracking-wider ${active ? 'text-ink/70' : 'text-smoke'}`}>{label}</div>
-      <div className="font-display text-xl font-black tabular leading-none">{value}{soft && <span className="ml-1 text-[10px] opacity-70">soft</span>}</div>
-    </div>
-  );
-}
-

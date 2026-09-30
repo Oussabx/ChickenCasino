@@ -1,344 +1,638 @@
 import * as THREE from 'three';
 import { Stage3D } from './stage';
-import { MAT, box, glowSprite, makeChip, std } from './models';
-import { Card, isRed, rankLabel, SUIT_CHAR } from '../../lib/cards';
+import { MAT, box, glowSprite, makeChip, std, textTexture } from './models';
+import { Card } from '../../lib/cards';
+import { backTexture, faceTexture, roundRect } from './cardArt';
 
 /**
- * A 3D casino table used by the card games: curved felt with printed text,
- * gold rail, card shoe, and cards that fly out of the shoe and flip.
- * World units: x = left/right, z = towards the player, y = up.
+ * A 3D casino table used by the card games: a printed felt layout (card boxes,
+ * bet spots, curved text), padded rail, card shoe, discard holder and chip tray.
+ * Cards fly out of the shoe, flip, lift and get swept; chips drop, get paid or
+ * collected. World units: x = left/right, z = towards the player, y = up.
  */
 
-export const CW = 0.9; // card width
-export const CH = 1.3; // card height (depth along z when lying flat)
+export const CW = 1.0; // card width
+export const CH = 1.42; // card height (depth along z when lying flat)
+const CT = 0.014; // card thickness
+const FELT_Y = 0.06;
+const W = 6.6, D = 3.4; // table half-width, dealer edge offset
+const PX = 2048 / (2 * W); // felt texture px per world unit
 
-let backCanvas: HTMLCanvasElement | null = null;
-const faceCache = new Map<string, THREE.CanvasTexture>();
-let backTex: THREE.CanvasTexture | null = null;
-const listeners: (() => void)[] = [];
-let headImg: HTMLImageElement | null = null;
+function cardShape() {
+  const s = new THREE.Shape(), w = CW / 2, h = CH / 2, r = 0.075;
+  s.moveTo(-w + r, -h); s.lineTo(w - r, -h); s.quadraticCurveTo(w, -h, w, -h + r);
+  s.lineTo(w, h - r); s.quadraticCurveTo(w, h, w - r, h);
+  s.lineTo(-w + r, h); s.quadraticCurveTo(-w, h, -w, h - r);
+  s.lineTo(-w, -h + r); s.quadraticCurveTo(-w, -h, -w + r, -h);
+  return s;
+}
+const SHAPE = cardShape();
+const BODY_GEO = (() => { const g = new THREE.ExtrudeGeometry(SHAPE, { depth: CT, bevelEnabled: false, curveSegments: 5 }); g.rotateX(-Math.PI / 2); g.translate(0, -CT / 2, 0); return g; })();
+function capGeo(top: boolean) {
+  const g = new THREE.ShapeGeometry(SHAPE, 5);
+  g.rotateX(top ? -Math.PI / 2 : Math.PI / 2);
+  g.translate(0, top ? CT / 2 + 0.0008 : -CT / 2 - 0.0008, 0);
+  const pos = g.attributes.position as THREE.BufferAttribute, uv = g.attributes.uv as THREE.BufferAttribute;
+  for (let i = 0; i < pos.count; i++) uv.setXY(i, (pos.getX(i) + CW / 2) / CW, top ? (CH / 2 - pos.getZ(i)) / CH : (CH / 2 + pos.getZ(i)) / CH);
+  return g;
+}
+const FACE_GEO = capGeo(true);
+const BACK_GEO = capGeo(false);
+const EDGE = std(0xf4f0e4, { roughness: 0.55 });
 
-function roundRect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+export interface Card3D { mesh: THREE.Group; card: Card | null; up: boolean; glow?: THREE.Mesh }
+
+/** A printed area on the felt. `r` makes it a circle; `id` makes it a clickable bet spot. */
+export interface Zone { id?: string; x: number; z: number; w?: number; h?: number; r?: number; label?: string; sub?: string; color?: string; fill?: string; labelAt?: 'in' | 'below' | 'above'; dashed?: boolean }
+/** Text printed on the felt. `arc` bends it around the table's curve. */
+export interface FeltText { text: string; z: number; x?: number; size?: number; color?: string; arc?: boolean; weight?: number; spacing?: number }
+export interface TableOpts {
+  felt?: number;
+  zones?: Zone[];
+  texts?: FeltText[];
+  /** Where the faint logo watermark sits (z), or null for none. */
+  logoZ?: number | null;
+  /** Camera framing: [centre z, width, height] for wide and narrow viewports. */
+  view?: { wide?: [number, number, number]; narrow?: [number, number, number] };
 }
 
-function loadHead() {
-  if (headImg) return;
-  headImg = new Image();
-  headImg.src = './img/head.webp';
-  headImg.onload = () => { drawBack(); listeners.forEach((f) => f()); };
-}
+const DENOMS: [number, number][] = [[1000, 0x7c3aed], [500, 0x1e1e1e], [100, 0xf4c430], [25, 0x10b981], [5, 0xe63946], [1, 0xf8f6ef]];
 
-function drawBack() {
-  if (!backCanvas) { backCanvas = document.createElement('canvas'); backCanvas.width = 256; backCanvas.height = 370; }
-  const g = backCanvas.getContext('2d')!;
-  g.fillStyle = '#F8F6EF'; roundRect(g, 0, 0, 256, 370, 20); g.fill();
-  g.save(); roundRect(g, 10, 10, 236, 350, 14); g.clip();
-  g.fillStyle = '#8E1B24'; g.fillRect(0, 0, 256, 370);
-  g.strokeStyle = '#E63946'; g.lineWidth = 6;
-  for (let i = -400; i < 400; i += 22) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + 370, 370); g.stroke(); }
-  g.restore();
-  g.strokeStyle = '#F4C430'; g.lineWidth = 4; roundRect(g, 18, 18, 220, 334, 10); g.stroke();
-  if (headImg?.complete) { g.save(); g.beginPath(); g.arc(128, 185, 62, 0, 7); g.fillStyle = '#F8F6EF'; g.fill(); g.clip(); g.drawImage(headImg, 66, 123, 124, 124); g.restore(); }
-  if (backTex) backTex.needsUpdate = true;
-}
-
-function backTexture() {
-  if (!backTex) {
-    loadHead(); drawBack();
-    backTex = new THREE.CanvasTexture(backCanvas!);
-    backTex.colorSpace = THREE.SRGBColorSpace; backTex.anisotropy = 8;
-  }
-  return backTex;
-}
-
-function faceTexture(c: Card) {
-  const key = `${c.r}${c.s}`;
-  const hit = faceCache.get(key);
-  if (hit) return hit;
-  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 370;
-  const tex = new THREE.CanvasTexture(cv);
-  tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
-  const draw = () => {
-    const g = cv.getContext('2d')!;
-    g.clearRect(0, 0, 256, 370);
-    g.fillStyle = '#FBFAF5'; roundRect(g, 0, 0, 256, 370, 20); g.fill();
-    g.strokeStyle = '#d9d4c3'; g.lineWidth = 3; roundRect(g, 2, 2, 252, 366, 18); g.stroke();
-    const col = isRed(c) ? '#D62839' : '#111111';
-    const rl = rankLabel(c.r), sc = SUIT_CHAR[c.s];
-    g.fillStyle = col; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.font = '900 58px Montserrat, system-ui, sans-serif'; g.fillText(rl, 40, 46);
-    g.font = '48px system-ui, sans-serif'; g.fillText(sc, 40, 96);
-    g.save(); g.translate(216, 324); g.rotate(Math.PI);
-    g.font = '900 58px Montserrat, system-ui, sans-serif'; g.fillText(rl, 0, 0);
-    g.font = '48px system-ui, sans-serif'; g.fillText(sc, 0, 50);
-    g.restore();
-    if (c.r >= 11 && c.r <= 13) {
-      // court cards: framed letter with a little crown
-      g.strokeStyle = col; g.lineWidth = 4; roundRect(g, 64, 92, 128, 186, 12); g.stroke();
-      g.fillStyle = isRed(c) ? 'rgba(214,40,57,.08)' : 'rgba(0,0,0,.05)'; roundRect(g, 64, 92, 128, 186, 12); g.fill();
-      g.fillStyle = '#F4C430'; g.beginPath(); g.moveTo(98, 150); g.lineTo(108, 124); g.lineTo(128, 142); g.lineTo(148, 124); g.lineTo(158, 150); g.closePath(); g.fill();
-      g.fillStyle = col; g.font = '900 96px Montserrat, system-ui, sans-serif'; g.fillText(rl, 128, 210);
-    } else {
-      g.font = `${c.r === 14 ? 170 : 130}px system-ui, sans-serif`; g.fillText(sc, 128, 196);
-    }
-    tex.needsUpdate = true;
-  };
-  draw();
-  document.fonts?.ready.then(draw);
-  faceCache.set(key, tex);
-  return tex;
-}
-
-const CARD_GEO = new THREE.BoxGeometry(CW, 0.012, CH);
-const EDGE = std(0xf1ede0, { roughness: 0.6 });
-
-export interface Card3D { mesh: THREE.Mesh; card: Card | null; up: boolean }
-
-export interface TableOpts { felt?: number; text?: string[]; sub?: string }
+type Anim = { t0: number; dur: number; step: (k: number) => void; done: () => void };
+interface Glow { mesh: THREE.Mesh; base: number; pulse: boolean; fade?: number }
 
 export class TableScene extends Stage3D {
   private cards: Card3D[] = [];
-  private anims: { t0: number; dur: number; step: (k: number) => void; done: () => void }[] = [];
+  private anims: Anim[] = [];
   private chips = new Map<string, THREE.Group>();
-  private shoePos = new THREE.Vector3(4.2, 0.55, -2.4);
-  private feltMat: THREE.MeshStandardMaterial;
-  private glowRing: THREE.Mesh;
+  private shoePos = new THREE.Vector3(4.05, 0.62, -2.35);
+  private discardPos = new THREE.Vector3(-4.1, 0.45, -2.45);
+  private trayPos = new THREE.Vector3(0, 0.3, -3.05);
+  private zones: Zone[];
+  private glows: Glow[] = [];
+  private hoverGlow: THREE.Mesh | null = null;
+  private hoverId: string | null = null;
+  private lamp: THREE.PointLight;
+  private lampBase = 17;
+  private flash = 0;
+  private dust: THREE.Points;
+  private bokeh: THREE.Sprite[] = [];
+  private opts: TableOpts;
 
   constructor(host: HTMLElement, opts: TableOpts = {}) {
-    super(host, { fov: 36, bg: 0x0a0708 });
-    this.parallax = 0.35;
-    this.key.position.set(-3, 12, 7);
+    super(host, { fov: 34, bg: 0x0a0607 });
+    this.opts = opts;
+    this.zones = opts.zones ?? [];
+    this.parallax = 0.3;
+    this.key.position.set(-3, 13, 6);
+    this.key.intensity = 1.9;
     const felt = opts.felt ?? 0x0e5a3a;
 
-    // floor + glow
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), std(0x120a0c, { roughness: 0.9 }));
-    floor.rotation.x = -Math.PI / 2; floor.position.y = -1.6; this.scene.add(floor);
-    const g = glowSprite('rgba(244,196,48,0.5)', 22, 0.18); g.position.set(0, 3, -4); this.scene.add(g);
-    const lamp = new THREE.PointLight(0xffe2b0, 30, 22, 1.4); lamp.position.set(0, 7, 1); this.scene.add(lamp);
+    // room: dark floor, warm back glow, bokeh lights for depth
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), std(0x100809, { roughness: 0.95 }));
+    floor.rotation.x = -Math.PI / 2; floor.position.y = -1.6; floor.receiveShadow = true; this.scene.add(floor);
+    const back = glowSprite('rgba(244,196,48,0.55)', 26, 0.16); back.position.set(0, 2.5, -9); this.scene.add(back);
+    const redGlow = glowSprite('rgba(230,57,70,0.6)', 18, 0.12); redGlow.position.set(-9, 3, -8); this.scene.add(redGlow);
+    for (let i = 0; i < 22; i++) {
+      const warm = Math.random() < 0.7;
+      const s = glowSprite(warm ? 'rgba(255,214,120,1)' : 'rgba(230,57,70,1)', 0.6 + Math.random() * 1.4, 0.18 + Math.random() * 0.2);
+      s.position.set((Math.random() - 0.5) * 34, 1 + Math.random() * 6, -10 - Math.random() * 8);
+      s.userData.ph = Math.random() * 6; s.userData.o = s.material.opacity;
+      this.bokeh.push(s); this.scene.add(s);
+    }
+    this.lamp = new THREE.PointLight(0xffe0b0, this.lampBase, 20, 1.3); this.lamp.position.set(0, 6.5, 0.5); this.scene.add(this.lamp);
+    const pool = glowSprite('rgba(255,236,190,0.9)', 13, 0.045); pool.position.set(0, 0.3, 0); this.scene.add(pool);
 
     // felt top: rounded "D" shape (flat edge at the dealer side)
     const shape = new THREE.Shape();
-    const W = 6.6, D = 3.4;
     shape.moveTo(-W, -D); shape.lineTo(W, -D);
     shape.absarc(0, -D, W, 0, Math.PI, false);
-    const top = new THREE.ExtrudeGeometry(shape, { depth: 0.3, bevelEnabled: true, bevelSize: 0.06, bevelThickness: 0.06, bevelSegments: 3, curveSegments: 64 });
+    const top = new THREE.ExtrudeGeometry(shape, { depth: 0.3, bevelEnabled: true, bevelSize: 0.06, bevelThickness: 0.06, bevelSegments: 3, curveSegments: 96 });
     top.rotateX(Math.PI / 2);
-    this.feltMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, map: this.feltTexture(felt, opts) });
-    const topMesh = new THREE.Mesh(top, [this.feltMat, std(0x2b160b, { roughness: 0.7 })]);
-    topMesh.position.y = 0; topMesh.receiveShadow = true;
+    const feltMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92, map: this.feltTexture(felt) });
+    const topMesh = new THREE.Mesh(top, [feltMat, std(0x2b160b, { roughness: 0.7 })]);
+    topMesh.receiveShadow = true;
     this.scene.add(topMesh);
-    // UV-map the felt texture onto the top face by planar projection
     const uv = top.attributes.uv as THREE.BufferAttribute, pos = top.attributes.position as THREE.BufferAttribute;
-    for (let i = 0; i < pos.count; i++) uv.setXY(i, (pos.getX(i) + W) / (2 * W), 1 - (pos.getZ(i) + D) / (W + 0.0001));
+    for (let i = 0; i < pos.count; i++) uv.setXY(i, (pos.getX(i) + W) / (2 * W), 1 - (pos.getZ(i) + D) / W);
     uv.needsUpdate = true;
 
-    // padded rail along the curved edge
-    const railCurve = new THREE.EllipseCurve(0, -D, W + 0.1, W + 0.1, 0, Math.PI, false, 0);
-    const pts = railCurve.getPoints(80).map((p) => new THREE.Vector3(p.x, 0.12, p.y));
-    const rail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 120, 0.28, 12, false), std(0x3a1d0e, { roughness: 0.45 }));
-    rail.castShadow = true; this.scene.add(rail);
-    const trim = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map((p) => p.clone().setY(0.18).multiplyScalar(1))), 120, 0.06, 8, false), MAT.gold);
-    trim.position.y = 0.12; this.scene.add(trim);
-    // dealer edge
-    this.scene.add(box(std(0x2b160b), [2 * W + 0.6, 0.45, 0.4], [0, 0.02, -D - 0.1]));
+    // padded leather rail + brass trim + wooden apron
+    const railCurve = new THREE.EllipseCurve(0, -D, W + 0.12, W + 0.12, 0, Math.PI, false, 0);
+    const pts = railCurve.getPoints(90).map((p) => new THREE.Vector3(p.x, 0.14, p.y));
+    const rail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 160, 0.3, 16, false), std(0x2a1209, { roughness: 0.38 }));
+    rail.castShadow = true; rail.receiveShadow = true; this.scene.add(rail);
+    const inner = new THREE.EllipseCurve(0, -D, W - 0.16, W - 0.16, 0, Math.PI, false, 0).getPoints(90).map((p) => new THREE.Vector3(p.x, FELT_Y + 0.02, p.y));
+    this.scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(inner), 160, 0.035, 8, false), MAT.gold));
+    const apron = new THREE.Mesh(new THREE.CylinderGeometry(W + 0.35, W + 0.2, 1.1, 96, 1, true, Math.PI / 2, Math.PI), std(0x1c0c06, { roughness: 0.5, side: THREE.DoubleSide }));
+    apron.position.set(0, -0.5, -D); this.scene.add(apron);
+    this.scene.add(box(std(0x2b160b), [2 * W + 0.7, 0.45, 0.4], [0, 0.02, -D - 0.12]));
 
-    // shoe + chip tray
+    // card shoe: smoked acrylic box with a stack of backs and a brass plate
     const shoe = new THREE.Group();
-    shoe.add(box(std(0x1b1b1f, { metalness: 0.4, roughness: 0.3 }), [1.1, 0.55, 1.6], [0, 0, 0]));
-    shoe.add(box(MAT.gold, [1.12, 0.06, 1.62], [0, 0.29, 0]));
-    const back = new THREE.Mesh(new THREE.BoxGeometry(CW * 0.95, 0.4, 0.05), new THREE.MeshStandardMaterial({ map: backTexture() }));
-    back.position.set(0, 0.1, 0.8); shoe.add(back);
-    shoe.position.set(this.shoePos.x, 0.3, this.shoePos.z - 0.2);
-    shoe.rotation.y = -0.35; this.scene.add(shoe);
+    const acrylic = std(0x121214, { metalness: 0.45, roughness: 0.2 });
+    shoe.add(box(acrylic, [1.25, 0.62, 1.8], [0, 0, 0]));
+    shoe.add(box(MAT.gold, [1.27, 0.06, 0.06], [0, 0.31, 0.9]), box(MAT.gold, [1.27, 0.06, 0.06], [0, 0.31, -0.9]));
+    shoe.add(box(MAT.gold, [0.06, 0.06, 1.82], [0.63, 0.31, 0]), box(MAT.gold, [0.06, 0.06, 1.82], [-0.63, 0.31, 0]));
+    const stack = new THREE.Mesh(new THREE.BoxGeometry(CW * 0.98, 0.46, 1.2), [EDGE, EDGE, EDGE, EDGE, new THREE.MeshStandardMaterial({ map: backTexture(), roughness: 0.5 }), EDGE]);
+    stack.position.set(0, 0.06, 0.34); shoe.add(stack);
+    const lip = box(std(0x121214, { metalness: 0.5, roughness: 0.2 }), [1.25, 0.18, 0.3], [0, -0.22, 1.02]);
+    lip.rotation.x = -0.5; shoe.add(lip);
+    shoe.position.set(this.shoePos.x, 0.34, this.shoePos.z - 0.25);
+    shoe.rotation.y = -0.4; this.scene.add(shoe);
+    // discard holder
+    const holder = new THREE.Group();
+    holder.add(box(std(0x121214, { metalness: 0.45, roughness: 0.22 }), [1.2, 0.36, 1.62], [0, 0, 0]));
+    holder.add(box(MAT.gold, [1.22, 0.05, 0.05], [0, 0.19, 0.81]), box(MAT.gold, [1.22, 0.05, 0.05], [0, 0.19, -0.81]));
+    const discards = new THREE.Mesh(new THREE.BoxGeometry(CW * 0.95, 0.12, CH * 0.95), [EDGE, EDGE, new THREE.MeshStandardMaterial({ map: backTexture(), roughness: 0.5 }), EDGE, EDGE, EDGE]);
+    discards.position.y = 0.2; holder.add(discards);
+    holder.position.set(this.discardPos.x, 0.24, this.discardPos.z); holder.rotation.y = 0.35; this.scene.add(holder);
+
+    // dealer's chip tray with brass edge
     const tray = new THREE.Group();
-    tray.add(box(std(0x1b1b1f), [3.4, 0.12, 0.8], [0, 0, 0]));
-    const cols = [0xe63946, 0xf4c430, 0x1e1e1e, 0x3b82f6, 0x10b981, 0xf8f6ef];
-    cols.forEach((c, i) => { for (let k = 0; k < 5; k++) { const ch = makeChip(c, 0.22); ch.rotation.x = Math.PI / 2; ch.position.set(-1.35 + i * 0.54, 0.12 + 0.05, -0.25 + k * 0.1); tray.add(ch); } });
-    tray.position.set(0, 0.15, -D + 0.2); this.scene.add(tray);
+    tray.add(box(std(0x151517, { roughness: 0.35, metalness: 0.3 }), [3.8, 0.16, 0.86], [0, 0, 0]));
+    tray.add(box(MAT.gold, [3.84, 0.04, 0.05], [0, 0.09, 0.43]));
+    const cols = [0xf8f6ef, 0xe63946, 0x10b981, 0xf4c430, 0x1e1e1e, 0x7c3aed];
+    cols.forEach((c, i) => { for (let k = 0; k < 6; k++) { const ch = makeChip(c, 0.23); ch.rotation.x = Math.PI / 2; ch.position.set(-1.55 + i * 0.62, 0.2, -0.28 + k * 0.1); tray.add(ch); } });
+    tray.position.set(0, 0.16, this.trayPos.z); this.scene.add(tray);
 
-    // result glow ring (moved under the winning hand)
-    this.glowRing = new THREE.Mesh(new THREE.RingGeometry(1.4, 1.6, 48), new THREE.MeshBasicMaterial({ color: 0xf4c430, transparent: true, opacity: 0, side: THREE.DoubleSide }));
-    this.glowRing.rotation.x = -Math.PI / 2; this.glowRing.position.y = 0.07; this.glowRing.scale.set(1.6, 1, 1);
-    this.scene.add(this.glowRing);
+    // floating dust in the lamp light
+    const n = 160, dp = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { dp[i * 3] = (Math.random() - 0.5) * 12; dp[i * 3 + 1] = 0.3 + Math.random() * 4.5; dp[i * 3 + 2] = -3 + Math.random() * 6; }
+    const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(dp, 3));
+    this.dust = new THREE.Points(dg, new THREE.PointsMaterial({ color: 0xffe2a8, size: 0.035, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
+    this.scene.add(this.dust);
 
-    listeners.push(() => this.cards.forEach((c) => this.applyMats(c)));
     this.onResize();
   }
 
-  private feltTexture(felt: number, opts: TableOpts) {
-    const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 512;
+  // ---------- felt artwork ----------
+  private feltTexture(felt: number) {
+    const cv = document.createElement('canvas'); cv.width = 2048; cv.height = 1024;
     const g = cv.getContext('2d')!;
-    const col = new THREE.Color(felt);
-    const grd = g.createRadialGradient(512, 200, 40, 512, 260, 620);
-    grd.addColorStop(0, `#${col.clone().offsetHSL(0, 0, 0.06).getHexString()}`); grd.addColorStop(1, `#${col.clone().offsetHSL(0, 0, -0.08).getHexString()}`);
-    g.fillStyle = grd; g.fillRect(0, 0, 1024, 512);
     const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+    const col = new THREE.Color(felt);
+    const hex = (dl: number) => `#${col.clone().offsetHSL(0, 0, dl).getHexString()}`;
+    // fabric grain generated once
+    const grain = document.createElement('canvas'); grain.width = grain.height = 256;
+    const gg = grain.getContext('2d')!, id = gg.createImageData(256, 256);
+    for (let i = 0; i < id.data.length; i += 4) { const v = Math.random() * 255; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 14; }
+    gg.putImageData(id, 0, 0);
+    const logo = new Image(); logo.src = './img/head.webp';
     const draw = () => {
-      g.fillStyle = grd; g.fillRect(0, 0, 1024, 512);
-      g.strokeStyle = 'rgba(244,196,48,.5)'; g.lineWidth = 3;
-      g.beginPath(); g.arc(512, 0, 470, 0.15, Math.PI - 0.15); g.stroke();
-      g.fillStyle = 'rgba(244,196,48,.85)'; g.textAlign = 'center'; g.textBaseline = 'middle';
-      (opts.text ?? []).forEach((t, i) => { g.font = `800 ${i ? 22 : 30}px Montserrat, system-ui, sans-serif`; g.fillText(t, 512, 175 + i * 34); });
-      if (opts.sub) { g.fillStyle = 'rgba(248,246,239,.35)'; g.font = '600 18px Montserrat, system-ui, sans-serif'; g.fillText(opts.sub, 512, 250); }
+      const grd = g.createRadialGradient(1024, 380, 60, 1024, 420, 1200);
+      grd.addColorStop(0, hex(0.035)); grd.addColorStop(0.55, hex(-0.01)); grd.addColorStop(1, hex(-0.1));
+      g.fillStyle = grd; g.fillRect(0, 0, 2048, 1024);
+      g.fillStyle = g.createPattern(grain, 'repeat')!; g.fillRect(0, 0, 2048, 1024);
+      // faint logo watermark
+      if (logo.complete && logo.naturalWidth && this.opts.logoZ !== null) {
+        g.save(); g.globalAlpha = 0.07; g.filter = 'grayscale(1) brightness(2)';
+        const s = 300, lz = this.opts.logoZ ?? 0.6;
+        g.drawImage(logo, 1024 - s / 2, (lz + D) * PX - s / 2, s, s); g.restore();
+      }
+      // gold pinstripe inside the rail
+      g.strokeStyle = 'rgba(244,196,48,.55)'; g.lineWidth = 4;
+      g.beginPath(); g.arc(1024, 0, (W - 0.5) * PX, 0.02, Math.PI - 0.02); g.stroke();
+      g.lineWidth = 1.5; g.beginPath(); g.arc(1024, 0, (W - 0.62) * PX, 0.02, Math.PI - 0.02); g.stroke();
+      for (const z of this.zones) this.drawZone(g, z);
+      for (const t of this.opts.texts ?? []) this.drawText(g, t);
       tex.needsUpdate = true;
     };
     draw();
+    logo.onload = draw;
     document.fonts?.ready.then(draw);
     return tex;
+  }
+
+  private drawZone(g: CanvasRenderingContext2D, z: Zone) {
+    const cx = (z.x + W) * PX, cy = (z.z + D) * PX;
+    const color = z.color ?? 'rgba(244,196,48,.8)';
+    g.save();
+    g.strokeStyle = color; g.lineWidth = 5;
+    if (z.dashed) g.setLineDash([18, 12]);
+    if (z.r) {
+      const r = z.r * PX;
+      g.fillStyle = z.fill ?? 'rgba(0,0,0,.14)'; g.beginPath(); g.arc(cx, cy, r, 0, 7); g.fill(); g.stroke();
+      g.setLineDash([]); g.lineWidth = 2; g.beginPath(); g.arc(cx, cy, r - 12, 0, 7); g.stroke();
+    } else {
+      const w = (z.w ?? 2) * PX, h = (z.h ?? 1.5) * PX;
+      g.fillStyle = z.fill ?? 'rgba(0,0,0,.12)'; roundRect(g, cx - w / 2, cy - h / 2, w, h, 26); g.fill(); g.stroke();
+    }
+    g.restore();
+    if (z.label) {
+      const hh = z.r ? z.r * PX : ((z.h ?? 1.5) * PX) / 2;
+      const at = z.labelAt ?? 'in';
+      const ly = at === 'below' ? cy + hh + 34 : at === 'above' ? cy - hh - 34 : cy - (z.sub ? 16 : 0);
+      g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle';
+      const size = z.r ? Math.min(40, z.r * PX * 0.34) : 50;
+      g.font = `900 ${size}px Montserrat, system-ui, sans-serif`;
+      this.spaced(g, z.label, cx, ly, 4);
+      if (z.sub) { g.globalAlpha = 0.75; g.font = `700 ${size * 0.55}px Montserrat, system-ui, sans-serif`; g.fillText(z.sub, cx, ly + size * 0.85); g.globalAlpha = 1; }
+    }
+  }
+
+  private spaced(g: CanvasRenderingContext2D, s: string, x: number, y: number, sp: number) {
+    const chars = [...s];
+    const widths = chars.map((c) => g.measureText(c).width + sp);
+    let cur = x - (widths.reduce((a, b) => a + b, 0) - sp) / 2;
+    g.save(); g.textAlign = 'left';
+    chars.forEach((c, i) => { g.fillText(c, cur, y); cur += widths[i]; });
+    g.restore();
+  }
+
+  private drawText(g: CanvasRenderingContext2D, t: FeltText) {
+    const size = (t.size ?? 0.3) * PX, sp = t.spacing ?? size * 0.12;
+    g.fillStyle = t.color ?? 'rgba(244,196,48,.9)'; g.textBaseline = 'middle';
+    g.font = `${t.weight ?? 900} ${size}px Montserrat, system-ui, sans-serif`;
+    if (!t.arc) { g.textAlign = 'center'; this.spaced(g, t.text, (( t.x ?? 0) + W) * PX, (t.z + D) * PX, sp); return; }
+    const r = (t.z + D) * PX;
+    const chars = [...t.text];
+    const widths = chars.map((c) => g.measureText(c).width + sp);
+    const total = widths.reduce((a, b) => a + b, 0) - sp;
+    let a = Math.PI / 2 + total / r / 2;
+    g.textAlign = 'center';
+    chars.forEach((c, i) => {
+      const w = widths[i];
+      const mid = a - (w - sp) / 2 / r;
+      g.save(); g.translate(1024 + Math.cos(mid) * r, Math.sin(mid) * r); g.rotate(mid - Math.PI / 2); g.fillText(c, 0, 0); g.restore();
+      a -= w / r;
+    });
   }
 
   protected onResize() {
     if (!this.cards) return;
     const narrow = this.aspect < 1;
-    this.frame(new THREE.Vector3(0, 0, narrow ? -0.4 : -0.6), narrow ? 8.6 : 12.5, narrow ? 7.5 : 6.2, new THREE.Vector3(0, 1.55, 1), 1);
+    const v = narrow ? this.opts.view?.narrow ?? [-0.1, 8.4, 7.6] : this.opts.view?.wide ?? [-0.35, 11, 5.8];
+    this.frame(new THREE.Vector3(0, 0, v[0]), v[1], v[2], narrow ? new THREE.Vector3(0, 2.5, 1) : new THREE.Vector3(0, 1.45, 1), 1);
   }
 
-  private applyMats(c: Card3D) {
-    const face = c.card ? new THREE.MeshStandardMaterial({ map: faceTexture(c.card), roughness: 0.45 }) : new THREE.MeshStandardMaterial({ map: backTexture(), roughness: 0.45 });
-    const backM = new THREE.MeshStandardMaterial({ map: backTexture(), roughness: 0.45 });
-    c.mesh.material = [EDGE, EDGE, face, backM, EDGE, EDGE];
+  // ---------- cards ----------
+  private makeCard(c3: Card3D) {
+    const grp = new THREE.Group();
+    const body = new THREE.Mesh(BODY_GEO, EDGE);
+    const face = new THREE.Mesh(FACE_GEO, this.faceMat(c3.card));
+    const back = new THREE.Mesh(BACK_GEO, new THREE.MeshStandardMaterial({ map: backTexture(), roughness: 0.4 }));
+    for (const m of [body, face, back]) { m.castShadow = true; m.userData.card3d = c3; grp.add(m); }
+    grp.userData.card3d = c3;
+    c3.mesh = grp;
+    return grp;
+  }
+  private faceMat(card: Card | null) {
+    return new THREE.MeshStandardMaterial({ map: card ? faceTexture(card) : backTexture(), roughness: 0.38, metalness: 0 });
   }
 
-  /** Remove every card (swept off the table). */
-  clear() {
-    for (const c of this.cards) this.scene.remove(c.mesh);
+  /** Sweep every card into the discard holder and (unless `keepChips`) remove the bet chips. */
+  clear(keepChips = false) {
+    const old = this.cards;
     this.cards = [];
-    (this.glowRing.material as THREE.MeshBasicMaterial).opacity = 0;
+    old.forEach((c, i) => {
+      if (c.glow) this.scene.remove(c.glow);
+      const from = c.mesh.position.clone(), rz = c.mesh.rotation.z, ry = c.mesh.rotation.y;
+      const to = this.discardPos.clone().add(new THREE.Vector3(0, i * 0.01, 0));
+      setTimeout(() => this.anim(this.turbo ? 200 : 380, (k) => {
+        const e = k * k * (3 - 2 * k);
+        c.mesh.position.lerpVectors(from, to, e); c.mesh.position.y += Math.sin(Math.PI * k) * 0.5;
+        c.mesh.rotation.z = rz + (Math.PI - (rz % (Math.PI * 2))) * e; c.mesh.rotation.y = ry + (0.35 - ry) * e;
+      }, () => this.scene.remove(c.mesh)), i * (this.turbo ? 15 : 35));
+    });
+    this.glows.forEach((g) => { g.fade = g.fade ?? 1; g.pulse = false; });
+    if (keepChips) return;
     this.chips.forEach((g) => this.scene.remove(g));
     this.chips.clear();
   }
 
-  /**
-   * Deal a card from the shoe to (x, z). `card` null = face down.
-   * `rot` spins the card on the table (e.g. for baccarat's third card).
-   */
+  /** Deal a card from the shoe to (x, z). `card` null = face down. `rot` turns it on the table. */
   deal(card: Card | null, x: number, z: number, opts: { delay?: number; rot?: number; up?: boolean } = {}): Promise<Card3D> {
-    const mesh = new THREE.Mesh(CARD_GEO, EDGE);
-    mesh.castShadow = true;
-    const c3: Card3D = { mesh, card, up: false };
-    this.applyMats(c3);
+    const c3 = { card, up: false } as Card3D;
+    const mesh = this.makeCard(c3);
     mesh.position.copy(this.shoePos);
-    mesh.rotation.set(0, -0.35, Math.PI); // face down leaving the shoe
+    mesh.rotation.set(0, -0.4, Math.PI);
     mesh.visible = false;
     this.scene.add(mesh);
     this.cards.push(c3);
     const faceUp = opts.up ?? card !== null;
-    const dur = this.turbo ? 220 : 420;
-    const from = this.shoePos.clone(), to = new THREE.Vector3(x, 0.075 + this.cards.length * 0.0015, z);
+    const dur = this.turbo ? 220 : 400;
+    const jitter = (Math.random() - 0.5) * 0.05;
+    const from = this.shoePos.clone(), to = new THREE.Vector3(x, FELT_Y + CT / 2 + 0.002 + this.cards.length * 0.0012, z);
     return new Promise((res) => {
       setTimeout(() => {
         mesh.visible = true;
         this.anim(dur, (k) => {
           const e = 1 - Math.pow(1 - k, 3);
           mesh.position.lerpVectors(from, to, e);
-          mesh.position.y += Math.sin(Math.PI * k) * 0.9;
-          mesh.rotation.y = -0.35 * (1 - e) + (opts.rot ?? 0) * e;
+          mesh.position.y += Math.sin(Math.PI * k) * 0.85;
+          mesh.rotation.y = -0.4 * (1 - e) + ((opts.rot ?? 0) + jitter) * e + Math.sin(Math.PI * k) * 0.5;
+          mesh.rotation.x = Math.sin(Math.PI * k) * -0.25;
           if (faceUp) mesh.rotation.z = Math.PI * (1 - e);
-        }, () => { c3.up = faceUp; res(c3); });
+        }, () => {
+          c3.up = faceUp;
+          // tiny settle bounce
+          this.anim(90, (k) => { mesh.position.y = to.y + Math.sin(Math.PI * k) * 0.03; }, () => res(c3));
+        });
       }, opts.delay ?? 0);
     });
   }
 
-  /** Flip a face-down card to reveal it. `slow` = baccarat-style squeeze. */
+  /** Flip a face-down card. `slow` = baccarat squeeze (peel, pause, snap). */
   flip(c3: Card3D, card: Card, slow = false) {
-    c3.card = card; this.applyMats(c3);
-    const dur = slow ? (this.turbo ? 500 : 1300) : this.turbo ? 180 : 360;
-    const y0 = c3.mesh.position.y, rz0 = c3.mesh.rotation.z;
+    c3.card = card;
+    (c3.mesh.children[1] as THREE.Mesh).material = this.faceMat(card);
+    const dur = slow ? (this.turbo ? 520 : 1400) : this.turbo ? 200 : 380;
+    const y0 = c3.mesh.position.y, rz0 = c3.mesh.rotation.z, rx0 = c3.mesh.rotation.x;
     return new Promise<void>((res) => this.anim(dur, (k) => {
-      const e = slow ? (k < 0.75 ? k * 0.35 / 0.75 : 0.35 + (k - 0.75) / 0.25 * 0.65) : 1 - Math.pow(1 - k, 2);
+      let e: number;
+      if (slow) e = k < 0.7 ? Math.sin((k / 0.7) * Math.PI / 2) * 0.32 : 0.32 + (1 - Math.pow(1 - (k - 0.7) / 0.3, 3)) * 0.68;
+      else e = 1 - Math.pow(1 - k, 2);
       c3.mesh.rotation.z = rz0 * (1 - e);
-      c3.mesh.position.y = y0 + Math.sin(Math.PI * e) * 0.45;
-    }, () => { c3.up = true; res(); }));
+      c3.mesh.rotation.x = rx0 + (slow && k < 0.7 ? Math.sin((k / 0.7) * Math.PI) * 0.18 : 0);
+      c3.mesh.position.y = y0 + Math.sin(Math.PI * e) * (slow ? 0.3 : 0.5);
+    }, () => { c3.up = true; c3.mesh.rotation.x = rx0; res(); }));
   }
 
   /** Slide a card to a new spot (e.g. splitting a blackjack hand). */
   move(c3: Card3D, x: number, z: number) {
     const from = c3.mesh.position.clone(), to = new THREE.Vector3(x, from.y, z);
-    return new Promise<void>((res) => this.anim(this.turbo ? 150 : 300, (k) => c3.mesh.position.lerpVectors(from, to, 1 - Math.pow(1 - k, 3)), res));
+    return new Promise<void>((res) => this.anim(this.turbo ? 160 : 320, (k) => {
+      c3.mesh.position.lerpVectors(from, to, 1 - Math.pow(1 - k, 3));
+      c3.mesh.position.y = from.y + Math.sin(Math.PI * k) * 0.25;
+    }, res));
   }
 
-  /** Lift & glow selected cards (e.g. held cards in video poker). */
+  /** Lift a card with a gold glow underneath (held cards / winning hand). */
   lift(c3: Card3D, on: boolean) {
-    const target = on ? 0.3 : 0.08;
+    const target = on ? 0.32 : FELT_Y + CT / 2 + 0.004;
     const from = c3.mesh.position.y;
-    this.anim(140, (k) => { c3.mesh.position.y = from + (target - from) * k; }, () => {});
+    if (on && !c3.glow) {
+      const gm = new THREE.Mesh(new THREE.PlaneGeometry(CW + 0.8, CH + 0.8), new THREE.MeshBasicMaterial({ map: glowRectTexture(CW + 0.1, CH + 0.1), color: 0xf4c430, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+      gm.rotation.x = -Math.PI / 2; gm.rotation.z = c3.mesh.rotation.y;
+      gm.position.set(c3.mesh.position.x, FELT_Y + 0.004, c3.mesh.position.z);
+      this.scene.add(gm); c3.glow = gm;
+    }
+    const gm = c3.glow;
+    this.anim(this.turbo ? 110 : 180, (k) => {
+      const e = 1 - Math.pow(1 - k, 3);
+      c3.mesh.position.y = from + (target - from) * e;
+      c3.mesh.rotation.x = on ? -0.12 * e : c3.mesh.rotation.x * (1 - e);
+      if (gm) (gm.material as THREE.MeshBasicMaterial).opacity = on ? e * 0.9 : (1 - e) * 0.9;
+    }, () => { if (!on && gm) { this.scene.remove(gm); c3.glow = undefined; } });
   }
 
   /** Throw a card away (video poker discards). */
   discard(c3: Card3D) {
-    const from = c3.mesh.position.clone();
-    this.anim(this.turbo ? 150 : 280, (k) => { c3.mesh.position.set(from.x, from.y + k * 1.5, from.z - k * 3); c3.mesh.rotation.z = Math.PI * k; }, () => {
-      this.scene.remove(c3.mesh); this.cards = this.cards.filter((x) => x !== c3);
-    });
+    if (c3.glow) { this.scene.remove(c3.glow); c3.glow = undefined; }
+    const from = c3.mesh.position.clone(), to = this.discardPos.clone();
+    const rz0 = c3.mesh.rotation.z;
+    this.anim(this.turbo ? 170 : 320, (k) => {
+      const e = k * k * (3 - 2 * k);
+      c3.mesh.position.lerpVectors(from, to, e); c3.mesh.position.y += Math.sin(Math.PI * k) * 1.2;
+      c3.mesh.rotation.z = rz0 + Math.PI * e; c3.mesh.rotation.y = 0.35 * e;
+    }, () => { this.scene.remove(c3.mesh); this.cards = this.cards.filter((x) => x !== c3); });
+  }
+
+  // ---------- chips ----------
+  private buildStack(amount: number) {
+    const g = new THREE.Group();
+    let left = amount, n = 0;
+    for (const [v, col] of DENOMS) {
+      while (left >= v - 1e-9 && n < 14) { const ch = makeChip(col, 0.3); ch.position.set((Math.random() - 0.5) * 0.02, 0.1 + n * 0.068, (Math.random() - 0.5) * 0.02); ch.rotation.y = n * 0.7; g.add(ch); left -= v; n++; }
+    }
+    if (n === 0) { const ch = makeChip(0xf8f6ef, 0.3); ch.position.y = 0.1; g.add(ch); n = 1; }
+    const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: textTexture(fmtChip(amount), { w: 192, h: 80, size: 46, color: '#F4C430', bg: 'rgba(11,11,11,.82)', radius: 40 }), depthTest: false, transparent: true }));
+    label.scale.set(0.55, 0.23, 1); label.position.y = 0.2 + n * 0.068 + 0.45; label.renderOrder = 10;
+    g.add(label);
+    g.userData.n = n;
+    return g;
   }
 
   /** Stack of chips representing a bet at (x, z). amount 0 removes it. */
   setChips(key: string, amount: number, x: number, z: number) {
     const old = this.chips.get(key);
+    const prevN = old?.userData.n ?? 0;
     if (old) this.scene.remove(old);
     if (!(amount > 0)) { this.chips.delete(key); return; }
-    const g = new THREE.Group();
-    const denoms: [number, number][] = [[1000, 0x8b5cf6], [500, 0x1e1e1e], [100, 0xf4c430], [25, 0x10b981], [5, 0xe63946], [1, 0xf8f6ef]];
-    let left = amount, n = 0;
-    for (const [v, col] of denoms) {
-      while (left >= v && n < 12) {
-        const ch = makeChip(col, 0.3); ch.position.set(0, 0.1 + n * 0.068, 0); ch.rotation.y = n * 0.7; g.add(ch); left -= v; n++;
-      }
-    }
-    if (n === 0) { const ch = makeChip(0xf8f6ef, 0.3); ch.position.y = 0.1; g.add(ch); }
+    const g = this.buildStack(amount);
     g.position.set(x, 0, z);
     this.scene.add(g);
     this.chips.set(key, g);
-    g.scale.setScalar(0.01);
-    this.anim(260, (k) => g.scale.setScalar(1 + 2.70158 * Math.pow(k - 1, 3) + 1.70158 * Math.pow(k - 1, 2)), () => {});
+    // new chips drop onto the stack from above
+    const kids = g.children.filter((c) => !(c as THREE.Sprite).isSprite);
+    kids.forEach((ch, i) => {
+      if (i < prevN) return;
+      const y1 = ch.position.y, y0 = y1 + 1.4;
+      ch.position.y = y0;
+      const d = (i - prevN) * (this.turbo ? 25 : 45);
+      this.anim(260 + d, (k) => { const t = Math.max(0, (k * (260 + d) - d) / 260); ch.position.y = y0 + (y1 - y0) * easeOutBounce(t); }, () => {});
+    });
   }
 
-  /** Highlight a region of the table (winning hand) and spray coins if won. */
-  celebrate(x: number, z: number, win: boolean, scaleX = 1.6) {
-    this.glowRing.position.set(x, 0.07, z);
-    this.glowRing.scale.set(scaleX, 1, 1);
-    const m = this.glowRing.material as THREE.MeshBasicMaterial;
-    m.color.set(win ? 0xf4c430 : 0xe63946);
-    m.opacity = 0.85;
+  /** Resolve a bet stack: lost chips go to the tray; wins get `payout` (the profit) paid alongside, then both slide to the player. */
+  settleChips(key: string, outcome: 'win' | 'lose' | 'push', payout = 0) {
+    const g = this.chips.get(key);
+    if (!g) return Promise.resolve();
+    this.chips.delete(key);
+    const from = g.position.clone();
+    const slow = this.turbo ? 0.5 : 1;
+    const toPlayer = (grp: THREE.Group, delay: number) => new Promise<void>((res) => setTimeout(() => {
+      const p0 = grp.position.clone(), p1 = p0.clone().add(new THREE.Vector3(0, 0, 4));
+      this.anim(520 * slow, (k) => { const e = k * k; grp.position.lerpVectors(p0, p1, e); grp.scale.setScalar(1 - e * 0.4); }, () => { this.scene.remove(grp); res(); });
+    }, delay));
+    if (outcome === 'lose') {
+      return new Promise<void>((res) => this.anim(560 * slow, (k) => {
+        const e = k * k * (3 - 2 * k);
+        g.position.lerpVectors(from, this.trayPos, e); g.position.y += Math.sin(Math.PI * k) * 0.8;
+        g.scale.setScalar(1 - e * 0.6);
+      }, () => { this.scene.remove(g); res(); }));
+    }
+    if (outcome === 'push') return toPlayer(g, 900 * slow);
+    // win: dealer's chips arrive next to the bet
+    const pay = this.buildStack(payout);
+    pay.position.copy(this.trayPos); this.scene.add(pay);
+    const dest = from.clone().add(new THREE.Vector3(0.62, 0, 0));
+    return new Promise<void>((res) => this.anim(600 * slow, (k) => {
+      const e = 1 - Math.pow(1 - k, 3);
+      pay.position.lerpVectors(this.trayPos, dest, e); pay.position.y += Math.sin(Math.PI * k) * 1.1;
+    }, () => { Promise.all([toPlayer(g, 700 * slow), toPlayer(pay, 760 * slow)]).then(() => res()); }));
+  }
+
+  // ---------- highlights & effects ----------
+  private addGlow(x: number, z: number, w: number, h: number, color: number, pulse: boolean, circle = false) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.7, h + 0.7), new THREE.MeshBasicMaterial({ map: circle ? glowCircleTexture() : glowRectTexture(w, h), color, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    m.rotation.x = -Math.PI / 2; m.position.set(x, FELT_Y + 0.003, z);
+    this.scene.add(m);
+    const gl: Glow = { mesh: m, base: 0.95, pulse };
+    this.glows.push(gl);
+    return gl;
+  }
+
+  /** Pulsing gold outline around a region, no particles. */
+  highlight(x: number, z: number, w: number, h: number) { this.addGlow(x, z, w, h, 0xf4c430, true); }
+
+  /** Light up a region of the table (winning hand); wins also burst coins and confetti. */
+  celebrate(x: number, z: number, win: boolean, w = 2.6, h = 1.9) {
+    if (!win) return;
+    this.addGlow(x, z, w, h, 0xf4c430, true);
     if (win) {
-      for (let i = 0; i < 26; i++) {
-        const coin = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.03, 12), MAT.gold);
-        coin.position.set(x, 0.4, z);
-        const a = Math.random() * Math.PI * 2;
-        this.addParticle(coin, new THREE.Vector3(Math.cos(a) * 2.2, 4 + Math.random() * 3, Math.sin(a) * 1.4), 1.4, 12, 0.2);
-      }
-    } else this.shake = 0.3;
+      this.flash = 1;
+      this.burst(x, z, 26);
+    }
+  }
+
+  /** Fountain of coins and confetti at (x, z). */
+  burst(x: number, z: number, count = 24) {
+    for (let i = 0; i < count; i++) {
+      const coin = new THREE.Mesh(COIN_GEO, MAT.gold);
+      coin.position.set(x + (Math.random() - 0.5) * 0.6, 0.35, z + (Math.random() - 0.5) * 0.4);
+      const a = Math.random() * Math.PI * 2, sp = 1 + Math.random() * 1.8;
+      this.addParticle(coin, new THREE.Vector3(Math.cos(a) * sp, 4.2 + Math.random() * 2.8, Math.sin(a) * sp * 0.7), 1.5, 11, FELT_Y + 0.02);
+    }
+    const cols = [0xf4c430, 0xe63946, 0xf8f6ef, 0xffe08a];
+    for (let i = 0; i < count * 1.4; i++) {
+      const bit = new THREE.Mesh(CONFETTI_GEO, new THREE.MeshBasicMaterial({ color: cols[i % cols.length], side: THREE.DoubleSide }));
+      bit.position.set(x, 0.5, z);
+      const a = Math.random() * Math.PI * 2, sp = 0.8 + Math.random() * 2.6;
+      this.addParticle(bit, new THREE.Vector3(Math.cos(a) * sp, 3.5 + Math.random() * 3.5, Math.sin(a) * sp * 0.8), 2.2, 4.5, FELT_Y + 0.01);
+    }
+  }
+
+  resetGlow() { this.glows.forEach((g) => { g.fade = g.fade ?? 1; g.pulse = false; }); }
+
+  /** Soft outline shown while hovering a clickable bet spot. */
+  private setHover(id: string | null) {
+    if (id === this.hoverId) return;
+    this.hoverId = id;
+    if (this.hoverGlow) { this.scene.remove(this.hoverGlow); this.hoverGlow = null; }
+    const z = id ? this.zones.find((q) => q.id === id) : null;
+    if (!z) return;
+    const w = z.r ? z.r * 2 : z.w ?? 2, h = z.r ? z.r * 2 : z.h ?? 1.5;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.7, h + 0.7), new THREE.MeshBasicMaterial({ map: z.r ? glowCircleTexture() : glowRectTexture(w, h), color: 0xfff1c0, transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending }));
+    m.rotation.x = -Math.PI / 2; m.position.set(z.x, FELT_Y + 0.002, z.z);
+    this.scene.add(m); this.hoverGlow = m;
+  }
+
+  /** Flash a bet spot briefly (chip placed). */
+  pulseZone(id: string) {
+    const z = this.zones.find((q) => q.id === id); if (!z) return;
+    const w = z.r ? z.r * 2 : z.w ?? 2, h = z.r ? z.r * 2 : z.h ?? 1.5;
+    const gl = this.addGlow(z.x, z.z, w, h, 0xfff1c0, false, !!z.r);
+    gl.base = 0.8; gl.fade = 1;
+  }
+
+  /** Light a bet spot as won/lost. */
+  markZone(id: string, win: boolean) {
+    const z = this.zones.find((q) => q.id === id); if (!z) return;
+    const w = z.r ? z.r * 2 : z.w ?? 2, h = z.r ? z.r * 2 : z.h ?? 1.5;
+    this.addGlow(z.x, z.z, w, h, win ? 0xf4c430 : 0x3a0b10, win, !!z.r);
+  }
+
+  private feltPoint(e: { clientX: number; clientY: number }) {
+    const r = this.renderer.domElement.getBoundingClientRect();
+    const ndc = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    const ray = new THREE.Raycaster(); ray.setFromCamera(ndc, this.camera);
+    return ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -FELT_Y), new THREE.Vector3());
+  }
+  private zoneAt(p: THREE.Vector3 | null) {
+    if (!p) return null;
+    return this.zones.find((z) => z.id && (z.r ? Math.hypot(p.x - z.x, p.z - z.z) <= z.r + 0.1 : Math.abs(p.x - z.x) <= (z.w ?? 2) / 2 + 0.05 && Math.abs(p.z - z.z) <= (z.h ?? 1.5) / 2 + 0.05)) ?? null;
+  }
+
+  /** Clicking a printed bet spot calls `cb(id)`. `enabled()` gates hover + clicks. */
+  onZoneClick(cb: (id: string) => void, enabled: () => boolean = () => true) {
+    const cv = this.renderer.domElement;
+    cv.addEventListener('click', (e) => { if (!enabled()) return; const z = this.zoneAt(this.feltPoint(e)); if (z?.id) cb(z.id); });
+    cv.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      const z = enabled() ? this.zoneAt(this.feltPoint(e)) : null;
+      this.setHover(z?.id ?? null);
+      cv.style.cursor = z ? 'pointer' : 'default';
+    });
+    cv.addEventListener('pointerleave', () => this.setHover(null));
   }
 
   /** Call `cb` with the card the user clicks/taps on the table. */
   onCardClick(cb: (c: Card3D) => void) {
     const cv = this.renderer.domElement;
-    cv.addEventListener('click', (e) => {
+    const hitCard = (e: PointerEvent | MouseEvent) => {
       const hit = this.pick(e, this.cards.map((c) => c.mesh));
-      const c = hit && this.cards.find((x) => x.mesh === hit.object);
-      if (c) cb(c);
-    });
-    cv.addEventListener('pointermove', (e) => {
-      cv.style.cursor = this.pick(e, this.cards.map((c) => c.mesh)) ? 'pointer' : 'default';
-    });
+      return (hit?.object.userData.card3d as Card3D | undefined) ?? null;
+    };
+    cv.addEventListener('click', (e) => { const c = hitCard(e); if (c) cb(c); });
+    cv.addEventListener('pointermove', (e) => { cv.style.cursor = hitCard(e) ? 'pointer' : 'default'; });
   }
-
-  resetGlow() { (this.glowRing.material as THREE.MeshBasicMaterial).opacity = 0; }
 
   protected anim(dur: number, step: (k: number) => void, done: () => void) {
     this.anims.push({ t0: performance.now(), dur, step, done });
   }
 
-  protected update(_dt: number, t: number) {
+  protected update(dt: number, t: number) {
     const now = performance.now();
     for (let i = this.anims.length - 1; i >= 0; i--) {
       const a = this.anims[i];
+      if (!a) continue;
       const k = Math.min(1, (now - a.t0) / a.dur);
       a.step(k);
-      if (k >= 1) { this.anims.splice(i, 1); a.done(); }
+      if (k >= 1) { this.anims.splice(this.anims.indexOf(a), 1); a.done(); }
     }
-    const m = this.glowRing.material as THREE.MeshBasicMaterial;
-    if (m.opacity > 0) m.opacity = 0.55 + Math.sin(t * 5) * 0.25;
+    for (let i = this.glows.length - 1; i >= 0; i--) {
+      const g = this.glows[i], m = g.mesh.material as THREE.MeshBasicMaterial;
+      if (g.fade !== undefined) {
+        g.fade -= dt * 2.2;
+        m.opacity = Math.max(0, g.fade) * g.base;
+        if (g.fade <= 0) { this.scene.remove(g.mesh); this.glows.splice(i, 1); }
+      } else {
+        const target = g.pulse ? g.base * (0.7 + Math.sin(t * 5) * 0.3) : g.base;
+        m.opacity += (target - m.opacity) * Math.min(1, dt * 8);
+      }
+    }
+    // lamp flash on wins, gentle flicker otherwise
+    this.flash = Math.max(0, this.flash - dt * 1.4);
+    this.lamp.intensity = this.lampBase * (1 + Math.sin(t * 1.7) * 0.03) + this.flash * 40;
+    this.bokeh.forEach((s) => { s.material.opacity = s.userData.o * (0.65 + Math.sin(t * 0.8 + s.userData.ph) * 0.35); });
+    const dp = this.dust.geometry.attributes.position as THREE.BufferAttribute;
+    for (let i = 0; i < dp.count; i++) {
+      let y = dp.getY(i) + dt * 0.06;
+      if (y > 5) y = 0.3;
+      dp.setY(i, y);
+      dp.setX(i, dp.getX(i) + Math.sin(t * 0.4 + i) * dt * 0.03);
+    }
+    dp.needsUpdate = true;
   }
+}
+
+const COIN_GEO = new THREE.CylinderGeometry(0.12, 0.12, 0.03, 16);
+const CONFETTI_GEO = new THREE.PlaneGeometry(0.1, 0.05);
+
+const easeOutBounce = (x: number) => {
+  const n1 = 7.5625, d1 = 2.75;
+  if (x < 1 / d1) return n1 * x * x;
+  if (x < 2 / d1) return n1 * (x -= 1.5 / d1) * x + 0.75;
+  if (x < 2.5 / d1) return n1 * (x -= 2.25 / d1) * x + 0.9375;
+  return n1 * (x -= 2.625 / d1) * x + 0.984375;
+};
+
+const fmtChip = (v: number) => (v >= 10000 ? `${Math.round(v / 1000)}k` : v >= 1000 ? `${Math.round(v / 100) / 10}k` : Number.isInteger(v) ? String(v) : v.toFixed(2));
+
+const glowCache = new Map<string, THREE.CanvasTexture>();
+/** Soft glowing rounded-rect outline, sized for a w×h (world) area plus 0.35 margin each side. */
+function glowRectTexture(w: number, h: number) {
+  const key = `${w.toFixed(2)}x${h.toFixed(2)}`;
+  const hit = glowCache.get(key); if (hit) return hit;
+  const s = 90, cw = Math.round((w + 0.7) * s), ch = Math.round((h + 0.7) * s);
+  const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+  const g = cv.getContext('2d')!;
+  g.shadowColor = '#fff'; g.shadowBlur = 22; g.strokeStyle = '#fff'; g.lineWidth = 7;
+  roundRect(g, 0.35 * s, 0.35 * s, w * s, h * s, 22); g.stroke(); g.stroke();
+  g.shadowBlur = 0; g.globalAlpha = 0.14; g.fillStyle = '#fff'; roundRect(g, 0.35 * s, 0.35 * s, w * s, h * s, 22); g.fill();
+  const tex = new THREE.CanvasTexture(cv); glowCache.set(key, tex);
+  return tex;
+}
+let circleGlow: THREE.CanvasTexture | null = null;
+function glowCircleTexture() {
+  if (circleGlow) return circleGlow;
+  const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+  const g = cv.getContext('2d')!;
+  g.shadowColor = '#fff'; g.shadowBlur = 20; g.strokeStyle = '#fff'; g.lineWidth = 8;
+  g.beginPath(); g.arc(128, 128, 84, 0, 7); g.stroke(); g.stroke();
+  g.shadowBlur = 0; g.globalAlpha = 0.16; g.fillStyle = '#fff'; g.beginPath(); g.arc(128, 128, 84, 0, 7); g.fill();
+  circleGlow = new THREE.CanvasTexture(cv);
+  return circleGlow;
 }

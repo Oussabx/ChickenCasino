@@ -61,29 +61,32 @@ export default function Showcase() {
         }
         case 'blackjack': case 'baccarat': case 'punto-banco': case 'poker': case 'video-poker': {
           const { TableScene } = await import('../games/three/table3d');
-          const felt = { blackjack: 0x0e5a3a, baccarat: 0x6b1020, 'punto-banco': 0x123a6b, poker: 0x1d2f6b, 'video-poker': 0x3b1466 }[id];
-          const text = { blackjack: ['BLACKJACK PAYS 3 TO 2'], baccarat: ['BACCARAT'], 'punto-banco': ['PUNTO BANCO'], poker: ["CASINO HOLD'EM"], 'video-poker': ['5 CARD POKER'] }[id];
-          const s = new TableScene(el, { felt, text }); dispose = () => s.dispose();
+          const cfg = id === 'blackjack' ? (await import('../games/Blackjack')).TABLE
+            : id === 'poker' ? (await import('../games/Poker')).TABLE
+            : id === 'video-poker' ? (await import('../games/VideoPoker')).TABLE
+            : (await import('../games/Baccarat')).tableFor(id === 'punto-banco');
+          const s = new TableScene(el, cfg); dispose = () => s.dispose();
           s.setTurbo(true);
           const C = (r: number, suit: 'S' | 'H' | 'D' | 'C') => ({ r, s: suit });
-          s.setView([0, 0, -0.1], 8.2, 5.4, [0, 1.35, 1], 1);
+          s.setView([0, 0, -0.35], 7.4, 5.2, [0, 1.3, 1], 1);
           if (id === 'blackjack') {
-            s.setChips('bet', 125, 0, 2.1);
-            await s.deal(C(14, 'S'), -0.45, 1.0); await s.deal(C(9, 'D'), -0.9, -1.7); await s.deal(C(13, 'H'), 0.05, 0.94); await s.deal(null, -0.28, -1.7);
-            s.celebrate(0, 1.0, true, 1.6);
+            s.setChips('bet', 125, 0, 2.35);
+            await s.deal(C(14, 'S'), -0.3, 1.05); await s.deal(C(9, 'D'), -0.62, -1.85); await s.deal(C(13, 'H'), 0.22, 0.97); await s.deal(null, 0, -1.85);
+            s.highlight(-0.04, 1.01, 1.62, 1.6);
           } else if (id === 'baccarat' || id === 'punto-banco') {
-            s.setChips('b', 100, 2.6, 1.7); s.setChips('p', 25, -2.6, 1.7);
-            await s.deal(C(9, 'H'), -2.55, -0.7); await s.deal(C(8, 'C'), 1.65, -0.7); await s.deal(C(12, 'S'), -1.6, -0.7); await s.deal(C(id === 'baccarat' ? 13 : 8, 'D'), 2.6, -0.7);
-            s.celebrate(-2.1, -0.7, true, 1.4);
+            s.setChips('b', 100, 2.45, 1.4); s.setChips('p', 25, -2.45, 1.4);
+            await s.deal(C(9, 'H'), -2.5, -1.05); await s.deal(C(8, 'C'), 1.4, -1.05); await s.deal(C(12, 'S'), -1.4, -1.05); await s.deal(C(id === 'baccarat' ? 13 : 8, 'D'), 2.5, -1.05);
+            s.highlight(-1.95, -1.05, 2.5, 1.85);
           } else if (id === 'poker') {
-            s.setChips('ante', 50, -1.3, 2.25); s.setChips('call', 100, 1.3, 2.25);
-            for (const [i, c] of [C(14, 'H'), C(13, 'H'), C(12, 'H'), C(7, 'C'), C(2, 'S')].entries()) await s.deal(c, -1.9 + i * 0.95, -0.35);
-            await s.deal(C(11, 'H'), -0.48, 1.25); await s.deal(C(10, 'H'), 0.48, 1.25);
-            await s.deal(null, -0.48, -1.9); await s.deal(null, 0.48, -1.9);
-            s.celebrate(0, 1.25, true, 1.8);
+            s.setChips('ante', 50, -2.15, 1.45); s.setChips('call', 100, 2.15, 1.45);
+            for (const [i, c] of [C(14, 'H'), C(13, 'H'), C(12, 'H'), C(7, 'C'), C(2, 'S')].entries()) await s.deal(c, -2.3 + i * 1.15, -0.45);
+            await s.deal(C(11, 'H'), -0.56, 1.15); await s.deal(C(10, 'H'), 0.56, 1.15);
+            await s.deal(null, -0.56, -2.1); await s.deal(null, 0.56, -2.1);
+            s.highlight(0, 1.15, 2.4, 1.8);
           } else {
-            for (const [i, c] of [C(10, 'S'), C(11, 'S'), C(12, 'S'), C(13, 'S'), C(14, 'S')].entries()) await s.deal(c, -2.3 + i * 1.15, 0.1);
-            s.celebrate(0, 0.1, true, 3.6);
+            s.setChips('bet', 100, 0, 1.55);
+            for (const [i, c] of [C(10, 'S'), C(11, 'S'), C(12, 'S'), C(13, 'S'), C(14, 'S')].entries()) await s.deal(c, -2.4 + i * 1.2, -0.15);
+            s.highlight(0, -0.15, 6.1, 1.8);
           }
           setTimeout(ready, 900);
           break;
