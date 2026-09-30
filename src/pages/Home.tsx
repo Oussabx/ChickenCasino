@@ -74,7 +74,7 @@ export default function Home() {
             <Link to="/games" className="text-xs font-semibold text-gold hover:underline flex items-center gap-1">View all <ChevronRight size={14} /></Link>
           </div>
           <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-            {GAMES.map((g, i) => <Reveal key={g.id} variant="zoom" delay={i * 70}><GameCard g={g} /></Reveal>)}
+            {GAMES.filter((g) => g.category === 'original').map((g, i) => <Reveal key={g.id} variant="zoom" delay={i * 70}><GameCard g={g} /></Reveal>)}
           </div>
 
           {/* welcome bonus */}
@@ -141,6 +141,19 @@ export default function Home() {
           </Reveal>
         </div>
       </div>
+
+      <Reveal as="section" className="mt-8 card p-5 sm:p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-display text-xl sm:text-2xl font-extrabold">Casino Tables</h2>
+            <p className="text-xs text-smoke">Blackjack, roulette, baccarat and poker — dealt in 3D.</p>
+          </div>
+          <Link to="/games" className="text-xs font-semibold text-gold hover:underline flex items-center gap-1">View all <ChevronRight size={14} /></Link>
+        </div>
+        <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+          {GAMES.filter((g) => g.category === 'table').map((g, i) => <Reveal key={g.id} variant="zoom" delay={i * 60}><GameCard g={g} /></Reveal>)}
+        </div>
+      </Reveal>
 
       {favorites.length > 0 && (
         <section className="mt-8">

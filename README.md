@@ -17,7 +17,20 @@ Every game is a real-time 3D scene (Three.js, loaded only when you open the game
 | **Cluck Dice** | Dice | A golden egg bounces along a red/green track to the rolled number on a casino table. |
 | **Golden Wheel** | Wheel | Upright carnival wheel with extruded slices, chasing bulbs and a flicking pointer. |
 
-All games use `crypto.getRandomValues` and are tuned to ≈99% RTP.
+### Casino tables
+
+All dealt on a shared 3D felt table (cards fly from the shoe and flip; chip stacks mark your bets):
+
+| Game | Rules |
+| --- | --- |
+| **Blackjack** | 6-deck shoe, dealer stands on soft 17, blackjack pays 3:2, double on any two cards, split once. |
+| **Roulette** | European single zero, 3D wheel and ball; straight 35:1, dozens/columns 2:1, even-money bets 1:1. |
+| **Baccarat** | 8 decks, standard third-card tableau, slow card squeeze, bead road. Player 1:1, Banker 0.95:1, Tie 8:1. |
+| **Punto Banco** | Fast baccarat with Player Pair / Banker Pair side bets at 11:1. |
+| **Casino Hold'em** | Ante, flop, then call (2× ante) or fold; dealer qualifies with 4s or better; ante pays up to 100:1. |
+| **5 Card Poker** | Five-card draw, Jacks or Better 9/6 pay table, hold suggestions. |
+
+Cards are drawn from shoes shuffled with `crypto.getRandomValues`; the originals are tuned to ≈99% RTP and the table games use their standard casino rules.
 
 Game card thumbnails are rendered from these same scenes: `npm run build`, `npx vite preview --port 4173`, then `node scripts/render-thumbs.mjs` (needs Playwright and Python/Pillow).
 

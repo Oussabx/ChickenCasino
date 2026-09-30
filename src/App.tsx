@@ -20,6 +20,11 @@ const EggHunt = lazy(() => import('./games/EggHunt'));
 const CluckDice = lazy(() => import('./games/CluckDice'));
 const GoldenWheel = lazy(() => import('./games/GoldenWheel'));
 const Showcase = lazy(() => import('./pages/Showcase'));
+const Blackjack = lazy(() => import('./games/Blackjack'));
+const Roulette = lazy(() => import('./games/Roulette'));
+const Baccarat = lazy(() => import('./games/Baccarat'));
+const Poker = lazy(() => import('./games/Poker'));
+const VideoPoker = lazy(() => import('./games/VideoPoker'));
 
 export default function App() {
   return (
@@ -35,6 +40,12 @@ export default function App() {
             <Route path="games/egg-hunt" element={<EggHunt />} />
             <Route path="games/cluck-dice" element={<CluckDice />} />
             <Route path="games/golden-wheel" element={<GoldenWheel />} />
+            <Route path="games/blackjack" element={<Blackjack />} />
+            <Route path="games/roulette" element={<Roulette />} />
+            <Route path="games/baccarat" element={<Baccarat key="classic" variant="classic" />} />
+            <Route path="games/punto-banco" element={<Baccarat key="punto" variant="punto" />} />
+            <Route path="games/poker" element={<Poker />} />
+            <Route path="games/video-poker" element={<VideoPoker />} />
             <Route path="promotions" element={<Promotions />} />
             <Route path="tournaments" element={<Tournaments />} />
             <Route path="vip" element={<VIP />} />

@@ -1,4 +1,5 @@
-export type GameId = 'plinko' | 'crash' | 'chicken-cross' | 'egg-hunt' | 'cluck-dice' | 'golden-wheel';
+export type GameId = 'plinko' | 'crash' | 'chicken-cross' | 'egg-hunt' | 'cluck-dice' | 'golden-wheel'
+  | 'blackjack' | 'roulette' | 'baccarat' | 'punto-banco' | 'poker' | 'video-poker';
 
 export interface GameMeta {
   id: GameId;
@@ -8,6 +9,8 @@ export interface GameMeta {
   maxWin: string;
   accent: string; // tailwind gradient classes
   tags: string[];
+  /** 'original' = Chicken Casino originals; 'table' = classic casino table games */
+  category?: 'original' | 'table';
   hot?: boolean;
   isNew?: boolean;
 }
@@ -15,6 +18,7 @@ export interface GameMeta {
 export const GAMES: GameMeta[] = [
   {
     id: 'chicken-cross',
+    category: 'original',
     name: 'Chicken Cross',
     tagline: 'Why did the chicken cross the road?',
     description: 'Hop lane by lane across a busy highway. Every lane you survive pumps the multiplier — cash out before you become nuggets.',
@@ -25,6 +29,7 @@ export const GAMES: GameMeta[] = [
   },
   {
     id: 'crash',
+    category: 'original',
     name: 'Rocket Rooster',
     tagline: 'Ride the rooster to the moon',
     description: 'A multiplayer crash game. The rooster climbs, the multiplier climbs — hit cash out before he gets fried.',
@@ -35,6 +40,7 @@ export const GAMES: GameMeta[] = [
   },
   {
     id: 'plinko',
+    category: 'original',
     name: 'Plinko Coop',
     tagline: 'Drop the egg. Pray.',
     description: 'Drop golden eggs through the peg coop. Choose rows and risk, then watch them bounce into multipliers up to 1000×.',
@@ -44,6 +50,7 @@ export const GAMES: GameMeta[] = [
   },
   {
     id: 'egg-hunt',
+    category: 'original',
     name: 'Egg Hunt',
     tagline: 'Find eggs. Dodge foxes.',
     description: 'A 5×5 henhouse hides golden eggs and sneaky foxes. Pick nests, stack multipliers and bail before the fox bites.',
@@ -54,6 +61,7 @@ export const GAMES: GameMeta[] = [
   },
   {
     id: 'cluck-dice',
+    category: 'original',
     name: 'Cluck Dice',
     tagline: 'Set your odds, roll the egg',
     description: 'Slide your win chance anywhere from 2% to 98%. Roll over or under — lightning fast with auto-bet.',
@@ -63,6 +71,7 @@ export const GAMES: GameMeta[] = [
   },
   {
     id: 'golden-wheel',
+    category: 'original',
     name: 'Golden Wheel',
     tagline: 'Spin the barnyard fortune',
     description: 'A neon wheel of fortune with three risk profiles. Low risk keeps you pecking, high risk hunts the 29.7× golden slice.',
@@ -70,6 +79,69 @@ export const GAMES: GameMeta[] = [
     accent: 'from-fuchsia-500/25 via-gold/10 to-ink-800',
     tags: ['Wheel', 'Chill'],
     isNew: true,
+  },
+  {
+    id: 'blackjack',
+    name: 'Blackjack',
+    tagline: 'Beat the dealer to 21',
+    description: 'Six-deck blackjack on a 3D felt table. Hit, stand, double down or split pairs — blackjack pays 3 to 2 and the dealer stands on all 17s.',
+    maxWin: '2.5×',
+    accent: '',
+    tags: ['Cards', 'Strategy'],
+    category: 'table',
+    hot: true,
+  },
+  {
+    id: 'roulette',
+    name: 'Roulette',
+    tagline: 'Red, black or all in on 17',
+    description: 'European single-zero roulette with a spinning 3D wheel. Bet on numbers, colours, odd/even, dozens or columns — a straight-up hit pays 35 to 1.',
+    maxWin: '36×',
+    accent: '',
+    tags: ['Wheel', 'Classic'],
+    category: 'table',
+    isNew: true,
+  },
+  {
+    id: 'baccarat',
+    name: 'Baccarat',
+    tagline: 'Player, Banker or Tie',
+    description: 'Classic eight-deck baccarat with a slow card squeeze and a results road. Back the Player (1:1), the Banker (0.95:1) or a Tie (8:1).',
+    maxWin: '9×',
+    accent: '',
+    tags: ['Cards', 'Classic'],
+    category: 'table',
+  },
+  {
+    id: 'punto-banco',
+    name: 'Punto Banco',
+    tagline: 'Speed baccarat with pair bets',
+    description: 'The fast casino version of baccarat: quick deals, no squeeze, plus Player Pair and Banker Pair side bets paying 11 to 1.',
+    maxWin: '12×',
+    accent: '',
+    tags: ['Cards', 'Fast'],
+    category: 'table',
+  },
+  {
+    id: 'poker',
+    name: 'Casino Hold’em',
+    tagline: 'Texas Hold’em against the house',
+    description: 'Post an ante, see your two cards and the flop, then call or fold. Beat the dealer (who needs a pair of 4s to qualify) — a royal flush pays 100 to 1 on the ante.',
+    maxWin: '101×',
+    accent: '',
+    tags: ['Poker', 'Strategy'],
+    category: 'table',
+    isNew: true,
+  },
+  {
+    id: 'video-poker',
+    name: '5 Card Poker',
+    tagline: 'Draw poker — Jacks or Better',
+    description: 'Five-card draw poker: hold the cards you like, draw the rest once. Pair of jacks or better pays, a royal flush pays 800×.',
+    maxWin: '800×',
+    accent: '',
+    tags: ['Poker', 'Draw'],
+    category: 'table',
   },
 ];
 
