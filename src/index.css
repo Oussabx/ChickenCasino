@@ -100,3 +100,19 @@ input[type='range'].range::-moz-range-track { height: 8px; background: transpare
 
 .reduce-motion .reveal { opacity: 1 !important; transform: none !important; filter: none !important; }
 @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1 !important; transform: none !important; filter: none !important; } }
+
+/* ---------- casino table HUD ---------- */
+@keyframes result-in { 0% { opacity: 0; transform: perspective(700px) rotateX(-55deg) scale(.6); filter: blur(6px); } 55% { opacity: 1; transform: perspective(700px) rotateX(8deg) scale(1.06); filter: none; } 100% { transform: none; } }
+.result-in { animation: result-in .6s cubic-bezier(.2,.9,.3,1.2) both; }
+@keyframes shine-sweep { 0% { transform: translateX(-130%) skewX(-20deg); } 60%, 100% { transform: translateX(260%) skewX(-20deg); } }
+.shine-sweep { position: absolute; inset: 0 auto 0 0; width: 45%; background: linear-gradient(90deg, transparent, rgba(255,236,170,.45), transparent); animation: shine-sweep 2.4s ease-in-out .35s infinite; pointer-events: none; }
+@keyframes chip-drop { 0% { transform: translateY(-18px) scale(1.25); opacity: 0; } 60% { transform: translateY(2px) scale(.95); opacity: 1; } 100% { transform: none; } }
+.chip-drop { animation: chip-drop .35s cubic-bezier(.2,.9,.3,1.3) both; }
+@keyframes win-cell { 0%, 100% { box-shadow: inset 0 0 0 2px #F4C430, 0 0 0 0 rgba(244,196,48,.0); } 50% { box-shadow: inset 0 0 0 2px #FFE08A, 0 0 18px 4px rgba(244,196,48,.65); } }
+.win-cell { animation: win-cell 1s ease-in-out infinite; position: relative; z-index: 5; }
+@keyframes hint-glow { 0%, 100% { opacity: .6; } 50% { opacity: 1; } }
+.table-vignette { background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0,0,0,.55) 100%); }
+@keyframes chip-lose { 0%, 40% { opacity: 1; transform: translate(-50%, -50%); } 100% { opacity: 0; transform: translate(-50%, -140%) scale(.5); } }
+.chip-lose { animation: chip-lose 1.1s ease-in forwards; }
+@keyframes chip-win { 0%, 100% { transform: translate(-50%, -50%) scale(1); filter: drop-shadow(0 0 0 rgba(244,196,48,0)); } 50% { transform: translate(-50%, -62%) scale(1.15); filter: drop-shadow(0 0 8px rgba(244,196,48,.9)); } }
+.chip-win { animation: chip-win 1s ease-in-out infinite; }

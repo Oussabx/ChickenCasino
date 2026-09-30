@@ -6,13 +6,35 @@ import { toast, useStore } from '../store';
 import { sfx } from '../lib/sound';
 import { fmt } from '../lib/format';
 import { Card, Shoe, bacTotal, dealBaccarat } from '../lib/cards';
-import { Card3D, TableScene } from './three/table3d';
+import { Card3D, TableScene, Zone } from './three/table3d';
+import { Anchor, HandBadge, ResultBanner, TableHint } from '../components/TableUI';
 
 type Spot = 'player' | 'banker' | 'tie' | 'pp' | 'bp';
 type Bets = Partial<Record<Spot, number>>;
 const PAYS: Record<Spot, number> = { player: 2, banker: 1.95, tie: 9, pp: 12, bp: 12 };
-const SPOT_POS: Record<Spot, [number, number]> = { player: [-2.6, 1.7], tie: [0, 2.1], banker: [2.6, 1.7], pp: [-4.6, 1.1], bp: [4.6, 1.1] };
-const P_X = -2.1, B_X = 2.1, CARD_Z = -0.7;
+const BET_Z = 1.4;
+const SPOT_POS: Record<Spot, [number, number]> = { player: [-2.45, BET_Z], tie: [0, BET_Z], banker: [2.45, BET_Z], pp: [-0.72, 0.34], bp: [0.72, 0.34] };
+const P_X = -2.05, B_X = 2.05, CARD_Z = -1.05;
+const SKY = 'rgba(125,211,252,.85)', RED = 'rgba(255,107,117,.9)', GREEN = 'rgba(110,231,183,.85)', GOLD = 'rgba(244,196,48,.85)';
+
+export function tableFor(punto: boolean) {
+  const zones: Zone[] = [
+    { x: P_X, z: CARD_Z, w: 2.5, h: 1.85, label: 'PLAYER', labelAt: 'above', color: SKY, fill: 'rgba(56,189,248,.06)' },
+    { x: B_X, z: CARD_Z, w: 2.5, h: 1.85, label: 'BANKER', labelAt: 'above', color: RED, fill: 'rgba(230,57,70,.07)' },
+    { id: 'player', x: SPOT_POS.player[0], z: BET_Z, w: 2.3, h: 1.05, label: 'PLAYER', sub: 'PAYS 1 : 1', color: SKY, fill: 'rgba(56,189,248,.12)' },
+    { id: 'tie', x: 0, z: BET_Z, w: 2.2, h: 1.05, label: 'TIE', sub: 'PAYS 8 : 1', color: GREEN, fill: 'rgba(16,185,129,.12)' },
+    { id: 'banker', x: SPOT_POS.banker[0], z: BET_Z, w: 2.3, h: 1.05, label: 'BANKER', sub: 'PAYS 0.95 : 1', color: RED, fill: 'rgba(230,57,70,.14)' },
+  ];
+  if (punto) zones.push(
+    { id: 'pp', x: SPOT_POS.pp[0], z: SPOT_POS.pp[1], r: 0.38, label: 'P PAIR', sub: '11 : 1', color: GOLD },
+    { id: 'bp', x: SPOT_POS.bp[0], z: SPOT_POS.bp[1], r: 0.38, label: 'B PAIR', sub: '11 : 1', color: GOLD },
+  );
+  return {
+    felt: punto ? 0x103866 : 0x6a0f1e, zones, logoZ: null,
+    texts: [{ text: punto ? 'PUNTO BANCO' : 'BACCARAT', z: -2.28, size: punto ? 0.22 : 0.28 }],
+    view: { wide: [-0.3, 10.2, 5.9] as [number, number, number], narrow: [-0.4, 7.9, 6.2] as [number, number, number] },
+  };
+}
 
 interface Result { winner: 'player' | 'banker' | 'tie'; pt: number; bt: number; pp: boolean; bp: boolean }
 
@@ -31,18 +53,19 @@ export default function Baccarat({ variant = 'classic' }: { variant?: 'classic' 
 
   const hostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<TableScene | null>(null);
+  const [scene, setScene] = useState<TableScene | null>(null);
+  const placeRef = useRef<(s: Spot) => void>(() => {});
+  const dealingRef = useRef(false);
+  dealingRef.current = dealing;
   const shoe = useRef(new Shoe(8));
   const turbo = useStore((s) => s.settings.turbo);
   const total = Object.values(bets).reduce((a, b) => a + (b ?? 0), 0);
 
   useEffect(() => {
-    const sc = new TableScene(hostRef.current!, {
-      felt: punto ? 0x123a6b : 0x6b1020,
-      text: punto ? ['PUNTO BANCO', 'PAIRS PAY 11 TO 1 · TIE PAYS 8 TO 1'] : ['BACCARAT', 'BANKER PAYS 0.95 TO 1 · TIE PAYS 8 TO 1'],
-      sub: 'PLAYER                                   BANKER',
-    });
-    sceneRef.current = sc;
-    return () => { sc.dispose(); sceneRef.current = null; };
+    const sc = new TableScene(hostRef.current!, tableFor(punto));
+    sc.onZoneClick((id) => placeRef.current(id as Spot), () => !dealingRef.current);
+    sceneRef.current = sc; setScene(sc);
+    return () => { sc.dispose(); sceneRef.current = null; setScene(null); };
   }, [punto]);
   useEffect(() => { sceneRef.current?.setTurbo(turbo); }, [turbo]);
 
@@ -55,7 +78,9 @@ export default function Baccarat({ variant = 'classic' }: { variant?: 'classic' 
     const next = { ...bets, [s]: (bets[s] ?? 0) + chip };
     setBets(next); setHistory((h) => [...h, s]);
     sceneRef.current?.setChips(s, next[s]!, ...SPOT_POS[s]);
+    sceneRef.current?.pulseZone(s);
   };
+  placeRef.current = place;
   const undo = () => {
     const s = history[history.length - 1]; if (!s || dealing) return;
     const next = { ...bets, [s]: Math.max(0, (bets[s] ?? 0) - chip) };
@@ -78,8 +103,7 @@ export default function Baccarat({ variant = 'classic' }: { variant?: 'classic' 
     setDealing(true); setResult(null); setTotals({ p: null, b: null });
     // sweep old cards but keep this round's chips
     const keep = { ...bets };
-    sc.clear();
-    (Object.entries(keep) as [Spot, number][]).forEach(([s, v]) => sc.setChips(s, v, ...SPOT_POS[s]));
+    sc.clear(true);
 
     const coup = dealBaccarat(() => shoe.current.draw());
     const shown: { player: Card[]; banker: Card[] } = { player: [], banker: [] };
@@ -88,8 +112,8 @@ export default function Baccarat({ variant = 'classic' }: { variant?: 'classic' 
     for (const step of coup.order) {
       const i = idx[step.side]++;
       const third = i === 2;
-      const x = (step.side === 'player' ? P_X : B_X) + (third ? (step.side === 'player' ? -1.25 : 1.25) : (i - 0.5) * 0.95);
-      const z = CARD_Z + (third ? 0.25 : 0);
+      const x = (step.side === 'player' ? P_X : B_X) + (third ? (step.side === 'player' ? -1.55 : 1.55) : (i - 0.5) * 1.1);
+      const z = CARD_Z + (third ? 0.1 : 0);
       if (punto) {
         await sc.deal(step.card, x, z, { rot: third ? Math.PI / 2 : 0 });
         shown[step.side].push(step.card);
@@ -126,7 +150,15 @@ export default function Baccarat({ variant = 'classic' }: { variant?: 'classic' 
     setLast(keep);
     setBets({}); setHistory([]);
     payout > total ? sfx.win() : payout === total ? sfx.click() : sfx.lose();
-    sc.celebrate(r.winner === 'player' ? P_X : r.winner === 'banker' ? B_X : 0, CARD_Z, payout > total, r.winner === 'tie' ? 3.4 : 1.4);
+    if (r.winner === 'tie') { sc.celebrate(P_X, CARD_Z, payout > total, 2.5, 1.85); sc.celebrate(B_X, CARD_Z, payout > total, 2.5, 1.85); }
+    else sc.celebrate(r.winner === 'player' ? P_X : B_X, CARD_Z, payout > total, 2.5, 1.85);
+    for (const [spot, v] of Object.entries(b) as [Spot, number][]) {
+      if (!v) continue;
+      const won = spot === r.winner || (spot === 'pp' && r.pp) || (spot === 'bp' && r.bp);
+      const push = r.winner === 'tie' && (spot === 'player' || spot === 'banker');
+      sc.markZone(spot, won);
+      sc.settleChips(spot, won ? 'win' : push ? 'push' : 'lose', won ? v * (PAYS[spot] - 1) : 0);
+    }
     setDealing(false);
   };
 
@@ -154,7 +186,7 @@ export default function Baccarat({ variant = 'classic' }: { variant?: 'classic' 
         <div className="label mb-1.5">Place your bets</div>
         {betArea}
       </div>
-      <GameAction extra={<div className="lg:hidden">{betArea}</div>}>
+      <GameAction>
         <button className="btn-gold w-full py-4 text-base" disabled={dealing} onClick={deal}>{dealing ? 'Dealing…' : total > 0 ? `Deal · ${fmt(total, 0)}` : 'Deal'}</button>
       </GameAction>
       <Road road={road} />
@@ -174,36 +206,25 @@ export default function Baccarat({ variant = 'classic' }: { variant?: 'classic' 
       'Player pays 1:1, Banker 0.95:1, Tie 8:1 (Player/Banker bets push on a tie). The bead road tracks every coup.',
     ]}>
       <div ref={hostRef} className="absolute inset-0" aria-label={`${punto ? 'Punto Banco' : 'Baccarat'} table`} />
-      <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center gap-4">
-        <TotalBadge label="Player" value={totals.p} color="text-sky-300" win={result?.winner === 'player'} />
-        <TotalBadge label="Banker" value={totals.b} color="text-blood" win={result?.winner === 'banker'} />
-      </div>
+      <div className="table-vignette pointer-events-none absolute inset-0" />
+      {totals.p !== null && (
+        <Anchor scene={scene} at={[P_X - 0.35, 0.2, CARD_Z + 1.2]}>
+          <HandBadge label="Player" value={totals.p} tone={result ? (result.winner === 'player' ? 'win' : result.winner === 'tie' ? 'push' : 'neutral') : 'player'} />
+        </Anchor>
+      )}
+      {totals.b !== null && (
+        <Anchor scene={scene} at={[B_X + 0.35, 0.2, CARD_Z + 1.2]}>
+          <HandBadge label="Banker" value={totals.b} tone={result ? (result.winner === 'banker' ? 'win' : result.winner === 'tie' ? 'push' : 'neutral') : 'banker'} />
+        </Anchor>
+      )}
       {result && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center px-4">
-          <div className={`animate-pop rounded-2xl border px-6 py-3 text-center backdrop-blur-md ${result.payout > result.total ? 'border-gold/60 bg-black/60' : 'border-white/20 bg-black/60'}`}>
-            <div className="h-display text-3xl sm:text-4xl">
-              {result.winner === 'tie' ? <span className="text-emerald-400">TIE {result.pt}–{result.bt}</span>
-                : <span className={result.winner === 'player' ? 'text-sky-300' : 'text-blood'}>{result.winner.toUpperCase()} WINS {Math.max(result.pt, result.bt)}</span>}
-            </div>
-            <div className="mt-1 text-sm text-cream/85">{result.payout > 0 ? `Paid ${fmt(result.payout)}` : `Lost ${fmt(result.total)}`}{(result.pp || result.bp) && punto ? ` · ${[result.pp && 'Player pair', result.bp && 'Banker pair'].filter(Boolean).join(' & ')}!` : ''}</div>
-          </div>
-        </div>
+        <ResultBanner key={road.length} tone={result.payout > result.total ? 'win' : result.payout === result.total ? 'push' : 'lose'}
+          title={result.winner === 'tie' ? `TIE ${result.pt}–${result.bt}` : `${result.winner.toUpperCase()} WINS ${Math.max(result.pt, result.bt)}`}
+          sub={result.payout > 0 ? `${(result.pp || result.bp) && punto ? [result.pp && 'Player pair', result.bp && 'Banker pair'].filter(Boolean).join(' & ') + '! · ' : ''}Paid` : `Lost ${fmt(result.total)}`}
+          amount={result.payout} />
       )}
-      {!result && !dealing && total === 0 && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-5 flex justify-center">
-          <div className="animate-floaty rounded-full bg-black/60 px-4 py-2 text-xs font-semibold backdrop-blur">Pick a chip and tap Player, Banker or Tie</div>
-        </div>
-      )}
+      {!result && !dealing && total === 0 && <TableHint>Pick a chip, then tap <b className="text-sky-300">Player</b>, <b className="text-emerald-300">Tie</b> or <b className="text-blood">Banker</b> on the table</TableHint>}
     </GameShell>
-  );
-}
-
-function TotalBadge({ label, value, color, win }: { label: string; value: number | null; color: string; win?: boolean }) {
-  return (
-    <div className={`min-w-[84px] rounded-xl px-3 py-1.5 text-center backdrop-blur transition ${win ? 'bg-gold/90 text-ink shadow-gold scale-110' : 'bg-black/60'}`}>
-      <div className={`text-[10px] font-bold uppercase tracking-wider ${win ? 'text-ink/70' : color}`}>{label}</div>
-      <div className="font-display text-2xl font-black tabular leading-none">{value ?? '–'}</div>
-    </div>
   );
 }
 

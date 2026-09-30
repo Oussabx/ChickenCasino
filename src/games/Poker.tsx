@@ -6,6 +6,7 @@ import { sfx } from '../lib/sound';
 import { fmt } from '../lib/format';
 import { Card, Shoe, bestHand, cmpScore } from '../lib/cards';
 import { Card3D, TableScene } from './three/table3d';
+import { Anchor, HandBadge, ResultBanner, TableHint } from '../components/TableUI';
 
 type Phase = 'bet' | 'dealing' | 'decide' | 'showdown' | 'done';
 
@@ -15,8 +16,23 @@ const antePay = (cat: number) => (cat === 9 ? 100 : cat === 8 ? 20 : cat === 7 ?
 /** Dealer needs a pair of 4s or better. */
 const qualifies = (score: number[]) => score[0] >= 2 || (score[0] === 1 && score[1] >= 4);
 
-const DZ = -1.9, BZ = -0.35, PZ = 1.25;
-const boardX = (i: number) => -1.9 + i * 0.95;
+const DZ = -2.1, BZ = -0.45, PZ = 1.15;
+const boardX = (i: number) => -2.3 + i * 1.15;
+const ANTE: [number, number] = [-2.15, 1.45], CALL: [number, number] = [2.15, 1.45];
+export const TABLE = {
+  felt: 0x17295e,
+  zones: [
+    { x: 0, z: BZ, w: 6.2, h: 1.85, dashed: true, color: 'rgba(244,196,48,.4)', fill: 'rgba(0,0,0,.1)' },
+    { x: ANTE[0], z: ANTE[1], r: 0.52, label: 'ANTE' },
+    { x: CALL[0], z: CALL[1], r: 0.52, label: 'CALL', sub: '2× ANTE' },
+  ],
+  texts: [
+    { text: "CASINO HOLD'EM", z: 2.28, size: 0.3, arc: true },
+    { text: 'DEALER QUALIFIES WITH A PAIR OF 4s OR BETTER', z: 2.64, size: 0.13, arc: true, weight: 700, color: 'rgba(248,246,239,.55)' },
+  ],
+  logoZ: null,
+  view: { wide: [-0.4, 9.4, 6.3] as [number, number, number], narrow: [-0.45, 6.4, 6.8] as [number, number, number] },
+};
 
 export default function Poker() {
   const [ante, setAnte] = useState(useStore.getState().settings.defaultBet);
@@ -28,13 +44,14 @@ export default function Poker() {
 
   const hostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<TableScene | null>(null);
+  const [scene, setScene] = useState<TableScene | null>(null);
   const hand = useRef<{ shoe: Shoe; player: Card[]; dealer: Card[]; board: Card[]; dealerMeshes: Card3D[]; meshes: Map<Card, Card3D> } | null>(null);
   const turbo = useStore((s) => s.settings.turbo);
 
   useEffect(() => {
-    const sc = new TableScene(hostRef.current!, { felt: 0x1d2f6b, text: ["CASINO HOLD'EM", 'DEALER QUALIFIES WITH A PAIR OF 4s OR BETTER'], sub: 'ANTE                                  CALL' });
-    sceneRef.current = sc;
-    return () => { sc.dispose(); sceneRef.current = null; };
+    const sc = new TableScene(hostRef.current!, TABLE);
+    sceneRef.current = sc; setScene(sc);
+    return () => { sc.dispose(); sceneRef.current = null; setScene(null); };
   }, []);
   useEffect(() => { sceneRef.current?.setTurbo(turbo); }, [turbo]);
 
@@ -48,11 +65,11 @@ export default function Poker() {
     const p = [shoe.draw(), shoe.draw()], d = [shoe.draw(), shoe.draw()], b = [shoe.draw(), shoe.draw(), shoe.draw(), shoe.draw(), shoe.draw()];
     const meshes = new Map<Card, Card3D>();
     hand.current = { shoe, player: p, dealer: d, board: b, dealerMeshes: [], meshes };
-    sc.setChips('ante', ante, -1.3, 2.25);
-    meshes.set(p[0], await sc.deal(p[0], -0.48, PZ)); sfx.tick();
-    hand.current.dealerMeshes.push(await sc.deal(null, -0.48, DZ)); sfx.tick();
-    meshes.set(p[1], await sc.deal(p[1], 0.48, PZ)); sfx.tick();
-    hand.current.dealerMeshes.push(await sc.deal(null, 0.48, DZ)); sfx.tick();
+    sc.setChips('ante', ante, ...ANTE);
+    meshes.set(p[0], await sc.deal(p[0], -0.56, PZ)); sfx.tick();
+    hand.current.dealerMeshes.push(await sc.deal(null, -0.56, DZ)); sfx.tick();
+    meshes.set(p[1], await sc.deal(p[1], 0.56, PZ)); sfx.tick();
+    hand.current.dealerMeshes.push(await sc.deal(null, 0.56, DZ)); sfx.tick();
     setPlayer(p);
     for (let i = 0; i < 3; i++) { meshes.set(b[i], await sc.deal(b[i], boardX(i), BZ)); sfx.tick(); }
     setBoard(b.slice(0, 3));
@@ -63,6 +80,7 @@ export default function Poker() {
     const h = hand.current, sc = sceneRef.current; if (!h || !sc || phase !== 'decide') return;
     setPhase('dealing');
     useStore.getState().settle('poker', ante, 0, 'Folded');
+    sc.settleChips('ante', 'lose');
     await Promise.all(h.dealerMeshes.map((m, i) => sc.flip(m, h.dealer[i])));
     setDealerShown(h.dealer);
     setOutcome({ title: 'FOLDED', sub: `Ante lost (${fmt(ante)})`, tone: 'lose', payout: 0 });
@@ -74,7 +92,7 @@ export default function Poker() {
     const h = hand.current, sc = sceneRef.current; if (!h || !sc || phase !== 'decide') return;
     if (!useStore.getState().placeBet(ante * 2)) return;
     sfx.bet(); setPhase('dealing');
-    sc.setChips('call', ante * 2, 1.3, 2.25);
+    sc.setChips('call', ante * 2, ...CALL);
     for (let i = 3; i < 5; i++) { h.meshes.set(h.board[i], await sc.deal(h.board[i], boardX(i), BZ)); sfx.tick(); }
     setBoard(h.board);
     await new Promise((r) => setTimeout(r, turbo ? 150 : 350));
@@ -100,11 +118,14 @@ export default function Poker() {
     }
     // lift the five cards that made the winning hand
     const win = tone === 'lose' ? db.cards : pb.cards;
-    win.forEach((c) => { const m = h.meshes.get(c) ?? h.dealerMeshes[h.dealer.indexOf(c)]; if (m) sc.lift(m, true); });
+    if (tone !== 'push') win.forEach((c) => { const m = h.meshes.get(c) ?? h.dealerMeshes[h.dealer.indexOf(c)]; if (m) sc.lift(m, true); });
+    const q = qualifies(db.score);
+    sc.settleChips('ante', tone === 'win' ? 'win' : tone === 'push' ? 'push' : 'lose', ante * antePay(pb.score[0]));
+    sc.settleChips('call', !q ? 'push' : tone === 'win' ? 'win' : tone === 'push' ? 'push' : 'lose', ante * 2);
     useStore.getState().settle('poker', total, payout / total, `${pb.name} vs ${db.name}${qualifies(db.score) ? '' : ' (no qualify)'}`);
     setOutcome({ title, sub, tone, payout });
     tone === 'win' ? sfx.win() : tone === 'push' ? sfx.click() : sfx.lose();
-    sc.celebrate(0, tone === 'lose' ? DZ : PZ, tone === 'win', 1.8);
+    if (tone !== 'push') sc.celebrate(0, tone === 'lose' ? DZ : PZ, tone === 'win', 2.4, 1.8);
     setPhase('done');
   };
 
@@ -149,29 +170,19 @@ export default function Poker() {
       'Dealer doesn’t qualify: your ante pays by the table and the call is returned. You beat a qualifying dealer: ante pays by the table and the call pays 1:1. Ties push.',
     ]}>
       <div ref={hostRef} className="absolute inset-0" aria-label="Casino Hold'em table" />
-      <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
-        <Badge label="Dealer" value={dealerHand ? dealerHand.name : player.length ? '? ?' : '–'} />
-      </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
-        <Badge label="You" value={current ? current.name : '–'} gold={!!current && current.score[0] >= 1} />
-      </div>
-      {outcome && (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center px-4">
-          <div className={`animate-pop rounded-2xl border px-6 py-3 text-center backdrop-blur-md ${outcome.tone === 'win' ? 'border-gold/60 bg-black/60' : outcome.tone === 'push' ? 'border-white/30 bg-black/60' : 'border-blood/60 bg-blood/20'}`}>
-            <div className={`h-display text-2xl sm:text-3xl ${outcome.tone === 'win' ? 'text-gold-grad' : outcome.tone === 'push' ? 'text-cream' : 'text-blood'}`}>{outcome.title}</div>
-            <div className="mt-1 text-sm text-cream/85">{outcome.sub}{outcome.payout > 0 ? ` · paid ${fmt(outcome.payout)}` : ''}</div>
-          </div>
-        </div>
+      <div className="table-vignette pointer-events-none absolute inset-0" />
+      {player.length > 0 && (
+        <Anchor scene={scene} at={[-1.95, 0.2, DZ]}>
+          <HandBadge label="Dealer" value={dealerHand ? dealerHand.name : '? ?'} tone={outcome?.tone === 'lose' && phase === 'done' && dealerShown.length ? 'win' : 'neutral'} />
+        </Anchor>
       )}
+      {current && (
+        <Anchor scene={scene} at={[0, 0.2, PZ + 1.0]}>
+          <HandBadge label="You" value={current.name} tone={outcome ? (outcome.tone === 'win' ? 'win' : outcome.tone === 'push' ? 'push' : 'lose') : current.score[0] >= 1 ? 'active' : 'neutral'} />
+        </Anchor>
+      )}
+      {outcome && <ResultBanner key={outcome.title + outcome.payout} tone={outcome.tone} title={outcome.title} sub={outcome.sub} amount={outcome.payout} big={outcome.payout >= ante * 12} />}
+      {phase === 'bet' && <TableHint>Post an ante and press <b className="text-gold">Deal</b></TableHint>}
     </GameShell>
-  );
-}
-
-function Badge({ label, value, gold }: { label: string; value: string; gold?: boolean }) {
-  return (
-    <div className="rounded-xl bg-black/60 px-3 py-1.5 text-center backdrop-blur">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-smoke">{label}</div>
-      <div className={`font-display text-base font-black leading-tight ${gold ? 'text-gold' : ''}`}>{value}</div>
-    </div>
   );
 }

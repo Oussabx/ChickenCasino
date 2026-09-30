@@ -26,6 +26,12 @@ export class RouletteScene extends Stage3D {
   private spinAnim: { t0: number; dur: number; r0: number; dr: number; b0: number; db: number; target: number; resolve: () => void; onBounce: () => void; bounced: number } | null = null;
   private layout: 'side' | 'top' = 'side';
   private marker: THREE.Mesh;
+  private pocketMats: THREE.MeshStandardMaterial[][] = [];
+  private winIdx: number | null = null;
+  private trail: THREE.Sprite[] = [];
+  private trailPts: THREE.Vector3[] = [];
+  private cine = false;
+  private cineTimer = 0;
 
   constructor(host: HTMLElement) {
     super(host, { fov: 34, bg: 0x0a0708 });
@@ -43,7 +49,7 @@ export class RouletteScene extends Stage3D {
       new THREE.Vector2(R_NUM_OUT + 0.05, 0.05), new THREE.Vector2(R_TRACK - 0.05, Y_TRACK - 0.05), new THREE.Vector2(R_TRACK + 0.2, Y_TRACK + 0.15),
       new THREE.Vector2(R_TRACK + 0.35, Y_TRACK + 0.2), new THREE.Vector2(R_TRACK + 0.85, Y_TRACK + 0.15), new THREE.Vector2(R_TRACK + 0.95, -0.4), new THREE.Vector2(R_NUM_OUT, -0.4),
     ];
-    const bowl = new THREE.Mesh(new THREE.LatheGeometry(bowlProfile, 96), [std(0x3a1d0e, { roughness: 0.4, metalness: 0.1 })][0]);
+    const bowl = new THREE.Mesh(new THREE.LatheGeometry(bowlProfile, 96), new THREE.MeshPhysicalMaterial({ color: 0x4a2412, roughness: 0.32, metalness: 0.05, clearcoat: 1, clearcoatRoughness: 0.12 }));
     bowl.receiveShadow = true; bowl.castShadow = true;
     this.scene.add(bowl);
     const track = new THREE.Mesh(new THREE.RingGeometry(R_NUM_OUT + 0.05, R_TRACK + 0.2, 96, 1), std(0x1b120c, { roughness: 0.3, metalness: 0.2, side: THREE.DoubleSide }));
@@ -61,16 +67,17 @@ export class RouletteScene extends Stage3D {
     }
 
     // rotor
-    const red = std(0xc81d2e, { roughness: 0.35 }), black = std(0x141414, { roughness: 0.35 }), green = std(0x0e8f4a, { roughness: 0.35 });
     WHEEL_ORDER.forEach((n, i) => {
       const a0 = i * SEG - SEG / 2, a1 = a0 + SEG;
-      const col = n === 0 ? green : REDS.has(n) ? red : black;
+      const col = std(n === 0 ? 0x0e8f4a : REDS.has(n) ? 0xc81d2e : 0x141414, { roughness: 0.28, metalness: 0.05 });
+      const col2 = col.clone();
+      this.pocketMats.push([col, col2]);
       // pocket floor
       const pocket = new THREE.Mesh(this.sector(R_POCKET_IN, R_POCKET_OUT, a0, a1), col);
       pocket.position.y = Y_POCKET; pocket.receiveShadow = true;
       this.rotor.add(pocket);
       // number ring (slightly raised, sloped look)
-      const numSeg = new THREE.Mesh(this.sector(R_POCKET_OUT, R_NUM_OUT, a0, a1), col);
+      const numSeg = new THREE.Mesh(this.sector(R_POCKET_OUT, R_NUM_OUT, a0, a1), col2);
       numSeg.position.y = Y_POCKET + 0.14;
       this.rotor.add(numSeg);
       const lbl = labelPlane(textTexture(String(n), { w: 96, h: 96, color: '#F8F6EF', size: 56 }), 0.34, 0.34);
@@ -105,9 +112,19 @@ export class RouletteScene extends Stage3D {
     this.marker.rotation.x = -Math.PI / 2;
     this.scene.add(this.marker);
 
-    this.ball = new THREE.Mesh(new THREE.SphereGeometry(0.1, 24, 16), std(0xffffff, { roughness: 0.15, metalness: 0.2 }));
+    this.ball = new THREE.Mesh(new THREE.SphereGeometry(0.1, 24, 16), new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.08, metalness: 0.1, clearcoat: 1 }));
     this.ball.castShadow = true;
     this.scene.add(this.ball);
+    for (let i = 0; i < 16; i++) {
+      const s = glowSprite('rgba(255,244,214,1)', 0.34 * (1 - i / 20), 0);
+      this.trail.push(s); this.scene.add(s);
+    }
+    // warm bokeh behind the wheel
+    for (let i = 0; i < 16; i++) {
+      const s = glowSprite(Math.random() < 0.7 ? 'rgba(255,214,120,1)' : 'rgba(230,57,70,1)', 0.8 + Math.random() * 1.6, 0.14 + Math.random() * 0.16);
+      s.position.set((Math.random() - 0.5) * 40, 2 + Math.random() * 7, -14 - Math.random() * 8);
+      this.scene.add(s);
+    }
     this.onResize();
   }
 
@@ -125,14 +142,21 @@ export class RouletteScene extends Stage3D {
 
   protected onResize() {
     if (!this.rotor) return;
-    if (this.layout === 'side') this.frame(new THREE.Vector3(4.9, 0, 0.5), 19.5, 10, new THREE.Vector3(0, 1.7, 1), 1);
-    else this.frame(new THREE.Vector3(0, 0, 3.9), 9.5, 17, new THREE.Vector3(0, 1.9, 1), 1);
+    // zooming keeps the wheel at the same spot on screen (the board overlays the rest)
+    const s = this.cine ? 0.8 : 1;
+    if (this.layout === 'side') this.frame(new THREE.Vector3(4.9 * s, 0, 0.5 * s), 19.5 * s, 10 * s, new THREE.Vector3(0, this.cine ? 2.3 : 1.7, 1), 1);
+    else this.frame(new THREE.Vector3(0, 0, 3.9 * s), 9.5 * s, 17 * s, new THREE.Vector3(0, this.cine ? 2.5 : 1.9, 1), 1);
   }
+
+  private setCine(on: boolean) { if (this.cine !== on) { this.cine = on; this.onResize(); } }
 
   /** Spin so the ball lands on `number`. Resolves when it settles. */
   spin(number: number, durMs: number, onBounce: () => void) {
     const target = WHEEL_ORDER.indexOf(number);
     this.landed = null;
+    this.winIdx = null;
+    clearTimeout(this.cineTimer);
+    this.pocketMats.forEach((ms) => ms.forEach((m) => m.emissive.setHex(0x000000)));
     (this.marker.material as THREE.MeshBasicMaterial).opacity = 0;
     const dr = Math.PI * 2 * 2.2; // rotor turns ~2 times
     const rEnd = this.rotorAngle + dr;
@@ -154,6 +178,7 @@ export class RouletteScene extends Stage3D {
       this.rotorAngle = a.r0 + a.dr * (1 - Math.pow(1 - k, 2.2));
       this.ballAngle = a.b0 + a.db * (1 - Math.pow(1 - k, 2.6));
       // ball rides the outer track, then spirals down and bounces into the pocket
+      if (k > 0.5) this.setCine(true);
       if (k < 0.55) { this.ballRadius = R_TRACK - 0.02; this.ballY = Y_TRACK - 0.02; }
       else if (k < 0.9) {
         const q = (k - 0.55) / 0.35;
@@ -166,8 +191,10 @@ export class RouletteScene extends Stage3D {
       if (k >= 1) {
         this.spinAnim = null;
         this.landed = a.target;
+        this.winIdx = a.target;
         this.rotorSpeed = 0.35;
         (this.marker.material as THREE.MeshBasicMaterial).opacity = 1;
+        this.cineTimer = window.setTimeout(() => this.setCine(false), 1900);
         a.resolve();
       }
     } else {
@@ -180,9 +207,24 @@ export class RouletteScene extends Stage3D {
     }
     this.rotor.rotation.y = this.rotorAngle;
     this.ball.position.copy(polar(this.ballAngle, this.ballRadius, this.ballY));
+    // glowing trail while the ball is flying round the track
+    const fast = !!this.spinAnim && (performance.now() - this.spinAnim.t0) / this.spinAnim.dur < 0.8;
+    this.trailPts.unshift(this.ball.position.clone());
+    this.trailPts.length = Math.min(this.trailPts.length, this.trail.length);
+    this.trail.forEach((s, i) => {
+      const p = this.trailPts[i]; if (p) s.position.copy(p);
+      const target = fast ? 0.55 * (1 - i / this.trail.length) : 0;
+      s.material.opacity += (target - s.material.opacity) * Math.min(1, dt * 10);
+    });
+    if (this.winIdx !== null) {
+      const pulse = 0.35 + Math.sin(t * 6) * 0.25;
+      this.pocketMats[this.winIdx].forEach((m) => m.emissive.setRGB(pulse, pulse * 0.8, pulse * 0.3));
+    }
     if (this.landed !== null) {
       this.marker.position.copy(polar(this.ballAngle, R_NUM_OUT + 0.25, Y_TRACK - 0.1));
       (this.marker.material as THREE.MeshBasicMaterial).opacity = 0.6 + Math.sin(t * 6) * 0.35;
     }
   }
+
+  dispose() { clearTimeout(this.cineTimer); super.dispose(); }
 }

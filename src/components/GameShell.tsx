@@ -35,7 +35,7 @@ export default function GameShell({ id, controls, children, rules }: { id: GameI
 
       <div className="card overflow-hidden grid lg:grid-cols-[340px_1fr]">
         <aside className="order-2 lg:order-1 border-t lg:border-t-0 lg:border-r border-white/[0.06] bg-ink-800 p-4 space-y-4">{controls}</aside>
-        <section className="order-1 lg:order-2 relative min-h-[380px] sm:min-h-[500px] lg:min-h-[580px] felt grain">{children}</section>
+        <section className="order-1 lg:order-2 relative min-h-[max(380px,calc(100svh-400px))] sm:min-h-[500px] lg:min-h-[580px] felt grain">{children}</section>
       </div>
 
       <BelowGame id={id} />
@@ -63,7 +63,7 @@ export function GameAction({ children, extra }: { children: ReactNode; extra?: R
     <>
       <div className="hidden lg:block">{children}</div>
       {createPortal(
-        <div className="lg:hidden fixed inset-x-0 z-40 px-3 pt-6 pb-2 bg-gradient-to-t from-ink via-ink/95 to-transparent"
+        <div className="lg:hidden fixed inset-x-0 z-40 border-t border-white/[0.07] bg-ink/90 px-3 pt-2.5 pb-2 shadow-[0_-12px_30px_-10px_rgba(0,0,0,.8)] backdrop-blur-xl"
           style={{ bottom: 'calc(58px + env(safe-area-inset-bottom))' }}>
           {extra && <div className="mb-2">{extra}</div>}
           {children}

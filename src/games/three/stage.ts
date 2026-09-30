@@ -122,7 +122,24 @@ export abstract class Stage3D {
     this.camera.lookAt(look);
 
     this.renderer.render(this.scene, this.camera);
+    this.placeAnchors();
     this.raf = requestAnimationFrame(this.loop);
+  }
+
+  private anchors = new Map<HTMLElement, THREE.Vector3>();
+  /** Keep a DOM element (absolutely positioned at 0,0 of the host) centred over a world point. */
+  anchor(el: HTMLElement, at: THREE.Vector3 | [number, number, number] | null) {
+    if (!at) { this.anchors.delete(el); return; }
+    this.anchors.set(el, Array.isArray(at) ? new THREE.Vector3(...at) : at.clone());
+    this.placeAnchors();
+  }
+  private placeAnchors() {
+    if (!this.anchors.size) return;
+    const w = this.host.clientWidth, h = this.host.clientHeight, v = new THREE.Vector3();
+    this.anchors.forEach((p, el) => {
+      v.copy(p).project(this.camera);
+      el.style.transform = `translate3d(${(((v.x + 1) / 2) * w).toFixed(1)}px, ${(((1 - v.y) / 2) * h).toFixed(1)}px, 0) translate(-50%, -50%)`;
+    });
   }
 
   addParticle(mesh: THREE.Object3D, v: THREE.Vector3, life: number, gravity = 9, floor = -Infinity) {
