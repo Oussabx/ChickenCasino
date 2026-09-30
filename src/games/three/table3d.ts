@@ -228,7 +228,7 @@ export class TableScene extends Stage3D {
     skirt.rotateX(-Math.PI / 2); skirt.position.y = -1.35; this.scene.add(skirt);
 
     // the chicken dealer stands behind the top of the table
-    const top5 = this.edge(0.5, 1.05);
+    const top5 = this.edge(0.5, 0.75);
     const ch = makeChicken('#F8F6EF');
     ch.root.scale.setScalar(1.35);
     ch.root.position.copy(top5.p).setY(-0.55);
@@ -401,8 +401,13 @@ export class TableScene extends Stage3D {
     if (!this.cards) return;
     if (this.opts.oval) {
       const { L, R, portrait } = this.ov;
-      if (portrait) this.frame(new THREE.Vector3(0, 0, 0.1), 2 * R + 2.6, 2 * (L + R) + 2.6, new THREE.Vector3(0, 3.2, 1), 1);
-      else this.frame(new THREE.Vector3(0, 0, 0.15), 2 * (L + R) + 2.6, 2 * R + 3.8, new THREE.Vector3(0, 1.8, 1), 1);
+      // tight framing: the rail just fits, so the cards are as big as possible
+      if (portrait) this.frame(new THREE.Vector3(0, 0, 0.25), 2 * R + 0.9, 2 * (L + R) + 1.1, new THREE.Vector3(0, 3.6, 1), 1);
+      else {
+        // squarer views look down more steeply so the table fills the height too
+        const tilt = THREE.MathUtils.clamp(2.3 + (1.6 - this.aspect) * 5, 2.3, 5);
+        this.frame(new THREE.Vector3(0, 0, 0.3), 2 * (L + R) + 1.9, 2 * R + 1.5, new THREE.Vector3(0, tilt, 1), 1);
+      }
       return;
     }
     const narrow = this.aspect < 1;

@@ -15,8 +15,8 @@ import { Anchor, ResultBanner } from '../components/TableUI';
 const STAKES: [number, number][] = [[1, 2], [5, 10], [25, 50], [100, 200]];
 const SLOTS = [0, 1, 2, 3, 4, 6, 7, 8, 9]; // 10 positions round the table; 5 (top) is the dealer
 const slotsFor = (n: number) => Array.from({ length: n }, (_, k) => SLOTS[Math.round((k * SLOTS.length) / n) % SLOTS.length]);
-const BOARD_X = (i: number) => -2.3 + i * 1.15;
-const potAt = (portrait: boolean): [number, number] => (portrait ? [0, -3.3] : [0, -1.45]);
+const BOARD_X = (i: number) => -2.6 + i * 1.3;
+const potAt = (portrait: boolean): [number, number] => (portrait ? [0, -3.5] : [0, -2.05]);
 
 type Phase = 'lobby' | 'joining' | 'playing' | 'between';
 interface Outcome { tone: 'win' | 'lose' | 'push'; title: string; sub: string; amount: number }
@@ -34,7 +34,9 @@ export default function Poker() {
   const [turn, setTurn] = useState<number | null>(null);
   const [myTurn, setMyTurn] = useState(false);
   const [raiseOpen, setRaiseOpen] = useState(false);
-  const [raiseTo, setRaiseTo] = useState(0);
+  const [raiseTo, setRaiseToRaw] = useState(0);
+  const [raiseText, setRaiseText] = useState('');
+  const setRaiseTo = (v: number) => { setRaiseToRaw(v); setRaiseText(String(v)); };
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [results, setResults] = useState<PotResult[]>([]);
   const [session, setSession] = useState({ hands: 0, net: 0, biggest: 0 });
@@ -83,7 +85,11 @@ export default function Poker() {
     const inward = e.n.clone().negate();
     const tan = { x: -e.n.z, z: e.n.x };
     const at = (d: number, side = 0) => ({ x: e.p.x + inward.x * d + tan.x * side, z: e.p.z + inward.z * d + tan.z * side });
-    return { pod: sc.edge(f, 0.95).p, cards: at(1.45), bet: at(2.45), button: at(1.35, 1.25), human: game.current?.seats[i]?.human };
+    const human = !!game.current?.seats[i]?.human;
+    // pods sit on the padded rail so they stay inside the view; your cards are bigger and further in
+    return human
+      ? { pod: sc.edge(f, 0.12).p, cards: at(1.7), bet: at(1.7, 2.2), button: at(1.7, -2.1), human }
+      : { pod: sc.edge(f, -0.05).p, cards: at(1.5), bet: at(2.5), button: at(1.4, 1.3), human };
   };
   /** After a table rebuild, put the dealer button and stacks back without animation. */
   const placeStatic = (sc: TableScene, g: Game) => {
@@ -185,11 +191,11 @@ export default function Poker() {
     for (let k = 0; k < g.seats.length; k++) { i = (i + 1) % g.seats.length; if (!g.seats[i].sittingOut) order.push(i); }
     for (let r = 0; r < 2; r++) for (const s of order) {
       const seat = g.seats[s], geo = seatGeo(sc, s).cards;
-      const side = seat.human ? (r ? 0.58 : -0.58) : (r ? 0.28 : -0.28);
+      const side = seat.human ? (r ? 0.74 : -0.74) : (r ? 0.34 : -0.34);
       const e = sc.edge(slots.current[s] / 10);
       const rot = seat.human ? 0 : Math.atan2(e.n.x, e.n.z) * 0.9 + (r ? 0.12 : -0.12);
       const tan = { x: -e.n.z, z: e.n.x };
-      const c3 = await sc.deal(seat.human ? seat.hole[r] : null, geo.x + tan.x * side, geo.z + tan.z * side, { scale: seat.human ? 1.12 : 0.72, rot, up: seat.human });
+      const c3 = await sc.deal(seat.human ? seat.hole[r] : null, geo.x + tan.x * side, geo.z + tan.z * side, { scale: seat.human ? 1.42 : 0.9, rot, up: seat.human });
       const list = holeMeshes.current.get(s) ?? []; list.push(c3); holeMeshes.current.set(s, list);
       sfx.tick();
       if (!alivePage.current) return;
@@ -242,7 +248,7 @@ export default function Poker() {
       rerender();
       for (const c of dealt) {
         const k = g.board.indexOf(c);
-        boardMeshes.current.push(await sc.deal(c, BOARD_X(k), 0.05, { scale: 1.05 }));
+        boardMeshes.current.push(await sc.deal(c, BOARD_X(k), portraitRef.current ? 0.2 : -0.35, { scale: 1.24 }));
         sfx.reveal();
       }
       await sleep(turboRef.current ? 150 : 450);
@@ -324,13 +330,22 @@ export default function Poker() {
 
   const myHand = useMemo(() => (me && me.hole.length === 2 ? bestHand([...me.hole, ...(g?.board ?? [])]) : null), [me?.hole, g?.board.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const clampRaise = (v: number) => (L ? Math.min(L.maxTo, Math.max(L.minTo, Math.round(v * 100) / 100)) : v);
+  const typed = (txt: string) => { setRaiseText(txt); const v = parseFloat(txt.replace(/,/g, '')); if (!Number.isNaN(v)) setRaiseToRaw(clampRaise(v)); };
+  const step = (dir: number) => setRaiseTo(clampRaise(raiseTo + dir * (g?.bb ?? 1)));
   const raisePanel = L && raiseOpen && L.canRaise ? (
     <div className="rounded-xl border border-gold/25 bg-ink-900/95 p-3">
-      <div className="flex items-center justify-between text-xs">
-        <span className="label">{L.isBet ? 'Bet' : 'Raise to'}</span>
-        <b className="font-display text-lg text-gold tabular">{fmt(raiseTo)}</b>
+      <div className="flex items-center gap-2">
+        <span className="label shrink-0">{L.isBet ? 'Bet' : 'Raise to'}</span>
+        <button type="button" className="btn-dark h-9 w-9 shrink-0 !p-0 text-lg" onClick={() => step(-1)} aria-label="Less">−</button>
+        <input type="text" inputMode="decimal" aria-label="Raise amount" value={raiseText}
+          onChange={(e) => typed(e.target.value)} onBlur={() => setRaiseTo(raiseTo)}
+          onKeyDown={(e) => { if (e.key === 'Enter') choose(raiseTo >= L.maxTo ? 'allin' : L.isBet ? 'bet' : 'raise', raiseTo); }}
+          className="input h-9 min-w-0 flex-1 !py-1 text-center font-display text-lg font-black text-gold tabular" />
+        <button type="button" className="btn-dark h-9 w-9 shrink-0 !p-0 text-lg" onClick={() => step(1)} aria-label="More">+</button>
       </div>
-      <input type="range" className="mt-2 w-full accent-[#F4C430]" min={L.minTo} max={L.maxTo} step={g!.sb} value={raiseTo} onChange={(e) => setRaiseTo(+e.target.value)} aria-label="Raise amount" />
+      <input type="range" className="mt-2 w-full accent-[#F4C430]" min={L.minTo} max={L.maxTo} step={Math.max(0.01, Math.min(g!.sb, (L.maxTo - L.minTo) / 400))} value={raiseTo} onChange={(e) => setRaiseTo(clampRaise(+e.target.value))} aria-label="Raise slider" />
+      <div className="mt-1 flex justify-between text-[10px] text-smoke tabular"><span>min {fmt(L.minTo)}</span><span>max {fmt(L.maxTo)}</span></div>
       <div className="mt-2 grid grid-cols-5 gap-1">
         {presets.map(([l, v]) => (
           <button key={l} type="button" onClick={() => setRaiseTo(v)} className={`rounded-lg py-1.5 text-[11px] font-bold transition ${raiseTo === v ? 'bg-gold text-ink' : 'bg-ink-700 text-smoke hover:text-cream'}`}>{l}</button>
@@ -379,9 +394,11 @@ export default function Poker() {
       </div>
       <div className="rounded-xl bg-ink-900 p-3 text-xs">
         <div className="label mb-2">Hand rankings</div>
-        {[...HAND_NAMES].reverse().map((n) => (
-          <div key={n} className={`flex justify-between rounded px-1.5 py-0.5 ${myHand?.name === n ? 'bg-gold/15 text-gold' : 'text-smoke'}`}><span>{n}</span></div>
-        ))}
+        <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+          {[...HAND_NAMES].reverse().map((n, i) => (
+            <div key={n} className={`truncate rounded px-1.5 py-0.5 text-[11px] ${myHand?.name === n ? 'bg-gold/15 font-bold text-gold' : 'text-smoke'}`}><span className="mr-1 opacity-50 tabular">{i + 1}.</span>{n}</div>
+          ))}
+        </div>
       </div>
     </>
   );
