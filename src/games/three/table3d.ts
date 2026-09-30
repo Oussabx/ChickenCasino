@@ -390,19 +390,7 @@ export class TableScene extends Stage3D {
   }
 
   // ---------- chips ----------
-  private buildStack(amount: number) {
-    const g = new THREE.Group();
-    let left = amount, n = 0;
-    for (const [v, col] of DENOMS) {
-      while (left >= v - 1e-9 && n < 14) { const ch = makeChip(col, 0.3); ch.position.set((Math.random() - 0.5) * 0.02, 0.1 + n * 0.068, (Math.random() - 0.5) * 0.02); ch.rotation.y = n * 0.7; g.add(ch); left -= v; n++; }
-    }
-    if (n === 0) { const ch = makeChip(0xf8f6ef, 0.3); ch.position.y = 0.1; g.add(ch); n = 1; }
-    const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: textTexture(fmtChip(amount), { w: 192, h: 80, size: 46, color: '#F4C430', bg: 'rgba(11,11,11,.82)', radius: 40 }), depthTest: false, transparent: true }));
-    label.scale.set(0.55, 0.23, 1); label.position.y = 0.2 + n * 0.068 + 0.45; label.renderOrder = 10;
-    g.add(label);
-    g.userData.n = n;
-    return g;
-  }
+  private buildStack(amount: number) { return chipStack(amount); }
 
   /** Stack of chips representing a bet at (x, z). amount 0 removes it. */
   setChips(key: string, amount: number, x: number, z: number) {
@@ -596,6 +584,22 @@ export class TableScene extends Stage3D {
     }
     dp.needsUpdate = true;
   }
+}
+
+/** A stack of casino chips worth `amount`, with a floating amount label. `userData.n` = chip count. */
+export function chipStack(amount: number, r = 0.3) {
+  const g = new THREE.Group();
+  const h = r * 0.227;
+  let left = amount, n = 0;
+  for (const [v, col] of DENOMS) {
+    while (left >= v - 1e-9 && n < 14) { const ch = makeChip(col, r); ch.position.set((Math.random() - 0.5) * 0.02, r / 3 + n * h, (Math.random() - 0.5) * 0.02); ch.rotation.y = n * 0.7; g.add(ch); left -= v; n++; }
+  }
+  if (n === 0) { const ch = makeChip(0xf8f6ef, r); ch.position.y = r / 3; g.add(ch); n = 1; }
+  const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: textTexture(fmtChip(amount), { w: 192, h: 80, size: 46, color: '#F4C430', bg: 'rgba(11,11,11,.82)', radius: 40 }), depthTest: false, transparent: true }));
+  label.scale.set(r * 1.83, r * 0.77, 1); label.position.y = r * 0.67 + n * h + r * 1.5; label.renderOrder = 10;
+  g.add(label);
+  g.userData.n = n;
+  return g;
 }
 
 const COIN_GEO = new THREE.CylinderGeometry(0.12, 0.12, 0.03, 16);
