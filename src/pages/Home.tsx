@@ -32,13 +32,13 @@ export default function Home() {
             <span className="word-in inline-block text-gold-grad" style={{ animationDelay: '420ms' }}>bigger.</span>
           </h1>
           <p className="mt-5 text-lg text-cream/80 max-w-sm word-in" style={{ animationDelay: '600ms' }}>Your favorite casino games, with a little more chicken.</p>
-          <div className="mt-8 flex flex-wrap gap-3 word-in" style={{ animationDelay: '720ms' }}>
+          <div className="mt-8 grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 sm:flex sm:flex-wrap word-in" style={{ animationDelay: '720ms' }}>
             {user ? (
-              <Link to="/games/chicken-cross" className="btn-gold px-6 py-3.5 text-base">Play Chicken Cross <ArrowRight size={18} /></Link>
+              <Link to="/games/chicken-cross" className="btn-gold px-5 py-3.5 text-base whitespace-nowrap">Play Chicken Cross <ArrowRight size={18} /></Link>
             ) : (
               <button onClick={() => openAuth('signup')} className="btn-gold px-6 py-3.5 text-base">Join Now <ArrowRight size={18} /></button>
             )}
-            <Link to="/games" className="btn px-6 py-3.5 text-base text-cream bg-black/55 backdrop-blur-md border border-white/25 shadow-[0_8px_24px_-8px_rgba(0,0,0,.8)] hover:bg-black/70 hover:border-gold/60 hover:text-gold">Browse games</Link>
+            <Link to="/games" className="btn px-5 py-3.5 text-base whitespace-nowrap text-cream bg-black/55 backdrop-blur-md border border-white/25 shadow-[0_8px_24px_-8px_rgba(0,0,0,.8)] hover:bg-black/70 hover:border-gold/60 hover:text-gold">Browse games</Link>
           </div>
           <div className="mt-10 flex gap-6 sm:gap-10">
             {[{ i: Zap, t: 'Instant Payouts' }, { i: ShieldCheck, t: 'Crypto-grade RNG' }, { i: Smartphone, t: 'Play Anywhere' }].map((f, k) => (

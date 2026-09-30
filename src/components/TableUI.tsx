@@ -58,8 +58,9 @@ export function useCountUp(target: number, ms = 900) {
  * Round result: pops in over the middle of the table, then glides down and
  * shrinks to a ribbon so the cards stay visible.
  */
-export function ResultBanner({ tone, title, sub, amount, big }: { tone: 'win' | 'lose' | 'push'; title: ReactNode; sub?: ReactNode; amount?: number; big?: boolean }) {
-  const [docked, setDocked] = useState(false);
+export function ResultBanner({ tone, title, sub, amount, big, top }: { tone: 'win' | 'lose' | 'push'; title: ReactNode; sub?: ReactNode; amount?: number; big?: boolean; top?: boolean }) {
+  // `top`: start docked at the top so the cards underneath stay visible (poker showdowns)
+  const [docked, setDocked] = useState(!!top);
   useEffect(() => { const t = setTimeout(() => setDocked(true), 1700); return () => clearTimeout(t); }, []);
   const shown = useCountUp(amount ?? 0);
   const ring = tone === 'win' ? 'border-gold/70' : tone === 'push' ? 'border-white/30' : 'border-blood/60';

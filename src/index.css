@@ -98,7 +98,7 @@ input[type='range'].range::-moz-range-track { height: 8px; background: transpare
 /* gold button shine sweep */
 .btn-gold { position: relative; overflow: hidden; isolation: isolate; }
 .btn-gold::after { content: ''; position: absolute; inset: -2px; z-index: -1; background: linear-gradient(110deg, transparent 35%, rgba(255,255,255,.55) 50%, transparent 65%); transform: translateX(-120%); transition: transform .7s ease; }
-.btn-gold:hover::after { transform: translateX(120%); }
+@media (hover: hover) { .btn-gold:hover::after { transform: translateX(120%); } }
 
 .reduce-motion .reveal { opacity: 1 !important; transform: none !important; filter: none !important; }
 @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1 !important; transform: none !important; filter: none !important; } }
@@ -129,3 +129,5 @@ input[type='range'].range::-moz-range-track { height: 8px; background: transpare
 .phone-controls .phone-hide { display: none !important; }
 .phone-controls input { padding-top: 6px; padding-bottom: 6px; }
 .phone-controls .btn-gold, .phone-controls .btn-red, .phone-controls .btn-dark, .phone-controls .btn-double, .phone-controls .btn-split { padding-top: 10px; padding-bottom: 10px; }
+@keyframes card-in { 0% { transform: perspective(500px) rotateY(90deg) scale(.9); opacity: .4; } 100% { transform: none; opacity: 1; } }
+.card-in { animation: card-in .35s cubic-bezier(.2,.8,.2,1) backwards; }

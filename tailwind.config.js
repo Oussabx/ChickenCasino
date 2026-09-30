@@ -40,5 +40,7 @@ export default {
       },
     },
   },
+  // hover styles only on devices that can hover (no sticky pale buttons after a tap on phones)
+  future: { hoverOnlyWhenSupported: true },
   plugins: [],
 };
