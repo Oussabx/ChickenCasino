@@ -1,6 +1,7 @@
 import { useStore } from '../store';
 import { Coin } from './Icons';
 import { sfx } from '../lib/sound';
+import { usePhoneGame } from '../lib/phone';
 
 /** Standard bet-amount input with quick modifiers. */
 export default function BetControls({ value, onChange, disabled, label = 'Bet amount' }: { value: number; onChange: (v: number) => void; disabled?: boolean; label?: string }) {
@@ -24,7 +25,7 @@ export default function BetControls({ value, onChange, disabled, label = 'Bet am
           <button type="button" disabled={disabled} onClick={() => set(Math.floor(balance * 100) / 100)} className="rounded-lg bg-ink-600 px-2.5 py-1.5 text-xs font-bold hover:bg-ink-500">Max</button>
         </div>
       </div>
-      <div className="mt-2 grid grid-cols-4 gap-1.5">
+      <div className="phone-hide mt-2 grid grid-cols-4 gap-1.5">
         {[10, 50, 100, 500].map((v) => (
           <button key={v} type="button" disabled={disabled} onClick={() => set(v)} className={`rounded-lg border py-1 text-xs font-semibold transition ${value === v ? 'border-gold/60 text-gold bg-gold/10' : 'border-white/5 bg-ink-700 text-smoke hover:text-cream'}`}>{v}</button>
         ))}
@@ -55,6 +56,9 @@ export function confirmBet(amount: number) {
 /** Compact bet stepper for the pinned mobile action bar. */
 export function MiniBet({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled?: boolean }) {
   const balance = useStore((s) => s.balance);
+  // in phone game mode the full bet controls sit right beside the action button
+  const phone = usePhoneGame();
+  if (phone) return null;
   const set = (v: number) => { sfx.click(); onChange(Math.max(0, +v.toFixed(2))); };
   return (
     <div className={`flex items-center gap-2 rounded-xl border border-white/10 bg-ink-800/95 p-1.5 pl-3 backdrop-blur ${disabled ? 'opacity-60' : ''}`}>
