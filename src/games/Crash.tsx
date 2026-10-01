@@ -153,8 +153,8 @@ export default function Crash() {
       <div>
         <div className="flex items-center justify-between">
           <span className="label">Auto cash out</span>
-          <button onClick={() => setAutoOn((a) => !a)} className={`relative h-6 w-11 rounded-full transition ${autoOn ? 'bg-gold' : 'bg-ink-500'}`} aria-label="Toggle auto cash out" aria-pressed={autoOn}>
-            <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-ink transition-all ${autoOn ? 'left-[22px]' : 'left-0.5 bg-cream'}`} />
+          <button onClick={() => setAutoOn((a) => !a)} className={`relative h-7 w-12 shrink-0 rounded-full transition ${autoOn ? 'bg-gold' : 'bg-ink-500'}`} aria-label="Toggle auto cash out" aria-pressed={autoOn}>
+            <span className={`absolute top-1 h-5 w-5 rounded-full bg-ink transition-all ${autoOn ? 'left-[24px]' : 'left-1 bg-cream'}`} />
           </button>
         </div>
         <div className={`mt-1.5 flex items-center rounded-xl border border-white/10 bg-ink-900 px-3 ${autoOn ? '' : 'opacity-50'}`}>

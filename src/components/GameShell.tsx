@@ -85,7 +85,7 @@ export default function GameShell({ id, controls, children, rules, tall }: { id:
   return (
     <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-6 pt-4 lg:pt-6 pb-48 lg:pb-0">
       <div className="mb-4 flex items-center gap-2">
-        <Link to="/games" className="grid h-9 w-9 place-items-center rounded-xl bg-ink-700 hover:bg-ink-600" aria-label="Back to games"><ChevronLeft size={18} /></Link>
+        <Link to="/games" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-ink-700 hover:bg-ink-600" aria-label="Back to games"><ChevronLeft size={18} /></Link>
         <div className="min-w-0">
           <h1 className="font-display text-lg sm:text-2xl font-black leading-tight truncate">{g.name}</h1>
           <p className="text-xs text-smoke truncate">{g.tagline}</p>

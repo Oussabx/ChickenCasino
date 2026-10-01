@@ -49,7 +49,7 @@ function BrandPanel({ view }: { view: AuthView }) {
       <div className="relative">
         <div className="flex items-center gap-2">
           <img src="./img/head.webp" alt="" className="h-9 w-9 rounded-full" />
-          <div className="font-display font-black leading-none">CHICKEN<div className="text-[9px] tracking-[.25em] text-gold">— CASINO —</div></div>
+          <div className="font-display font-black leading-none">CHICKEN<div className="text-[10px] tracking-[.25em] text-gold">— CASINO —</div></div>
         </div>
         {view === 'signup' ? (
           <>
@@ -59,7 +59,7 @@ function BrandPanel({ view }: { view: AuthView }) {
               <span className="flex items-center gap-1.5 text-2xl"><Egg className="h-6 w-6" />10</span>
             </div>
             <ul className="mt-4 space-y-2 text-sm text-cream/80">
-              {['6 original games', 'Daily rewards & missions', 'Unlockable skins, avatars & titles'].map((t) => (
+              {['15 games: originals, cards, roulette, slots & more', 'Daily rewards & missions', 'Unlockable skins, avatars & titles'].map((t) => (
                 <li key={t} className="flex items-center gap-2"><CheckCircle2 size={15} className="text-gold" />{t}</li>
               ))}
             </ul>
@@ -235,7 +235,7 @@ function SignupFlow({ onDone, onLock }: { onDone: () => void; onLock: (v: boolea
           </div>
           <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-ink-900 p-3 text-sm cursor-pointer hover:border-white/20">
             <input type="checkbox" checked={age} onChange={(e) => { setAge(e.target.checked); setErr(null); }} className="mt-0.5 h-4 w-4 accent-[#F4C430]" />
-            <span className="text-cream/80">I’m 18 or older and understand Chicken Casino uses <b className="text-cream">virtual coins only</b> — nothing can be bought or withdrawn.</span>
+            <span className="text-cream/80">I’m 18 or older and understand Chicken Casino uses <b className="text-cream">virtual coins</b> with no cash value — winnings can never be withdrawn.</span>
           </label>
           {err && <Banner msg={err} />}
           <div className="flex gap-2">

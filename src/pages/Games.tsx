@@ -39,7 +39,7 @@ export default function Games() {
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-smoke" />
           <input className="input pl-9" placeholder="Search games" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
-        <div className="flex gap-2 overflow-x-auto no-scrollbar">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar max-sm:-mr-4 max-sm:pr-4 [mask-image:linear-gradient(to_right,black_85%,transparent)] sm:[mask-image:none]">
           {FILTERS.map((x) => (
             <button key={x} onClick={() => setF(x)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold border transition ${f === x ? 'bg-gold text-ink border-gold' : 'border-white/10 text-cream/80 hover:border-white/30'}`}>{x}</button>
           ))}
@@ -49,11 +49,13 @@ export default function Games() {
         {list.map((g, i) => (
           <Reveal key={g.id} variant="zoom" delay={(i % 3) * 90}>
             <GameCard g={g} size="lg" />
-            <div className="mt-2 flex flex-wrap items-center gap-1.5 px-1">
-              {g.tags.map((t) => <span key={t} className="chip bg-white/5 text-smoke">{t}</span>)}
-              <span className="ml-auto text-[11px] text-smoke">Max <b className="text-gold">{g.maxWin}</b></span>
+            <div className="mt-2 flex items-center gap-1.5 px-1">
+              <div className="flex min-w-0 flex-1 gap-1.5 overflow-hidden">
+                {g.tags.map((t, k) => <span key={t} className={`chip shrink-0 bg-white/5 text-smoke ${k ? 'max-sm:hidden' : ''}`}>{t}</span>)}
+              </div>
+              <span className="shrink-0 whitespace-nowrap text-[11px] text-smoke">Max <b className="text-gold">{g.maxWin}</b></span>
             </div>
-            {stats[g.id] && <div className="px-1 mt-1 text-[11px] text-smoke">You've played {stats[g.id]!.rounds} rounds · best {stats[g.id]!.best.toFixed(2)}×</div>}
+            {stats[g.id] && <div className="px-1 mt-1 truncate text-[11px] text-smoke">You've played {stats[g.id]!.rounds} rounds · best {stats[g.id]!.best.toFixed(2)}×</div>}
           </Reveal>
         ))}
         {!list.length && <div className="col-span-full py-16 text-center text-smoke">No games match — try another filter. 🐣</div>}

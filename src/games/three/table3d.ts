@@ -274,7 +274,7 @@ export class TableScene extends Stage3D {
 
     // the chicken dealer stands behind the top of the table
     const top5 = this.edge(0.5, 0.75);
-    this.addDealer(top5.p.clone().setY(-0.55), 1.35, 0.42);
+    if (this.opts.dealer !== false) this.addDealer(top5.p.clone().setY(-0.55), 1.35, 0.42);
 
     // shoe + discard next to the dealer
     const inward = top5.n.clone().negate();

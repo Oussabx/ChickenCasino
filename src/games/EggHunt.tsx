@@ -96,7 +96,7 @@ export default function EggHunt() {
         </div>
         <div className="mt-2 grid grid-cols-5 gap-1.5">
           {[1, 3, 5, 10, 20].map((v) => (
-            <button key={v} disabled={playing} onClick={() => setMines(v)} className={`rounded-lg py-1 text-xs font-bold ${mines === v ? 'bg-blood/20 text-blood' : 'bg-ink-700 text-smoke hover:text-cream'}`}>{v}</button>
+            <button key={v} disabled={playing} onClick={() => setMines(v)} className={`min-h-[32px] rounded-lg py-1.5 text-xs font-bold ${mines === v ? 'bg-blood/20 text-blood' : 'bg-ink-700 text-smoke hover:text-cream'}`}>{v}</button>
           ))}
         </div>
       </div>

@@ -87,7 +87,7 @@ export default function Settings() {
         <Row label="Take a break" desc={onBreak ? `On break until ${new Date(s.breakUntil).toLocaleString()}` : 'Pause all betting for a while. Cannot be undone early.'}>
           <select className="input w-32" disabled={onBreak} value="" onChange={(e) => {
             const h = +e.target.value; if (!h) return;
-            ask({ title: 'Take a break?', body: `Betting will be paused for ${h >= 24 ? `${h / 24} day${h > 24 ? 's' : ''}` : `${h} hours`}. You can still browse, but you won’t be able to place bets until it ends.`, confirm: 'Start break' })
+            ask({ title: 'Take a break?', body: `Betting will be paused for ${h >= 24 ? `${h / 24} day${h > 24 ? 's' : ''}` : `${h} hour${h === 1 ? '' : 's'}`}. You can still browse, but you won’t be able to place bets until it ends.`, confirm: 'Start break' })
               .then((ok) => { if (ok) { s.takeBreak(h); toast({ title: 'Break started. See you soon 🐔', tone: 'neutral' }); } });
           }} aria-label="Take a break">
             <option value="">{onBreak ? 'Active' : 'Choose…'}</option><option value={1}>1 hour</option><option value={24}>24 hours</option><option value={168}>7 days</option>

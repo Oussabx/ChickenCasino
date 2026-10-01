@@ -45,7 +45,7 @@ export default function Promotions() {
             const done = claimedToday ? day <= curDay : day < curDay;
             const next = !claimedToday && day === curDay;
             return (
-              <div key={i} style={{ animationDelay: `${i * 70}ms` }} className={`relative rounded-2xl border p-3 text-center transition animate-pop hover:-translate-y-1 ${next ? 'animate-[pop_.45s_both,floaty_3s_ease-in-out_.5s_infinite]' : ''} ${next ? 'border-gold bg-gold/10 shadow-gold' : done ? 'border-emerald-400/30 bg-emerald-500/5' : 'border-white/5 bg-ink-700/50'} ${day === 7 ? 'col-span-4 sm:col-span-1 bg-gradient-to-b from-blood/20 to-transparent' : ''}`}>
+              <div key={i} style={{ animationDelay: `${i * 70}ms` }} className={`relative rounded-2xl border p-3 text-center transition animate-pop hover:-translate-y-1 ${next ? 'animate-[pop_.45s_both,floaty_3s_ease-in-out_.5s_infinite]' : ''} ${next ? 'border-gold bg-gold/10 shadow-gold' : done ? 'border-emerald-400/30 bg-emerald-500/5' : 'border-white/5 bg-ink-700/50'} ${day === 7 ? 'col-span-2 sm:col-span-1 bg-gradient-to-b from-blood/20 to-transparent' : ''}`}>
                 <div className="label !text-[10px]">Day {day}</div>
                 <div className="my-2 flex justify-center">{r.eggs ? <Egg className="h-8 w-8" /> : <Coin className="h-8 w-8" />}</div>
                 <div className="font-display text-sm font-black">{fmt(r.coins, 0)}</div>

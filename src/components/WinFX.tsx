@@ -141,7 +141,7 @@ function Ribbon({ s, leaving }: { s: Show; leaving: boolean }) {
             <span className="shine-sweep" />
             <Coin size={26} />
             <div className="leading-none">
-              <div className="font-display text-[9px] font-black tracking-[.35em] text-gold/80 sm:text-[10px]">YOU WIN</div>
+              <div className="font-display text-[10px] font-black tracking-[.35em] text-gold/80 sm:text-[10px]">YOU WIN</div>
               <Amount value={s.payout} ms={650} className="h-display text-xl text-gold-grad sm:text-2xl" />
               {s.detail && <div className="mt-0.5 max-w-[46vw] truncate text-[10px] font-semibold text-cream/75 sm:text-[11px]">{s.detail}</div>}
             </div>

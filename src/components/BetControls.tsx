@@ -28,7 +28,7 @@ export default function BetControls({ value, onChange, disabled, label = 'Bet am
       </div>
       <div className="phone-hide mt-2 grid grid-cols-4 gap-1.5">
         {[10, 50, 100, 500].map((v) => (
-          <button key={v} type="button" disabled={disabled} onClick={() => set(v)} className={`rounded-lg border py-1 text-xs font-semibold transition ${value === v ? 'border-gold/60 text-gold bg-gold/10' : 'border-white/5 bg-ink-700 text-smoke hover:text-cream'}`}>{v}</button>
+          <button key={v} type="button" disabled={disabled} onClick={() => set(v)} className={`rounded-lg border py-1.5 text-xs font-semibold transition ${value === v ? 'border-gold/60 text-gold bg-gold/10' : 'border-white/5 bg-ink-700 text-smoke hover:text-cream'}`}>{v}</button>
         ))}
       </div>
     </div>

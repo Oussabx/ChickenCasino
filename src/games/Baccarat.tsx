@@ -250,7 +250,7 @@ function Road({ road }: { road: Result[] }) {
         {Array.from({ length: cols * rows }).map((_, i) => {
           const r = cells[i];
           return (
-            <span key={i} className={`grid aspect-square place-items-center rounded-full text-[8px] font-black ${!r ? 'bg-white/[0.04]' : r.winner === 'player' ? 'bg-sky-500 text-white' : r.winner === 'banker' ? 'bg-blood text-white' : 'bg-emerald-500 text-ink'}`}>
+            <span key={i} className={`grid aspect-square place-items-center rounded-full text-[9px] font-black ${!r ? 'bg-white/[0.04]' : r.winner === 'player' ? 'bg-sky-500 text-white' : r.winner === 'banker' ? 'bg-blood text-white' : 'bg-emerald-500 text-ink'}`}>
               {r ? (r.winner === 'tie' ? r.pt : r.winner === 'player' ? r.pt : r.bt) : ''}
             </span>
           );

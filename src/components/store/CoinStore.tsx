@@ -53,7 +53,7 @@ function ProductCard({ p, onBuy }: { p: Product; onBuy: (p: Product) => void }) 
   return (
     <button type="button" disabled={bought} onClick={() => onBuy(p)}
       className={`group relative flex flex-col overflow-hidden rounded-2xl border text-left transition duration-300 enabled:hover:-translate-y-1 disabled:opacity-60 ${p.tag === 'best' ? 'border-gold/60 shadow-gold' : p.tag === 'popular' ? 'border-blood/50' : 'border-white/10'} bg-ink-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold`}>
-      {tag && <span className={`absolute left-2 top-2 z-10 rounded-full px-2 py-0.5 font-display text-[9px] font-black uppercase tracking-wider ${tag.c}`}>{tag.t}</span>}
+      {tag && <span className={`absolute left-2 top-2 z-10 rounded-full px-2 py-0.5 font-display text-[10px] font-black uppercase tracking-wider ${tag.c}`}>{tag.t}</span>}
       <div className="relative grid place-items-center overflow-hidden bg-[radial-gradient(circle_at_50%_65%,rgba(244,196,48,.18),transparent_65%)] px-2 pb-1 pt-7">
         {p.bonus ? <span className="absolute bottom-1.5 right-1.5 z-10 rounded-full bg-emerald-500 px-2 py-0.5 font-display text-[10px] font-black text-ink">+{p.bonus}% bonus</span> : null}
         <div className="transition duration-500 group-enabled:group-hover:scale-105"><ProductArt p={p} size={p.kind === 'bundle' ? 110 : 96} /></div>

@@ -524,7 +524,7 @@ function SeatPod({ seat, dealer, active, winner }: { seat: Seat; dealer: boolean
         <span className="flex max-w-[96px] items-center gap-1 truncate text-[10px] font-bold sm:text-[11px]">{seat.human && <span className="rounded bg-gold px-1 text-[8px] font-black leading-3 text-ink">YOU</span>}<span className="truncate">{seat.name}</span></span>
         <span className={`font-display text-[11px] font-black tabular sm:text-xs ${winner ? '' : 'text-gold'}`}>{seat.allIn && !out ? 'ALL-IN' : fmt(seat.stack, 0)}</span>
       </span>
-      {dealer && <span className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-cream text-[8px] font-black text-ink shadow">D</span>}
+      {dealer && <span className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-cream text-[9px] font-black text-ink shadow">D</span>}
       {seat.last && !winner && (
         <span key={seat.last + seat.total} className={`animate-pop absolute ${seat.human ? 'left-full top-1/2 ml-1.5 -translate-y-1/2' : '-top-5 left-1/2 -translate-x-1/2'} rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide shadow ${seat.last === 'Fold' ? 'bg-ink-500 text-smoke' : seat.last === 'Raise' || seat.last === 'Bet' || seat.last === 'All-in' ? 'bg-blood text-white' : seat.last === 'SB' || seat.last === 'BB' ? 'bg-sky-600 text-white' : 'bg-emerald-600 text-white'}`}>{seat.last}</span>
       )}

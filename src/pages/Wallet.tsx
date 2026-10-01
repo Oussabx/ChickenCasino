@@ -35,7 +35,7 @@ export default function Wallet() {
       )}
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="card p-5 sm:col-span-2 relative overflow-hidden">
-          <div className="absolute -right-8 -bottom-8 opacity-10"><Coin className="h-48 w-48" /></div>
+          <div className="pointer-events-none absolute -right-8 -bottom-8 opacity-10" aria-hidden="true"><Coin className="h-48 w-48" /></div>
           <div className="label">Coin balance</div>
           <div className="mt-1 flex items-center gap-2 h-display text-4xl sm:text-5xl tabular"><Coin className="h-9 w-9" />{fmt(balance)}</div>
           <div className={`mt-2 text-sm font-semibold ${profit >= 0 ? 'text-emerald-400' : 'text-blood'}`}>{profit >= 0 ? '+' : ''}{fmt(profit)} all-time game P/L</div>
@@ -46,7 +46,7 @@ export default function Wallet() {
           </div>
         </div>
         <div className="card p-5 relative overflow-hidden">
-          <div className="absolute -right-6 -bottom-6 opacity-15"><Egg className="h-36 w-36" /></div>
+          <div className="pointer-events-none absolute -right-6 -bottom-6 opacity-15" aria-hidden="true"><Egg className="h-36 w-36" /></div>
           <div className="label">Golden eggs</div>
           <div className="mt-1 flex items-center gap-2 h-display text-4xl tabular"><Egg className="h-8 w-8" />{eggs}</div>
           <p className="mt-2 text-xs text-smoke">Premium currency. Earned from level-ups, streaks & missions — or buy a pack.</p>

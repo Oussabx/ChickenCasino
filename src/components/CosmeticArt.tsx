@@ -289,6 +289,7 @@ function Outfit({ st, g, part }: { st: ChickenStyle; g: (n: string) => string; p
 }
 
 function Hat({ h }: { h: HatKind }) {
+  const cg = `crownG${useId().replace(/:/g, '')}`; // unique per drawing (duplicate ids break gradients)
   switch (h) {
     case 'halo':
       return (
@@ -344,8 +345,8 @@ function Hat({ h }: { h: HatKind }) {
     case 'crown':
       return (
         <g stroke="#7a4f00" strokeWidth="2" strokeLinejoin="round">
-          <path d="M100 50 L96 16 L112 32 L126 8 L140 32 L156 16 L152 50Z" fill="url(#crownG)" />
-          <defs><linearGradient id="crownG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff1a8" /><stop offset=".5" stopColor="#f4c430" /><stop offset="1" stopColor="#c98a00" /></linearGradient></defs>
+          <path d="M100 50 L96 16 L112 32 L126 8 L140 32 L156 16 L152 50Z" fill={`url(#${cg})`} />
+          <defs><linearGradient id={cg} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff1a8" /><stop offset=".5" stopColor="#f4c430" /><stop offset="1" stopColor="#c98a00" /></linearGradient></defs>
           <rect x="99" y="42" width="54" height="9" rx="2" fill="#d99a00" />
           <circle cx="126" cy="46" r="3.5" fill="#e63946" stroke="none" /><circle cx="110" cy="46" r="2.8" fill="#22d3ee" stroke="none" /><circle cx="142" cy="46" r="2.8" fill="#22d3ee" stroke="none" />
           <circle cx="96" cy="16" r="3" fill="#fff8d6" /><circle cx="126" cy="8" r="3.5" fill="#fff8d6" /><circle cx="156" cy="16" r="3" fill="#fff8d6" />
@@ -639,7 +640,19 @@ export function ItemArt({ it, size = 140, tryOn = true }: { it: ShopItem; size?:
       );
     }
     case 'name': return <div className={`text-center font-display font-black leading-none ${NAME_CLASS[it.id] ?? 'text-cream'}`} style={{ fontSize: Math.max(9, size * 0.15) }}>Your<br />Name</div>;
-    case 'bundle': return <div className="flex -space-x-3">{[0, 1, 2].map((i) => <ChipArt key={i} set="cp-gold" denom={3} size={size * 0.3} label="$" />)}</div>;
+    case 'bundle': {
+      // coin pack: a pile that grows with the pack size
+      const n = it.price >= 300 ? 4 : it.price >= 60 ? 3 : it.price >= 20 ? 2 : 1;
+      return (
+        <div className="flex flex-col-reverse items-center">
+          {Array.from({ length: n }, (_, row) => (
+            <div key={row} className="flex -space-x-3" style={{ marginBottom: row ? -size * 0.16 : 0 }}>
+              {Array.from({ length: Math.max(1, n - row + (n > 2 ? 0 : 1)) }, (_, i) => <ChipArt key={i} set="cp-gold" denom={3} size={size * 0.3} label="$" />)}
+            </div>
+          ))}
+        </div>
+      );
+    }
     default: return null;
   }
 }

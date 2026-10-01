@@ -21,7 +21,7 @@ export default function ItemCard({ it, onOpen, compact }: { it: ShopItem; onOpen
           <ItemArt it={it} size={compact ? 108 : 132} />
         </div>
         <div className="absolute left-2 top-2"><ItemBadges it={it} owned={owned} equipped={equipped} /></div>
-        <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-0.5 font-display text-[9px] font-black uppercase tracking-wider" style={{ color: col }}>{it.rarity}</span>
+        <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-0.5 font-display text-[10px] font-black uppercase tracking-wider" style={{ color: col }}>{it.rarity}</span>
       </div>
       <div className="flex flex-1 flex-col gap-1 border-t border-white/[0.06] bg-ink-800 p-3">
         <div className="truncate font-display text-sm font-bold leading-tight">{it.name}</div>

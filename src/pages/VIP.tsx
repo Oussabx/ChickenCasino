@@ -24,7 +24,7 @@ export default function VIP() {
 
       <section className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
         <div className="card p-6 relative overflow-hidden">
-          <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full blur-3xl opacity-30" style={{ background: tier.color }} />
+          <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full blur-3xl opacity-30" style={{ background: tier.color }} />
           <div className="relative flex items-center gap-4">
             <div className="grid h-16 w-16 place-items-center rounded-2xl border-2" style={{ borderColor: tier.color, background: `${tier.color}22` }}><Crown style={{ color: tier.color }} size={30} /></div>
             <div>

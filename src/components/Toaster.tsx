@@ -10,7 +10,7 @@ const TONE = {
 export default function Toaster() {
   const { toasts, dismiss } = useToasts();
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-[72px] z-[90] flex flex-col items-center gap-2 px-3 sm:items-end sm:right-4 sm:left-auto">
+    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(76px+env(safe-area-inset-bottom))] z-[90] flex flex-col-reverse items-center gap-2 px-3 lg:bottom-auto lg:top-[72px] lg:flex-col lg:items-end lg:right-4 lg:left-auto" role="status" aria-live="polite">
       {toasts.map((t) => (
         <button
           key={t.id}

@@ -32,8 +32,8 @@ export function HandBadge({ label, value, tone = 'neutral', sub }: { label?: str
   return (
     <div className={`flex items-center gap-1.5 whitespace-nowrap rounded-full border px-0.5 py-0.5 pr-2 shadow-lg backdrop-blur-md transition-colors duration-300 sm:gap-2 sm:px-1 sm:py-1 sm:pr-3 ${TONES[tone]} ${tone === 'lose' ? 'animate-shake' : ''}`}>
       <span key={String(value)} className={`grid h-6 min-w-[24px] place-items-center rounded-full px-1.5 font-display text-xs font-black tabular animate-pop sm:h-7 sm:min-w-[28px] sm:text-sm ${tone === 'neutral' ? 'bg-white/10' : 'bg-black/15'}`}>{value}</span>
-      {label && <span className="text-[9px] font-bold uppercase tracking-wider opacity-90 sm:text-[11px]">{label}</span>}
-      {sub && <span className="text-[9px] font-semibold opacity-70 sm:text-[10px]">{sub}</span>}
+      {label && <span className="text-[10px] font-bold uppercase tracking-wider opacity-90 sm:text-[11px]">{label}</span>}
+      {sub && <span className="text-[10px] font-semibold opacity-70 sm:text-[10px]">{sub}</span>}
     </div>
   );
 }

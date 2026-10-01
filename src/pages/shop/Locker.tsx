@@ -75,7 +75,7 @@ export default function Locker({ onShop }: { onShop: (kind: ItemKind) => void })
         </div>
         <div className="mt-3 flex items-center justify-between text-xs text-smoke">
           <span>{owned.length} of {total} {slot.label.toLowerCase()} items</span>
-          <button type="button" className="flex items-center gap-1 font-bold text-gold hover:underline" onClick={() => onShop(slot.kind)}><ShoppingBag size={13} />Get more</button>
+          <button type="button" className="flex items-center gap-1 py-2 font-bold text-gold hover:underline" onClick={() => onShop(slot.kind)}><ShoppingBag size={13} />Get more</button>
         </div>
         <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
           {owned.map((it) => {

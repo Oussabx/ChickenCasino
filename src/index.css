@@ -79,7 +79,7 @@ input[type='range'].range::-moz-range-track { height: 8px; background: transpare
 .reveal-left:not(.is-in) { transform: translate(-40px, 0); }
 .reveal-right:not(.is-in) { transform: translate(40px, 0); }
 
-@keyframes page-in { from { opacity: 0; transform: translate3d(0, 14px, 0); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes page-in { from { opacity: 0; transform: translate3d(0, 14px, 0); } to { opacity: 1; transform: none; } }
 .page-in { animation: page-in .55s cubic-bezier(.2,.8,.2,1) backwards; } /* no fill after the animation: a lingering transform would trap position:fixed children */
 
 @keyframes word-in { from { opacity: 0; transform: perspective(600px) translate3d(0, .6em, 0) rotateX(-70deg); } to { opacity: 1; transform: none; } }
@@ -123,7 +123,7 @@ input[type='range'].range::-moz-range-track { height: 8px; background: transpare
 @keyframes rotate-phone { 0%, 20% { transform: rotate(0deg); } 55%, 80% { transform: rotate(-90deg); } 100% { transform: rotate(0deg); } }
 .rotate-phone { animation: rotate-phone 2.6s cubic-bezier(.6,0,.3,1) infinite; }
 .phone-controls .label { font-size: 10px; }
-.phone-controls .seg button { padding-top: 5px; padding-bottom: 5px; }
+.phone-controls .seg button { padding-top: 7px; padding-bottom: 7px; }
 /* on phones only the essentials fit beside the game: hide the info that follows the action button */
 .phone-controls > .sticky ~ * { display: none !important; }
 .phone-controls .phone-hide { display: none !important; }
