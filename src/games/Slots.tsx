@@ -4,12 +4,13 @@ import GameShell, { GameAction } from '../components/GameShell';
 import BetControls, { MiniBet, Seg, confirmBet } from '../components/BetControls';
 import Modal from '../components/Modal';
 import { useCountUp } from '../components/TableUI';
-import { useStore } from '../store';
+import { useStore, useUI } from '../store';
 import { sfx } from '../lib/sound';
 import { fmt } from '../lib/format';
 import { FREE_SPINS, FREE_SPIN_MULT, LINES, LINE_COLORS, LINE_PAYS, PAYLINES, SCATTER_PAYS, SYMBOL_NAME, SpinResult, Sym, spin as rollSpin } from '../lib/slots';
 import { SlotsScene } from './three/slots3d';
 import { loadSlotArt, symbolUrl } from './three/slotArt';
+import { usePhoneLayout } from '../lib/phone';
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const AUTO = [0, 10, 25, 50, 100] as const;
@@ -27,6 +28,14 @@ export default function Slots() {
   const [banner, setBanner] = useState<string | null>(null);
   const [payOpen, setPayOpen] = useState(false);
   const [last, setLast] = useState<SpinResult | null>(null);
+  const [lit, setLit] = useState<{ syms: Sym[]; coop: boolean }>({ syms: [], coop: false });
+  const [sideLegend, setSideLegend] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const phone = usePhoneLayout().phone;
+  const urls = useSymbolUrls();
+  const [sess, setSess] = useState<Session>(loadSession);
+  useEffect(() => saveSession(sess), [sess]);
   const turbo = useStore((s) => s.settings.turbo);
   const hostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<SlotsScene | null>(null);
@@ -38,7 +47,11 @@ export default function Slots() {
   useEffect(() => {
     const sc = new SlotsScene(hostRef.current!);
     sceneRef.current = sc; setScene(sc);
-    return () => { sc.dispose(); sceneRef.current = null; setScene(null); };
+    // wide game areas get the legend beside the machine; otherwise it sits in the controls
+    const box = boxRef.current!;
+    const ro = new ResizeObserver(() => setSideLegend(box.clientWidth >= 720));
+    ro.observe(box);
+    return () => { ro.disconnect(); sc.dispose(); sceneRef.current = null; setScene(null); };
   }, []);
 
   /** Spin the reels for one result, with scatter anticipation on later reels. */
@@ -64,6 +77,7 @@ export default function Slots() {
     const lineWin = res.lines.reduce((a, l) => a + l.pay, 0) * lineBet * mult;
     const scatWin = res.scatterPay * lineBet * LINES * mult;
     const win = lineWin + scatWin;
+    setLit({ syms: [...new Set(res.lines.map((l) => l.sym))], coop: res.scatters.length >= 3 });
     if (win > 0 || res.freeSpins) sc.showWins(res.lines.map((l) => l.line), res.lines.flatMap((l) => l.cells), res.scatters.length >= 3 ? res.scatters : []);
     return win;
   };
@@ -71,7 +85,11 @@ export default function Slots() {
   const celebrateWin = (win: number, totalBet: number) => {
     const x = win / totalBet;
     const level = x >= 100 ? 3 : x >= 40 ? 2 : x >= 15 ? 1 : 0;
-    if (level) { sceneRef.current?.celebrate(level as 1 | 2 | 3); setBig({ level: level as 1 | 2 | 3, amount: win }); sfx.bigWin(); }
+    if (level) {
+      sceneRef.current?.celebrate(level as 1 | 2 | 3);
+      if (useStore.getState().settings.bigWinCelebration) setBig({ level: level as 1 | 2 | 3, amount: win });
+      sfx.bigWin();
+    }
     else if (win > 0) sfx.win();
   };
 
@@ -80,8 +98,9 @@ export default function Slots() {
     if (!(autoRef.current > 0) && !confirmBet(bet)) return false;
     if (bet < LINES * 0.01) return false;
     if (!useStore.getState().placeBet(bet)) return false;
-    busyRef.current = true; setBusy(true); setBig(null); setLast(null);
+    busyRef.current = true; setBusy(true); setBig(null); setLast(null); setLit({ syms: [], coop: false });
     sfx.bet();
+    setSess((x) => ({ ...x, spins: x.spins + 1, spent: x.spent + bet }));
     const lineBet = bet / LINES;
     setShown({ amount: 0, label: 'Spinning…', tone: 'idle' });
     const res = rollSpin();
@@ -126,6 +145,9 @@ export default function Slots() {
     }
 
     useStore.getState().settle('slots', bet, total / bet, detail);
+    // the machine runs its own big-win show; skip the site-wide one so they don't stack
+    useUI.getState().setCelebrate(null);
+    setSess((x) => ({ ...x, won: x.won + total, best: Math.max(x.best, total) }));
     celebrateWin(total, bet);
     setLast(res.freeSpins ? null : res);
     busyRef.current = false; setBusy(false);
@@ -174,6 +196,8 @@ export default function Slots() {
         <div className="label mb-1.5">Autoplay</div>
         <Seg options={AUTO} value={auto} onChange={setAuto} disabled={running} render={(v) => (v ? String(v) : 'Off')} />
       </div>
+      {(!sideLegend || phone) && <SessionStats s={sess} onReset={() => setSess(EMPTY_SESSION)} compact />}
+      {(!sideLegend || phone) && <Legend urls={urls} lineBet={bet / LINES} bet={bet} lit={lit} free={!!free} compact />}
       <GameAction extra={<MiniBet value={bet} onChange={setBet} disabled={running} />}>
         {autoLeft > 0 ? (
           <button className="btn-red w-full py-4 text-base" onClick={() => setAutoLeft(0)}>Stop autoplay ({autoLeft})</button>
@@ -185,11 +209,6 @@ export default function Slots() {
         )}
       </GameAction>
       <button type="button" onClick={() => setPayOpen(true)} className="btn-dark hidden w-full py-2 text-xs [.phone-controls_&]:flex"><BookOpen size={13} />Paytable</button>
-      <div className="phone-hide rounded-xl bg-ink-900 p-3 text-xs text-smoke space-y-1">
-        <div className="flex justify-between"><span>Top line win</span><b className="text-gold">5 Wild Roosters · 3,000×</b></div>
-        <div className="flex justify-between"><span>3+ Coops anywhere</span><b className="text-cream">10–20 free spins · wins ×3</b></div>
-        <div className="flex justify-between"><span>Return to player</span><b className="text-cream">95.2%</b></div>
-      </div>
     </>
   );
 
@@ -203,8 +222,33 @@ export default function Slots() {
       '3, 4 or 5 Coops also award 10, 15 or 20 free spins at the same bet. Every free-spin win is tripled, and more Coops add more free spins.',
       'Theoretical return to player is 95.2%, calculated exactly from the reel strips.',
     ]}>
-      <div ref={hostRef} className="absolute inset-0" aria-label="Slot machine" />
-      <Meter scene={scene} shown={shown} />
+      <div ref={boxRef} className="absolute inset-0 flex">
+        <div className="relative min-w-0 flex-1">
+          <div ref={hostRef} className="absolute inset-0" aria-label="Slot machine" />
+          <Meter scene={scene} shown={shown} />
+          <JackpotPlaque scene={scene} amount={JACKPOT * (bet / LINES)} />
+        </div>
+        {(!sideLegend || phone) && (
+          <>
+            <button type="button" onClick={() => setLegendOpen((o) => !o)} aria-expanded={legendOpen}
+              className="absolute right-2 top-2 z-20 flex items-center gap-1 rounded-full border border-gold/60 bg-black/75 px-3 py-1.5 font-display text-[11px] font-black tracking-wider text-gold shadow-gold backdrop-blur">
+              <BookOpen size={13} />{legendOpen ? 'Close' : 'Paytable'}
+            </button>
+            {legendOpen && (
+              <div className="absolute inset-y-0 right-0 z-[15] w-[min(300px,62%)] overflow-y-auto overscroll-contain border-l border-gold/30 bg-ink/90 p-2.5 pt-11 backdrop-blur-md animate-slideUp">
+                <Legend urls={urls} lineBet={bet / LINES} bet={bet} lit={lit} free={!!free} />
+              </div>
+            )}
+          </>
+        )}
+        {sideLegend && !phone && (
+          <div className="relative z-10 w-[clamp(220px,27%,280px)] shrink-0 overflow-y-auto border-l border-white/[0.06] bg-black/45 p-3 backdrop-blur-sm">
+            <SessionStats s={sess} onReset={() => setSess(EMPTY_SESSION)} />
+            <div className="h-2" />
+            <Legend urls={urls} lineBet={bet / LINES} bet={bet} lit={lit} free={!!free} />
+          </div>
+        )}
+      </div>
       {free && (
         <div className="pointer-events-none absolute left-1/2 top-2 z-20 -translate-x-1/2">
           <div className="flex items-center gap-2 rounded-full border border-blood/60 bg-black/75 px-3 py-1.5 font-display text-xs font-black tracking-wider text-cream backdrop-blur sm:text-sm">
@@ -221,7 +265,7 @@ export default function Slots() {
         </div>
       )}
       {big && !busy && <BigWin key={big.amount} level={big.level} amount={big.amount} onDone={() => setBig(null)} />}
-      <Paytable open={payOpen} onClose={() => setPayOpen(false)} lineBet={bet / LINES} />
+      <Paytable open={payOpen} onClose={() => setPayOpen(false)} lineBet={bet / LINES} urls={urls} />
     </GameShell>
   );
 }
@@ -254,13 +298,23 @@ function Meter({ scene, shown }: { scene: SlotsScene | null; shown: Shown }) {
 
 function BigWin({ level, amount, onDone }: { level: 1 | 2 | 3; amount: number; onDone: () => void }) {
   const shown = useCountUp(amount, 1800);
-  useEffect(() => { const t = setTimeout(onDone, 3200); return () => clearTimeout(t); }, [onDone]);
+  useEffect(() => { const t = setTimeout(onDone, 3600); return () => clearTimeout(t); }, [onDone]);
+  const coins = useMemo(() => Array.from({ length: 10 + level * 8 }, (_, i) => ({ x: Math.random() * 100, d: Math.random() * 1.2, t: 1.4 + Math.random() * 1.2, s: 14 + Math.random() * 14, k: i })), [level]);
   return (
-    <div className="pointer-events-none absolute inset-0 z-30 grid place-items-center bg-black/35">
-      <div className="result-in relative overflow-hidden rounded-3xl border-2 border-gold bg-gradient-to-b from-black/85 to-[#2a1d02]/90 px-8 py-4 text-center shadow-[0_0_80px_rgba(244,196,48,.55)]">
+    <div className="pointer-events-none absolute inset-0 z-30 grid place-items-center overflow-hidden bg-black/45">
+      {/* turning sunburst */}
+      <div className="absolute left-1/2 top-1/2 h-[160%] w-[160%] -translate-x-1/2 -translate-y-1/2 opacity-60"
+        style={{ background: 'repeating-conic-gradient(from 0deg, rgba(244,196,48,.35) 0deg 8deg, transparent 8deg 20deg)', animation: 'spin 9s linear infinite', maskImage: 'radial-gradient(circle, black 15%, transparent 60%)', WebkitMaskImage: 'radial-gradient(circle, black 15%, transparent 60%)' }} />
+      {/* raining coins */}
+      {coins.map((c) => (
+        <span key={c.k} className="absolute -top-8 rounded-full border-2 border-[#a86b00] bg-gradient-to-b from-[#fff1a8] to-[#d99a00] shadow-[0_0_8px_rgba(244,196,48,.8)]"
+          style={{ left: `${c.x}%`, width: c.s, height: c.s, animation: `coin-fall ${c.t}s ${c.d}s ease-in infinite` }} />
+      ))}
+      <div className="result-in relative overflow-hidden rounded-3xl border-[3px] border-gold bg-gradient-to-b from-black/90 via-[#3a0b10]/90 to-[#2a1d02]/95 px-8 py-5 text-center shadow-[0_0_100px_rgba(244,196,48,.6)] sm:px-14">
         <span className="shine-sweep" />
-        <div className="h-display text-3xl text-gold-grad sm:text-6xl">{['', 'BIG WIN', 'MEGA WIN', 'EPIC CLUCK'][level]}</div>
-        <div className="mt-1 font-display text-2xl font-black text-cream tabular sm:text-3xl">{fmt(shown)}</div>
+        <div className="font-display text-[10px] font-black uppercase tracking-[.5em] text-gold/80 sm:text-xs">Golden Coop</div>
+        <div className="h-display text-4xl text-gold-grad drop-shadow-[0_4px_0_rgba(0,0,0,.6)] sm:text-7xl">{['', 'BIG WIN', 'MEGA WIN', 'EPIC CLUCK'][level]}</div>
+        <div className="mt-1 font-display text-3xl font-black text-cream tabular sm:text-5xl">{fmt(shown)}</div>
       </div>
     </div>
   );
@@ -268,12 +322,7 @@ function BigWin({ level, amount, onDone }: { level: 1 | 2 | 3; amount: number; o
 
 const PAY_ORDER: Sym[] = ['wild', 'golden', 'seven', 'bell', 'chick', 'horseshoe', 'egg', 'feather', 'corn'];
 
-function Paytable({ open, onClose, lineBet }: { open: boolean; onClose: () => void; lineBet: number }) {
-  const [urls, setUrls] = useState<Record<string, string>>({});
-  useEffect(() => {
-    if (!open || Object.keys(urls).length) return;
-    loadSlotArt().then(() => document.fonts?.ready).then(() => setUrls(Object.fromEntries([...PAY_ORDER, 'coop'].map((s) => [s, symbolUrl(s as Sym)]))));
-  }, [open, urls]);
+function Paytable({ open, onClose, lineBet, urls }: { open: boolean; onClose: () => void; lineBet: number; urls: Record<string, string> }) {
   const lines = useMemo(() => PAYLINES, []);
   return (
     <Modal open={open} onClose={onClose} title="Paytable" wide>
@@ -311,5 +360,137 @@ function Paytable({ open, onClose, lineBet }: { open: boolean; onClose: () => vo
       </div>
       <p className="mt-4 text-[11px] text-smoke">The Golden Rooster wild replaces every symbol except the Coop. Only the highest win per line is paid.</p>
     </Modal>
+  );
+}
+
+/** Five Golden Roosters on a line — the top prize, in line bets. */
+const JACKPOT = LINE_PAYS.wild![2];
+
+/** Symbol art as image URLs (drawn once, shared by the legend and the paytable). */
+let urlCache: Record<string, string> | null = null;
+function useSymbolUrls() {
+  const [urls, setUrls] = useState<Record<string, string>>(urlCache ?? {});
+  useEffect(() => {
+    if (urlCache) return;
+    let alive = true;
+    loadSlotArt().then(() => document.fonts?.ready).then(() => {
+      urlCache = Object.fromEntries([...PAY_ORDER, 'coop'].map((s) => [s, symbolUrl(s as Sym)]));
+      if (alive) setUrls(urlCache);
+    });
+    return () => { alive = false; };
+  }, []);
+  return urls;
+}
+
+const money = (v: number) => (v >= 10000 ? `${fmt(v / 1000, v % 1000 ? 1 : 0)}k` : fmt(v, Number.isInteger(v) ? 0 : 2));
+
+/**
+ * Always-visible legend: the jackpot, how free spins are won, what the wild
+ * does, and what each symbol pays at the current bet. Rows light up on a win.
+ */
+function Legend({ urls, lineBet, bet, lit, free, compact }: { urls: Record<string, string>; lineBet: number; bet: number; lit: { syms: Sym[]; coop: boolean }; free: boolean; compact?: boolean }) {
+  const img = (s: string, size: string) => (urls[s] ? <img src={urls[s]} alt="" className={`${size} shrink-0`} draggable={false} /> : <span className={`${size} shrink-0`} />);
+  const hot = (s: Sym) => lit.syms.includes(s);
+  return (
+    <div className={`space-y-1.5 ${compact ? '' : 'text-cream'}`} aria-label="Slot legend">
+      {/* jackpot */}
+      <div className={`relative overflow-hidden rounded-xl border-2 p-2 ${hot('wild') ? 'border-gold bg-gold/20 shadow-gold' : 'border-gold/60 bg-gradient-to-b from-[#2a1d02] to-black/60'}`}>
+        <span className="shine-sweep" />
+        <div className="flex items-center gap-2">
+          {img('wild', compact ? 'h-9 w-9' : 'h-11 w-11')}
+          <div className="min-w-0">
+            <div className="font-display text-[10px] font-black uppercase tracking-[.2em] text-gold/80">Jackpot</div>
+            <div className="font-display text-lg font-black leading-tight text-gold-grad tabular">{money(JACKPOT * lineBet)}</div>
+            <div className="text-[10px] leading-tight text-cream/75">5 Golden Roosters on a line{free ? ' · ×3 now!' : ''}</div>
+            <div className="text-[10px] leading-tight text-cream/60"><b className="text-gold">Wild</b> — stands in for any symbol except the Coop</div>
+          </div>
+        </div>
+      </div>
+      {/* free spins */}
+      <div className={`rounded-xl border p-2 ${lit.coop || free ? 'border-blood bg-blood/25' : 'border-blood/40 bg-blood/10'}`}>
+        <div className="flex items-center gap-2">
+          {img('coop', compact ? 'h-9 w-9' : 'h-11 w-11')}
+          <div className="min-w-0 text-[11px] leading-tight">
+            <div className="font-display text-[10px] font-black uppercase tracking-[.2em] text-blood">Free spins</div>
+            <div className="font-bold text-cream">3+ Coops <span className="text-cream/70">anywhere</span></div>
+          </div>
+        </div>
+        <div className="mt-1.5 grid grid-cols-3 gap-1 text-center text-[10px] tabular">
+          {[3, 4, 5].map((n) => (
+            <div key={n} className="rounded bg-black/40 px-1 py-0.5">
+              <div className="font-bold text-cream">{n}× coop</div>
+              <div className="font-display font-black text-gold">{FREE_SPINS[n]} spins</div>
+              <div className="text-cream/60">pays {money(SCATTER_PAYS[n] * bet)}</div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-1 text-center text-[10px] font-bold text-cream/80">All free-spin wins ×{FREE_SPIN_MULT}</div>
+      </div>
+      {/* symbol pays */}
+      <div className="rounded-xl bg-white/[0.04] p-1.5">
+        <div className="mb-1 grid grid-cols-[28px_1fr_1fr_1fr] gap-1 px-0.5 text-center text-[9px] font-bold uppercase tracking-wider text-smoke">
+          <span /><span>×3</span><span>×4</span><span>×5</span>
+        </div>
+        {PAY_ORDER.filter((s) => s !== 'wild').map((s) => (
+          <div key={s} className={`grid grid-cols-[28px_1fr_1fr_1fr] items-center gap-1 rounded-md px-0.5 text-center font-display text-[11px] font-bold tabular transition ${hot(s) ? 'bg-gold text-ink' : 'text-cream/90'}`} title={SYMBOL_NAME[s]}>
+            {img(s, 'h-6 w-6')}
+            {LINE_PAYS[s]!.map((p, i) => <span key={i}>{money(p * lineBet)}</span>)}
+          </div>
+        ))}
+        <div className="mt-1 text-center text-[9px] text-smoke">Coins per line · left to right · 20 lines</div>
+      </div>
+    </div>
+  );
+}
+
+/** Jackpot plaque fixed to the top of the cabinet. */
+function JackpotPlaque({ scene, amount }: { scene: SlotsScene | null; amount: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current; if (!scene || !el) return;
+    scene.anchor(el, [0, 2.47, 0.95]);
+    return () => scene.anchor(el, null);
+  }, [scene]);
+  return (
+    <div ref={ref} className="pointer-events-none absolute left-0 top-0 z-10 will-change-transform">
+      <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full border-2 border-gold bg-gradient-to-b from-blood-700 to-black px-3 py-0.5 font-display text-[clamp(10px,1.4vw,14px)] font-black shadow-[0_0_18px_rgba(244,196,48,.5)]">
+        <span className="tracking-[.2em] text-gold/90">JACKPOT</span>
+        <span className="text-gold-grad tabular">{money(amount)}</span>
+      </div>
+    </div>
+  );
+}
+
+interface Session { spins: number; spent: number; won: number; best: number }
+const EMPTY_SESSION: Session = { spins: 0, spent: 0, won: 0, best: 0 };
+const SESSION_KEY = 'chicken-casino-slots-session';
+// kept for this browser tab, so a reload doesn't wipe it
+function loadSession(): Session {
+  try { const v = JSON.parse(sessionStorage.getItem(SESSION_KEY) ?? 'null'); return v && typeof v.spent === 'number' ? v : EMPTY_SESSION; } catch { return EMPTY_SESSION; }
+}
+function saveSession(s: Session) { try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); } catch { /* storage unavailable */ } }
+
+/** What you've put in and taken out this session. */
+function SessionStats({ s, onReset, compact }: { s: Session; onReset: () => void; compact?: boolean }) {
+  const net = s.won - s.spent;
+  const cell = (label: string, value: string, tone = 'text-cream') => (
+    <div className="min-w-0 rounded-lg bg-black/40 px-1.5 py-1">
+      <div className="truncate text-[9px] font-bold uppercase tracking-wider text-smoke">{label}</div>
+      <div className={`truncate font-display text-[13px] font-black tabular leading-tight ${tone}`}>{value}</div>
+    </div>
+  );
+  return (
+    <div className={`rounded-xl border border-white/10 p-2 ${compact ? 'bg-ink-900' : 'bg-white/[0.04]'}`} aria-label="Session stats">
+      <div className="mb-1.5 flex items-center justify-between">
+        <span className="font-display text-[10px] font-black uppercase tracking-[.15em] text-smoke">Session · {s.spins} spin{s.spins === 1 ? '' : 's'}</span>
+        {s.spins > 0 && <button type="button" onClick={onReset} className="text-[10px] font-bold text-gold hover:underline">Reset</button>}
+      </div>
+      <div className="grid grid-cols-2 gap-1">
+        {cell('Spent', money(s.spent))}
+        {cell('Won', money(s.won), s.won > 0 ? 'text-gold' : 'text-cream')}
+        {cell('Net', `${net > 0 ? '+' : net < 0 ? '−' : ''}${money(Math.abs(net))}`, net > 0 ? 'text-emerald-400' : net < 0 ? 'text-blood' : 'text-cream')}
+        {cell('Best win', money(s.best), s.best > 0 ? 'text-gold' : 'text-cream')}
+      </div>
+    </div>
   );
 }

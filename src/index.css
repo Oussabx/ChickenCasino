@@ -131,3 +131,5 @@ input[type='range'].range::-moz-range-track { height: 8px; background: transpare
 .phone-controls .btn-gold, .phone-controls .btn-red, .phone-controls .btn-dark, .phone-controls .btn-double, .phone-controls .btn-split { padding-top: 10px; padding-bottom: 10px; }
 @keyframes card-in { 0% { transform: perspective(500px) rotateY(90deg) scale(.9); opacity: .4; } 100% { transform: none; opacity: 1; } }
 .card-in { animation: card-in .35s cubic-bezier(.2,.8,.2,1) backwards; }
+
+@keyframes coin-fall { 0% { transform: translateY(-10%) rotateY(0deg); opacity: 0; } 10% { opacity: 1; } 100% { transform: translateY(115vh) rotateY(720deg); opacity: .9; } }
