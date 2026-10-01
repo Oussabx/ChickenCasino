@@ -1,4 +1,8 @@
+import { useMemo } from 'react';
 import { Card, Suit } from '../lib/cards';
+import { useStore } from '../store';
+import { DECKS } from '../lib/cosmetics';
+import { deckBackUrl } from '../lib/deckSvg';
 
 /**
  * A crisp HTML playing card. Suits are SVG paths (not text glyphs), so they
@@ -25,13 +29,12 @@ const NAME: Record<Suit, string> = { S: 'spades', H: 'hearts', D: 'diamonds', C:
 /** `w` = card width in px (height follows the 5:7 card ratio). */
 export default function PlayingCard({ c, w = 56, highlight, dim, faceDown, className = '' }: { c?: Card | null; w?: number; highlight?: boolean; dim?: boolean; faceDown?: boolean; className?: string }) {
   const h = Math.round(w * 1.4);
+  // the equipped card deck (back design + face colours)
+  const deckId = useStore((st) => (DECKS[st.equipped.deck] ? st.equipped.deck : 'dk-classic'));
+  const deck = DECKS[deckId];
+  const backUrl = useMemo(() => deckBackUrl(deckId), [deckId]);
   if (!c || faceDown) {
-    return (
-      <span className={`relative inline-block shrink-0 overflow-hidden rounded-[10%] border-2 border-cream bg-[#8E1B24] shadow-lg ${className}`} style={{ width: w, height: h }} aria-label="Face-down card">
-        <span className="absolute inset-[8%] rounded-[8%] border border-gold/70" style={{ background: 'repeating-linear-gradient(45deg, rgba(244,196,48,.25) 0 2px, transparent 2px 7px), repeating-linear-gradient(-45deg, rgba(244,196,48,.25) 0 2px, transparent 2px 7px)' }} />
-        <img src="./img/head.webp" alt="" className="absolute left-1/2 top-1/2 w-[46%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cream" />
-      </span>
-    );
+    return <img src={backUrl} alt="Face-down card" draggable={false} className={`inline-block shrink-0 rounded-[10%] shadow-lg ${className}`} style={{ width: w, height: h }} />;
   }
   const red = c.s === 'H' || c.s === 'D';
   const rank = RANK(c.r);
@@ -40,8 +43,8 @@ export default function PlayingCard({ c, w = 56, highlight, dim, faceDown, class
   return (
     <span
       aria-label={`${rank} of ${NAME[c.s]}`}
-      className={`card-in relative inline-block shrink-0 select-none rounded-[10%] bg-gradient-to-b from-white to-[#f3efe4] font-display font-black leading-none shadow-[0_6px_14px_-4px_rgba(0,0,0,.7)] ring-1 ring-black/10 transition-transform duration-300 ${red ? 'text-[#C8102E]' : 'text-[#16120f]'} ${highlight ? '-translate-y-[10%] shadow-[0_0_0_3px_#F4C430,0_10px_24px_-6px_rgba(244,196,48,.8)]' : ''} ${dim ? 'brightness-[.62] saturate-[.7]' : ''} ${className}`}
-      style={{ width: w, height: h }}
+      className={`card-in relative inline-block shrink-0 select-none rounded-[10%] font-display font-black leading-none shadow-[0_6px_14px_-4px_rgba(0,0,0,.7)] ring-1 ring-black/10 transition-transform duration-300 ${highlight ? '-translate-y-[10%] shadow-[0_0_0_3px_#F4C430,0_10px_24px_-6px_rgba(244,196,48,.8)]' : ''} ${dim ? 'brightness-[.62] saturate-[.7]' : ''} ${className}`}
+      style={{ width: w, height: h, color: red ? deck.red : deck.black, background: deckId === 'dk-classic' ? 'linear-gradient(#ffffff,#f3efe4)' : `linear-gradient(${deck.paper}, ${deck.paper})`, boxShadow: deckId === 'dk-classic' ? undefined : `inset 0 0 0 ${Math.max(1.5, w * 0.035)}px ${deck.frame}` }}
     >
       {/* corner index */}
       <span className="absolute flex flex-col items-center" style={{ left: w * 0.07, top: w * 0.06 }}>

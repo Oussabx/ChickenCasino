@@ -2,16 +2,18 @@ import { ReactNode } from 'react';
 import { RotateCcw, Trash2, Repeat } from 'lucide-react';
 import { fmt } from '../lib/format';
 import { sfx } from '../lib/sound';
+import { useStore } from '../store';
+import { chipColor } from '../lib/equipped';
 
 export const CHIP_VALUES = [1, 5, 25, 100, 500] as const;
-const CHIP_STYLE: Record<number, string> = {
-  1: 'bg-cream text-ink', 5: 'bg-blood text-white', 25: 'bg-emerald-500 text-ink', 100: 'bg-gold text-ink', 500: 'bg-ink-500 text-cream',
-};
 
+/** A chip in the player's equipped chip set. */
 export function ChipToken({ value, size = 36, selected }: { value: number; size?: number; selected?: boolean }) {
+  useStore((s) => s.equipped.chips); // re-render when the chip set changes
+  const c = chipColor(value);
   return (
-    <span className={`relative grid place-items-center rounded-full font-display font-black shadow-lg ${CHIP_STYLE[value] ?? CHIP_STYLE[500]} ${selected ? 'ring-2 ring-gold ring-offset-2 ring-offset-ink-800 -translate-y-1' : ''} transition`}
-      style={{ width: size, height: size, fontSize: size * 0.32, backgroundImage: 'repeating-conic-gradient(rgba(255,255,255,.55) 0 10deg, transparent 10deg 45deg)' }}>
+    <span className={`relative grid place-items-center rounded-full font-display font-black shadow-lg ${selected ? 'ring-2 ring-gold ring-offset-2 ring-offset-ink-800 -translate-y-1' : ''} transition`}
+      style={{ width: size, height: size, fontSize: size * 0.32, color: c.text, backgroundColor: c.css, backgroundImage: `repeating-conic-gradient(${c.stripeCss}cc 0 10deg, transparent 10deg 45deg)`, boxShadow: c.glow ? `0 0 ${size * 0.35}px ${c.css}` : undefined }}>
       <span className="grid place-items-center rounded-full border-2 border-dashed border-white/60" style={{ width: size * 0.66, height: size * 0.66, background: 'inherit' }}>{value >= 1000 ? `${value / 1000}k` : value}</span>
     </span>
   );

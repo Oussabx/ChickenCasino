@@ -4,7 +4,6 @@ import BetControls, { MiniBet, Seg, confirmBet } from '../components/BetControls
 import { useStore } from '../store';
 import { rand } from '../lib/rng';
 import { sfx } from '../lib/sound';
-import { itemById } from '../lib/data';
 import { fmt, fmtMult } from '../lib/format';
 import { Coin } from '../components/Icons';
 import { ShieldCheck } from 'lucide-react';
@@ -51,7 +50,7 @@ export default function ChickenCross() {
   const [showFair, setShowFair] = useState(false);
   const hostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<CrossScene | null>(null);
-  const skin = useStore((s) => itemById(s.equipped.skin)?.color ?? '#F8F6EF');
+  const look = useStore((s) => `${s.equipped.chicken}|${s.equipped.hat}`);
   const turbo = useStore((s) => s.settings.turbo);
 
   const { lanes } = DIFF[diff];
@@ -66,7 +65,7 @@ export default function ChickenCross() {
     return () => { sc.dispose(); sceneRef.current = null; };
   }, []);
   useEffect(() => { sceneRef.current?.build(mults); }, [mults]);
-  useEffect(() => { sceneRef.current?.setSkin(skin); }, [skin]);
+  useEffect(() => { const [c, h] = look.split('|'); sceneRef.current?.setLook(c, h); }, [look]);
   useEffect(() => { sceneRef.current?.setTurbo(turbo); }, [turbo]);
 
   // latest-state refs for the canvas click + keyboard handlers

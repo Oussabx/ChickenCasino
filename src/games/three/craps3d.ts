@@ -4,6 +4,7 @@ import { Stage3D } from './stage';
 import { MAT, box, glowSprite, makeChicken, std } from './models';
 import { chipStack } from './table3d';
 import { roundRect } from './cardArt';
+import { eqTable, eqTableId } from '../../lib/equipped';
 
 /**
  * A 3D craps table: printed layout you tap to bet, padded rails, the
@@ -91,7 +92,7 @@ export class CrapsScene extends Stage3D {
     const TW = LU * S + 2.2, TD = LV * S + 3.4, TZ = LAYOUT_Z - 1.0;
     const body = new THREE.Mesh(new THREE.BoxGeometry(TW + 1, 2.2, TD + 1), std(0x2a160c, { roughness: 0.7 }));
     body.position.set(0, -1.2, TZ); this.scene.add(body);
-    const felt = new THREE.Mesh(new THREE.PlaneGeometry(TW, TD), std(0x0f5c3a, { roughness: 1 }));
+    const felt = new THREE.Mesh(new THREE.PlaneGeometry(TW, TD), std(feltColors().main, { roughness: 1 }));
     felt.rotation.x = -Math.PI / 2; felt.position.set(0, -0.005, TZ); felt.receiveShadow = true; this.scene.add(felt);
     // printed layout
     this.layout = new THREE.Mesh(new THREE.PlaneGeometry(LU * S, LV * S), new THREE.MeshStandardMaterial({ map: layoutTexture(), roughness: 0.95 }));
@@ -100,7 +101,7 @@ export class CrapsScene extends Stage3D {
     this.glows.position.y = 0.006; this.scene.add(this.glows);
 
     // padded rails (leather + wood) on three sides, the back wall is the 4th
-    const leather = std(0x2a0d10, { roughness: 0.45, metalness: 0.1 });
+    const leather = std(eqTableId() === 'tb-classic' ? 0x2a0d10 : eqTable().rail, { roughness: 0.45, metalness: 0.1 });
     const wood = std(0x6b4423, { roughness: 0.55 });
     const railH = 0.7;
     const front = TZ + TD / 2, back = TZ - TD / 2;
@@ -320,7 +321,7 @@ function layoutTexture() {
   const draw = () => {
     const g = cv.getContext('2d')!;
     g.clearRect(0, 0, W, H);
-    const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#0f5c3a'); bg.addColorStop(1, '#0c4d31');
+    const fc = feltColors(); const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, fc.css); bg.addColorStop(1, fc.css2);
     g.fillStyle = bg; g.fillRect(0, 0, W, H);
     const txt = (t: string, x: number, y: number, size: number, color = '#F8F6EF', weight = 900, font = 'Montserrat') => {
       g.fillStyle = color; g.font = `${weight} ${size}px ${font}, system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -443,4 +444,11 @@ function glowTex() {
   g.strokeStyle = '#fff'; g.lineWidth = 10; g.shadowColor = '#fff'; g.shadowBlur = 14; g.strokeRect(6, 6, 116, 116);
   glow = new THREE.CanvasTexture(cv);
   return glow;
+}
+
+/** Felt colours: the equipped table skin, or classic craps green. */
+function feltColors() {
+  if (eqTableId() === 'tb-classic') return { main: 0x0f5c3a, css: '#0f5c3a', css2: '#0c4d31' };
+  const t = eqTable(), c = new THREE.Color(t.felt);
+  return { main: t.felt, css: `#${c.getHexString()}`, css2: `#${c.clone().lerp(new THREE.Color(t.edge), 0.4).getHexString()}` };
 }

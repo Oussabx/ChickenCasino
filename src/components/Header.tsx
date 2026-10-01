@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { Menu, History, Settings, User, Wallet, LogOut, ShoppingBag, Crown, Trophy, Gift, Gamepad2, X, Home } from 'lucide-react';
 import Logo from './Logo';
 import Balance from './Balance';
-import Avatar from './Avatar';
+import Avatar, { PlayerName } from './Avatar';
 import { toast, useLevel, useStore, useUI } from '../store';
 import { logout as doLogout } from '../lib/auth';
 import { xpForLevel } from '../lib/data';
@@ -55,7 +55,7 @@ export default function Header() {
                 <button onClick={() => setMenu((m) => !m)} className="flex items-center gap-2 rounded-xl p-1 pr-2 hover:bg-white/5" aria-label="Account menu">
                   <Avatar size={34} />
                   <div className="hidden xl:block text-left leading-tight">
-                    <div className="text-sm font-semibold max-w-[110px] truncate">{user.name}</div>
+                    <div className="text-sm font-semibold max-w-[110px] truncate"><PlayerName name={user.name} /></div>
                     <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: tier.color }}>{tier.name} · Lv {level}</div>
                   </div>
                 </button>
@@ -105,7 +105,7 @@ export default function Header() {
               <Link to="/profile" onClick={() => setDrawer(false)} className="mt-6 flex items-center gap-3 rounded-2xl bg-ink-700 p-3">
                 <Avatar size={48} />
                 <div className="min-w-0 flex-1">
-                  <div className="font-semibold truncate">{user.name}</div>
+                  <div className="font-semibold truncate"><PlayerName name={user.name} /></div>
                   <div className="text-[11px] font-bold uppercase tracking-wider" style={{ color: tier.color }}>{tier.name} · Lv {level}</div>
                   <div className="mt-1.5 h-1 rounded-full bg-ink-500 overflow-hidden"><div className="h-full bg-gold" style={{ width: `${pct}%` }} /></div>
                 </div>

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Stage3D } from './stage';
-import { MAT, box, glowSprite, labelPlane, makeChicken, makeRocket, starField, std, textTexture } from './models';
+import { MAT, box, buildChickenLook, chickenBodyColor, chickenGlow, glowSprite, labelPlane, makeChicken, makeRocket, starField, std, textTexture } from './models';
 
 const GW = 16; // graph width in world units
 const GH = 8.5; // graph height
@@ -64,8 +64,8 @@ export class CrashScene extends Stage3D {
     // rocket + rider
     const rk = makeRocket();
     this.rocket.add(rk);
-    const { root, skin } = makeChicken(this.skin);
-    this.chickenSkin = skin;
+    const { root, skin, body } = makeChicken(this.skin);
+    this.chickenSkin = skin; this.riderBody = body;
     root.scale.setScalar(0.62);
     root.position.set(-0.1, 0.32, 0);
     this.rocket.add(root);
@@ -87,7 +87,19 @@ export class CrashScene extends Stage3D {
     this.onResize();
   }
 
-  setSkin(color: string) { this.skin = color; this.chickenSkin?.color.set(color); }
+  private riderBody: THREE.Group | null = null;
+  private riderLook: THREE.Group | null = null;
+  private lookIds: [string, string] = ['ch-classic', 'hat-none'];
+  /** Wear an equipped skin + hat. */
+  setLook(skinId: string, hatId: string) {
+    this.lookIds = [skinId, hatId];
+    this.skin = `#${chickenBodyColor(skinId).getHexString()}`;
+    this.chickenSkin?.color.set(this.skin); this.chickenSkin?.emissive.copy(chickenGlow(skinId));
+    if (this.riderBody) {
+      if (this.riderLook) this.riderBody.remove(this.riderLook);
+      this.riderLook = buildChickenLook(skinId, hatId); this.riderBody.add(this.riderLook);
+    }
+  }
 
   protected onResize() {
     if (!this.grid) return;
@@ -131,7 +143,8 @@ export class CrashScene extends Stage3D {
       this.addParticle(m, new THREE.Vector3(Math.cos(a) * Math.cos(e) * s, Math.sin(e) * s + 3, Math.sin(a) * Math.cos(e) * s), 1.6 + Math.random(), 7);
     }
     // the rider goes flying
-    const { root } = makeChicken(this.skin);
+    const { root, body } = makeChicken(this.skin);
+    body.add(buildChickenLook(...this.lookIds));
     root.scale.setScalar(0.4);
     root.position.copy(p);
     this.addParticle(root, new THREE.Vector3(-2, 8, 2), 2.2, 9);

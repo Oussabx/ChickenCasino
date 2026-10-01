@@ -49,7 +49,14 @@ Game card thumbnails are rendered from these same scenes: `npm run build`, `npx 
 - **Promotions** – 7-day daily streak, daily missions, promo codes (`CLUCK`, `GOLDENEGG`, `WINBIGGER`), hourly “chicken feed” refill.
 - **Tournaments** – three live tournaments with countdowns, podium and leaderboard where your real rounds count.
 - **VIP club** – XP & levels, 5 tiers, rakeback you can claim.
-- **Shop** – trade golden eggs for coin bundles; buy/equip avatars, profile frames, Chicken Cross skins, Plinko egg skins and titles (they show up in-game).
+- **Shop (The Coop Store)** – collectible, cosmetic-only items that show up in your games:
+  - **Chickens** (Golden, Diamond, Mafia, Cowboy, Astronaut, King, Tuxedo, Samurai, Cyber, Skeleton…) and **hats** that mix and match – worn in Chicken Cross and Rocket Rooster.
+  - **Table skins** (felt, rail and trim in Blackjack, Baccarat, Poker, Craps and Roulette), **chip skins** and **card decks** (looks only, never gameplay).
+  - **🔥 Hot Drop** – a limited chicken that rotates daily at 00:00 UTC, with a countdown.
+  - **Egg Shop** – Basic / Golden / Diamond / Royal eggs with odds shown up front; cosmetics only and never a duplicate.
+  - **Bundles** – priced from what you don't own yet, plus bonus coins.
+  - **Rooster VIP** – free rewards at levels 2 / 4 / 6 / 9 / 12 (VIP chips, frame, golden name, table, chicken, deck, royal win show, Rooster Elite title).
+  - **My Locker** – equip by slot. Golden eggs still buy coin packs, avatars, frames and titles under *More*.
 - **Wallet** – coin & egg balances, transaction log.
 - **History** – every round, filters, profit chart, pagination, CSV export.
 - **Profile** – level, stats per game, 10 achievements.
