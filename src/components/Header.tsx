@@ -1,7 +1,7 @@
-import { NavLink, Link, useNavigate } from 'react-router-dom';
+import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Menu, History, Settings, User, Wallet, LogOut, ShoppingBag, Crown, Trophy, Gift, Gamepad2, X, Home } from 'lucide-react';
+import { Menu, History, Settings, User, Wallet, LogOut, ShoppingBag, Crown, Trophy, Gift, Gamepad2, X, Home, CreditCard } from 'lucide-react';
 import Logo from './Logo';
 import Balance from './Balance';
 import Avatar, { PlayerName } from './Avatar';
@@ -26,6 +26,7 @@ export default function Header() {
   const [drawer, setDrawer] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const nav = useNavigate();
+  const loc = useLocation();
 
   useEffect(() => {
     const h = (e: MouseEvent) => ref.current && !ref.current.contains(e.target as Node) && setMenu(false);
@@ -68,6 +69,7 @@ export default function Header() {
                     {[
                       { to: '/profile', icon: User, label: 'Profile' },
                       { to: '/wallet', icon: Wallet, label: 'Wallet' },
+                      { to: '/wallet?section=cards', icon: CreditCard, label: 'Payment methods' },
                       { to: '/history', icon: History, label: 'Bet history' },
                       { to: '/vip', icon: Crown, label: 'VIP club' },
                       { to: '/settings', icon: Settings, label: 'Settings' },
@@ -120,11 +122,12 @@ export default function Header() {
                 { to: '/vip', icon: Crown, label: 'VIP Club' },
                 { to: '/shop', icon: ShoppingBag, label: 'Shop' },
                 { to: '/wallet', icon: Wallet, label: 'Wallet' },
+                { to: '/wallet?section=cards', icon: CreditCard, label: 'Payment methods' },
                 { to: '/history', icon: History, label: 'History' },
                 { to: '/settings', icon: Settings, label: 'Settings' },
               ].map((i) => (
                 <NavLink key={i.to} to={i.to} end onClick={() => setDrawer(false)}
-                  className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium ${isActive ? 'bg-gold/10 text-gold' : 'hover:bg-white/5'}`}>
+                  className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium ${isActive && (i.to.includes('section=') ? loc.search.includes('section=') : !loc.search.includes('section=')) ? 'bg-gold/10 text-gold' : 'hover:bg-white/5'}`}>
                   <i.icon size={18} />{i.label}
                 </NavLink>
               ))}

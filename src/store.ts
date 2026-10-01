@@ -6,6 +6,8 @@ import {
 import { eggById, eggPool, onSale, setPrice, vipTierOf } from './lib/shopLogic';
 import { rand } from './lib/rng';
 import { uid } from './lib/format';
+import type { SavedCard } from './lib/payment';
+import { Order, productById } from './lib/coinStore';
 
 export interface Round {
   id: string;
@@ -17,7 +19,7 @@ export interface Round {
   detail?: string;
 }
 
-export type TxKind = 'bonus' | 'daily' | 'shop' | 'promo' | 'mission' | 'rakeback' | 'level' | 'exchange' | 'faucet';
+export type TxKind = 'bonus' | 'daily' | 'shop' | 'promo' | 'mission' | 'rakeback' | 'level' | 'exchange' | 'faucet' | 'purchase';
 export interface Tx { id: string; kind: TxKind; label: string; coins: number; eggs: number; at: number }
 
 export interface Settings {
@@ -109,9 +111,13 @@ export const toast = (t: Omit<Toast, 'id'>) => useToasts.getState().push(t);
 export type AuthView = 'login' | 'signup' | 'forgot';
 /** One winning round, as shown by the shared win animation (WinFX). */
 export interface WinEvent { id: number; game: GameId; bet: number; payout: number; mult: number; detail?: string; at: number }
+/** The coin store dialog: which tab, and optionally a product to go straight to checkout. */
+export interface StoreView { tab: 'coins' | 'eggs' | 'bundle'; product?: string }
 interface UIState {
   auth: null | AuthView;
   win: WinEvent | null;
+  store: StoreView | null;
+  openStore: (v: StoreView | null) => void;
   openAuth: (m: AuthView | null) => void;
   pushWin: (w: Omit<WinEvent, 'id' | 'at'>) => void;
 }
@@ -119,6 +125,8 @@ let winSeq = 0;
 export const useUI = create<UIState>((set) => ({
   auth: null,
   win: null,
+  store: null,
+  openStore: (store) => set({ store }),
   openAuth: (auth) => set({ auth }),
   pushWin: (w) => set({ win: { ...w, id: ++winSeq, at: Date.now() } }),
 }));
@@ -143,6 +151,10 @@ interface State {
   lastFaucet: number;
   stats: Stats;
   tournaments: string[];
+  /** Saved payment cards (brand, last four, expiry, name — never the full number). */
+  cards: SavedCard[];
+  defaultCard: string | null;
+  orders: Order[];
 
   /** Replace all per-account game data (null = fresh account). */
   loadData: (d: GameData | null) => void;
@@ -168,6 +180,11 @@ interface State {
   joinTournament: (id: string) => void;
   takeBreak: (hours: number) => void;
   resetAll: () => void;
+  addCard: (c: Omit<SavedCard, 'id' | 'addedAt'>, makeDefault?: boolean) => string;
+  removeCard: (id: string) => void;
+  setDefaultCard: (id: string) => void;
+  /** Deliver a paid coin-store product (call after the charge succeeds). */
+  deliver: (productId: string, cardLabel: string) => string | null;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -192,6 +209,9 @@ const GAME_DEFAULTS = {
   lastFaucet: 0,
   stats: { wagered: 0, won: 0, rounds: 0, biggestWin: 0, biggestMult: 0, perGame: {} } as Stats,
   tournaments: [] as string[],
+  cards: [] as SavedCard[],
+  defaultCard: null as string | null,
+  orders: [] as Order[],
 };
 
 /** Everything that belongs to one account (settings stay per-device). */
@@ -271,6 +291,36 @@ export const useStore = create<State>()(
         // every winning round gets the same win animation, whatever the game
         if (payout > bet) useUI.getState().pushWin({ game, bet, payout, mult: multiplier, detail });
         return payout;
+      },
+
+      addCard: (c, makeDefault) => {
+        const s = get();
+        const dup = s.cards.find((x) => x.brand === c.brand && x.last4 === c.last4 && x.expMonth === c.expMonth && x.expYear === c.expYear);
+        if (dup) { if (makeDefault) set({ defaultCard: dup.id }); return dup.id; }
+        const id = uid();
+        set({ cards: [...s.cards, { ...c, id, addedAt: Date.now() }], defaultCard: makeDefault || !s.defaultCard ? id : s.defaultCard });
+        return id;
+      },
+      removeCard: (id) => set((s) => {
+        const cards = s.cards.filter((c) => c.id !== id);
+        return { cards, defaultCard: s.defaultCard === id ? cards[0]?.id ?? null : s.defaultCard };
+      }),
+      setDefaultCard: (id) => set({ defaultCard: id }),
+      deliver: (productId, cardLabel) => {
+        const p = productById(productId);
+        const s = get();
+        if (!p) return 'Unknown product';
+        if (!s.user) return 'Sign in first';
+        if (p.once && s.orders.some((o) => o.product === p.id)) return 'Already purchased';
+        const items = (p.items ?? []).filter((i) => !s.inventory.includes(i));
+        set({
+          balance: +(s.balance + (p.coins ?? 0)).toFixed(2),
+          eggs: s.eggs + (p.eggs ?? 0),
+          inventory: [...s.inventory, ...items],
+          orders: [{ id: uid(), product: p.id, name: p.name, usd: p.usd, card: cardLabel, at: Date.now() }, ...s.orders].slice(0, 200),
+          txs: [{ id: uid(), kind: 'purchase' as TxKind, label: `${p.name} · $${p.usd.toFixed(2)}`, coins: p.coins ?? 0, eggs: p.eggs ?? 0, at: Date.now() }, ...s.txs].slice(0, 300),
+        });
+        return null;
       },
 
       grant: (kind, label, coins, eggs = 0) =>

@@ -52,6 +52,7 @@ const X = (i: number) => -2.4 + i * 1.2;
 const Z = -0.15, BET: [number, number] = [0, 1.55];
 export const TABLE = {
   felt: 0x341062,
+  dealer: false, // a machine game: no croupier
   zones: [
     ...[0, 1, 2, 3, 4].map((i) => ({ x: X(i), z: Z, w: 1.12, h: 1.56, dashed: true, color: 'rgba(244,196,48,.35)', fill: 'rgba(0,0,0,.14)' })),
     { x: BET[0], z: BET[1], r: 0.46, label: 'BET' },
@@ -59,7 +60,6 @@ export const TABLE = {
   texts: [
     { text: 'JACKS OR BETTER', z: -2.02, size: 0.3 },
     { text: 'ROYAL FLUSH PAYS 800 TO 1', z: -1.62, size: 0.14, weight: 700, color: 'rgba(248,246,239,.6)' },
-    { text: '5 CARD POKER', z: 2.42, size: 0.28, arc: true },
   ],
   logoZ: null,
   view: { wide: [-0.2, 8.4, 5.6] as [number, number, number], narrow: [-0.2, 6.3, 5.2] as [number, number, number] },

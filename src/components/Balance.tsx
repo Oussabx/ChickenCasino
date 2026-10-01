@@ -1,6 +1,5 @@
-import { Link } from 'react-router-dom';
 import { Plus } from 'lucide-react';
-import { useStore } from '../store';
+import { useStore, useUI } from '../store';
 import { fmt } from '../lib/format';
 import { Coin, Egg } from './Icons';
 import { useEffect, useRef, useState } from 'react';
@@ -32,7 +31,7 @@ export default function Balance({ compact = false }: { compact?: boolean }) {
           <Egg className="h-4 w-4" />{hide ? '••' : eggs}
         </span>
       )}
-      <Link to="/wallet" className="ml-1 grid h-7 w-7 place-items-center rounded-lg bg-gold text-ink hover:bg-gold-300" aria-label="Wallet"><Plus size={16} strokeWidth={3} /></Link>
+      <button type="button" onClick={() => useUI.getState().openStore({ tab: 'coins' })} className="ml-1 grid h-7 w-7 place-items-center rounded-lg bg-gold text-ink transition hover:bg-gold-300 active:scale-95" aria-label="Buy coins"><Plus size={16} strokeWidth={3} /></button>
     </div>
   );
 }
