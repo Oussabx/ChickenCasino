@@ -178,32 +178,36 @@ function star(g: G, x: number, y: number, r: number, c: string) {
 
 const TIER_GLOW: Partial<Record<Sym, string>> = { seven: 'rgba(230,57,70,.35)', golden: 'rgba(244,196,48,.4)', wild: 'rgba(244,196,48,.5)', coop: 'rgba(230,57,70,.4)', bell: 'rgba(244,196,48,.22)' };
 
-/** Draw one symbol tile. `blur` smears it vertically (for spinning reels). */
-export function drawSymbol(cv: HTMLCanvasElement, s: Sym, opts: { bg?: boolean; blur?: boolean } = {}) {
-  cv.width = ART; cv.height = Math.round(ART * 0.94);
+/** Draw one symbol tile. `blur` smears it vertically (for spinning reels); `scale` renders at higher resolution. */
+export function drawSymbol(cv: HTMLCanvasElement, s: Sym, opts: { bg?: boolean; blur?: boolean; scale?: number } = {}) {
+  const k = opts.scale ?? 1;
+  cv.width = ART * k; cv.height = Math.round(ART * 0.94 * k);
   const g = cv.getContext('2d')!;
-  g.clearRect(0, 0, cv.width, cv.height);
+  g.setTransform(k, 0, 0, k, 0, 0);
+  const H = ART * 0.94;
+  g.clearRect(0, 0, ART, H);
   if (opts.bg !== false) {
-    const bg = g.createLinearGradient(0, 0, 0, cv.height); bg.addColorStop(0, '#1d1013'); bg.addColorStop(0.5, '#2a1418'); bg.addColorStop(1, '#1d1013');
-    g.fillStyle = bg; g.fillRect(0, 0, cv.width, cv.height);
+    const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#1d1013'); bg.addColorStop(0.5, '#2a1418'); bg.addColorStop(1, '#1d1013');
+    g.fillStyle = bg; g.fillRect(0, 0, ART, H);
   }
   const glow = TIER_GLOW[s];
-  if (glow) { const r = g.createRadialGradient(128, cv.height / 2, 10, 128, cv.height / 2, 128); r.addColorStop(0, glow); r.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = r; g.fillRect(0, 0, cv.width, cv.height); }
-  const tile = document.createElement('canvas'); tile.width = tile.height = ART;
+  if (glow && opts.bg !== false) { const r = g.createRadialGradient(128, H / 2, 10, 128, H / 2, 128); r.addColorStop(0, glow); r.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = r; g.fillRect(0, 0, ART, H); }
+  const tile = document.createElement('canvas'); tile.width = tile.height = ART * k;
   const tg = tile.getContext('2d')!;
-  tg.shadowColor = 'rgba(0,0,0,.55)'; tg.shadowBlur = 10; tg.shadowOffsetY = 5;
+  tg.setTransform(k, 0, 0, k, 0, 0);
+  tg.shadowColor = 'rgba(0,0,0,.55)'; tg.shadowBlur = 10 * k; tg.shadowOffsetY = 5 * k;
   DRAW[s](tg);
-  const y0 = (cv.height - ART * 0.9) / 2;
+  const y0 = (H - ART * 0.9) / 2;
   if (opts.blur) {
     g.globalAlpha = 0.2;
-    for (let k = -4; k <= 4; k++) g.drawImage(tile, 13, y0 + k * 6, ART * 0.9, ART * 0.9);
+    for (let i = -4; i <= 4; i++) g.drawImage(tile, 13, y0 + i * 6, ART * 0.9, ART * 0.9);
     g.globalAlpha = 1;
   } else g.drawImage(tile, 13, y0, ART * 0.9, ART * 0.9);
 }
 
 /** Data URL of a symbol (for the paytable). */
-export function symbolUrl(s: Sym) {
+export function symbolUrl(s: Sym, o: { blur?: boolean; scale?: number } = {}) {
   const cv = document.createElement('canvas');
-  drawSymbol(cv, s, { bg: false });
+  drawSymbol(cv, s, { bg: false, blur: o.blur, scale: o.scale });
   return cv.toDataURL('image/png');
 }

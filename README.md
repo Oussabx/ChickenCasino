@@ -35,7 +35,7 @@ All dealt on a shared 3D felt table (cards fly from the shoe and flip; chip stac
 
 | Game | Rules |
 | --- | --- |
-| **Golden Coop Slots** | 5 reels × 3 rows on real spinning drums, 20 fixed paylines paying left to right. Golden Rooster wild, Coop scatter: 3/4/5 pay 3×/15×/100× the total bet and award 10/15/20 free spins with every win tripled (retriggers). RTP 95.2%, calculated exactly from the reel strips. |
+| **Golden Coop Slots** | 5 reels × 3 rows with motion-blurred spinning reels, 20 fixed paylines paying left to right. Golden Rooster wild, Coop scatter: 3/4/5 pay 3×/15×/100× the total bet and award 10/15/20 free spins with every win tripled (retriggers). RTP 95.2%, calculated exactly from the reel strips. |
 | **Coop Keno** | 80 numbers, 20 drawn, pick 1–10 spots. A hen lays the numbered eggs. Pay tables tuned to ≈95% for every spot count (exact hypergeometric odds); 10 of 10 pays 100,000×. |
 
 Cards are drawn from shoes shuffled with `crypto.getRandomValues`; the originals are tuned to ≈99% RTP, the table games use their standard casino rules, and slots/keno use the return-to-player figures above.
