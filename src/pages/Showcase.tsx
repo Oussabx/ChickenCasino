@@ -111,15 +111,15 @@ export default function Showcase() {
           break;
         }
         case 'slots': {
-          const { SlotsScene } = await import('../games/three/slots3d');
-          const { evaluate } = await import('../lib/slots');
-          const s = new SlotsScene(el); dispose = () => s.dispose();
-          s.setView([0.2, 1.1, 0], 11.6, 10.6, [0, 0.04, 1], 1);
+          const [{ createRoot }, { createElement, createRef }, { default: SlotMachine, loadMachineArt }, { evaluate }] = await Promise.all([
+            import('react-dom/client'), import('react'), import('../games/SlotMachine'), import('../lib/slots'),
+          ]);
+          await loadMachineArt();
           const res = evaluate([29, 23, 10, 7, 35]);
-          await new Promise((r) => setTimeout(r, 600));
-          await s.spin(res.stops, { turbo: true });
-          s.showWins(res.lines.map((l) => l.line), res.lines.flatMap((l) => l.cells));
-          setTimeout(ready, 900);
+          const ref = createRef<import('../games/SlotMachine').MachineHandle>();
+          const root = createRoot(el); dispose = () => root.unmount();
+          root.render(createElement(SlotMachine, { ref, free: false, jackpot: 3000, initialStops: res.stops, footer: null }));
+          setTimeout(() => { ref.current?.showWins(res.lines.map((l) => l.line), res.lines.flatMap((l) => l.cells)); setTimeout(ready, 800); }, 600);
           break;
         }
         case 'craps': {

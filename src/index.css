@@ -133,3 +133,14 @@ input[type='range'].range::-moz-range-track { height: 8px; background: transpare
 .card-in { animation: card-in .35s cubic-bezier(.2,.8,.2,1) backwards; }
 
 @keyframes coin-fall { 0% { transform: translateY(-10%) rotateY(0deg); opacity: 0; } 10% { opacity: 1; } 100% { transform: translateY(115vh) rotateY(720deg); opacity: .9; } }
+
+/* Golden Coop slot machine */
+@keyframes slot-pop { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+.slot-pop { animation: slot-pop .9s ease-in-out infinite; filter: drop-shadow(0 0 10px rgba(255, 216, 77, .75)) !important; }
+@keyframes slot-frame { 0%, 100% { opacity: .75; } 50% { opacity: 1; } }
+.slot-frame { animation: slot-frame .9s ease-in-out infinite, pop .25s ease-out; }
+@keyframes slot-line { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+.slot-line { stroke-dasharray: 1; animation: slot-line .45s ease-out both; }
+@keyframes slot-tease { 0%, 100% { box-shadow: 0 0 0 3px #F4C430, 0 0 24px 4px rgba(244, 196, 48, .7); } 50% { box-shadow: 0 0 0 3px #fff1a8, 0 0 40px 10px rgba(244, 196, 48, .95); } }
+.slot-tease { animation: slot-tease .4s ease-in-out infinite; }
+@keyframes slot-float { from { transform: translateY(0); opacity: 0; } 15% { opacity: 1; } to { transform: translateY(-110vh); opacity: 0; } }
