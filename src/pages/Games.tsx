@@ -5,7 +5,7 @@ import GameCard from '../components/GameCard';
 import { useStore } from '../store';
 import { Reveal } from '../lib/motion';
 
-const FILTERS = ['All', 'Originals', 'Table games', 'Favourites', 'Hot', 'New'] as const;
+const FILTERS = ['All', 'Originals', 'Table games', 'Slots & Keno', 'Favourites', 'Hot', 'New'] as const;
 
 export default function Games() {
   const [q, setQ] = useState('');
@@ -19,6 +19,7 @@ export default function Games() {
     if (f === 'New') return g.isNew;
     if (f === 'Originals') return g.category === 'original';
     if (f === 'Table games') return g.category === 'table';
+    if (f === 'Slots & Keno') return g.category === 'slots';
     return true;
   }), [q, f, favs]);
 
@@ -30,7 +31,7 @@ export default function Games() {
         <div className="relative">
           <div className="label text-gold">The Coop</div>
           <h1 className="h-display text-4xl sm:text-5xl mt-1">All games</h1>
-          <p className="mt-2 text-cream/70 max-w-md">Six chicken originals and six classic casino tables — all in 3D.</p>
+          <p className="mt-2 text-cream/70 max-w-md">Six chicken originals, seven casino tables, plus slots and keno — all in 3D.</p>
         </div>
       </div>
       <div className="mt-6 flex flex-col sm:flex-row gap-3">

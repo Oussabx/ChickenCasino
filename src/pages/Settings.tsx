@@ -51,9 +51,14 @@ export default function Settings() {
         <Row label="Default bet" desc="Pre-filled bet when you open a game.">
           <input type="number" min={0} className="input w-28 text-right" value={s.settings.defaultBet} onChange={(e) => set({ defaultBet: Math.max(0, +e.target.value || 0) })} aria-label="Default bet" />
         </Row>
-        <Row label="Confirm large bets" desc="Ask before placing bets at or above this amount (0 = off).">
-          <input type="number" min={0} className="input w-28 text-right" value={s.settings.confirmOver} onChange={(e) => set({ confirmOver: Math.max(0, +e.target.value || 0) })} aria-label="Confirm threshold" />
+        <Row label="Confirm large bets" desc={s.settings.confirmOver > 0 ? `Ask before placing a bet of ${fmt(s.settings.confirmOver, 0)} or more.` : 'Ask before placing big bets.'}>
+          <Toggle on={s.settings.confirmOver > 0} onChange={(v) => set({ confirmOver: v ? 1000 : 0 })} label="Confirm large bets" />
         </Row>
+        {s.settings.confirmOver > 0 && (
+          <Row label="Ask at or above" desc="Bets this size or bigger need a tap to confirm.">
+            <input type="number" min={1} className="input w-28 text-right" value={s.settings.confirmOver} onChange={(e) => set({ confirmOver: Math.max(1, +e.target.value || 1) })} aria-label="Confirm threshold" />
+          </Row>
+        )}
       </Section>
 
       <Section icon={<Eye size={18} />} title="Display">
@@ -187,9 +192,9 @@ function Row({ label, desc, children }: { label: string; desc?: string; children
   );
 }
 
-function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label?: string }) {
   return (
-    <button role="switch" aria-checked={on} onClick={() => onChange(!on)} className={`relative h-7 w-12 rounded-full transition ${on ? 'bg-gold' : 'bg-ink-500'}`}>
+    <button role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)} className={`relative h-7 w-12 rounded-full transition ${on ? 'bg-gold' : 'bg-ink-500'}`}>
       <span className={`absolute top-1 h-5 w-5 rounded-full transition-all ${on ? 'left-6 bg-ink' : 'left-1 bg-cream'}`} />
     </button>
   );

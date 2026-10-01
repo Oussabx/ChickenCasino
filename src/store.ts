@@ -120,6 +120,8 @@ interface State {
   exportData: () => GameData;
   betError: (amount: number) => string | null;
   placeBet: (amount: number) => boolean;
+  /** Give back (or, with a negative amount, re-commit) coins sitting on a table layout — not a round. */
+  refund: (amount: number) => void;
   settle: (game: GameId, bet: number, multiplier: number, detail?: string) => number;
   grant: (kind: TxKind, label: string, coins: number, eggs?: number) => void;
   buy: (id: string) => string | null;
@@ -202,6 +204,8 @@ export const useStore = create<State>()(
         set((s) => ({ balance: +(s.balance - amount).toFixed(2) }));
         return true;
       },
+
+      refund: (amount) => set((s) => ({ balance: +(s.balance + amount).toFixed(2) })),
 
       settle: (game, bet, multiplier, detail) => {
         const payout = +(bet * multiplier).toFixed(2);

@@ -45,7 +45,7 @@ export default function GameShell({ id, controls, children, rules, tall }: { id:
           <li key={i} className="flex gap-3 text-sm"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-gold/15 font-display text-xs font-black text-gold">{i + 1}</span><span>{r}</span></li>
         ))}
       </ol>
-      <div className="mt-5 rounded-xl bg-ink-900 p-3 text-xs text-smoke">Outcomes use your browser's cryptographic RNG (<code>crypto.getRandomValues</code>). Max win: <b className="text-gold">{g.maxWin}</b>. RTP ≈ 99%.</div>
+      <div className="mt-5 rounded-xl bg-ink-900 p-3 text-xs text-smoke">Outcomes use your browser's cryptographic RNG (<code>crypto.getRandomValues</code>). Max win: <b className="text-gold">{g.maxWin}</b>. RTP {g.rtp ?? '≈ 99%'}.</div>
     </Modal>
   );
 

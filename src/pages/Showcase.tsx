@@ -110,6 +110,37 @@ export default function Showcase() {
           s.spin(17, 900, () => {}).then(() => setTimeout(ready, 400));
           break;
         }
+        case 'slots': {
+          const { SlotsScene } = await import('../games/three/slots3d');
+          const { evaluate } = await import('../lib/slots');
+          const s = new SlotsScene(el); dispose = () => s.dispose();
+          s.setView([0.2, 0.35, 0], 11.4, 9.2, [0, 0.04, 1], 1);
+          const res = evaluate([29, 23, 10, 7, 35]);
+          await new Promise((r) => setTimeout(r, 600));
+          await s.spin(res.stops, { turbo: true });
+          s.showWins(res.lines.map((l) => l.line), res.lines.flatMap((l) => l.cells));
+          setTimeout(ready, 900);
+          break;
+        }
+        case 'craps': {
+          const { CrapsScene } = await import('../games/three/craps3d');
+          const s = new CrapsScene(el); dispose = () => s.dispose();
+          s.setView([-0.6, 0, 0.2], 9.6, 8.2, [0, 1.7, 1], 1);
+          s.setBets({ pass: 100, passOdds: 250, field: 25, place6: 30, hard8: 10, 'come:9': 50 });
+          s.setPoint(6);
+          await s.throwDice(5, 6, 900);
+          setTimeout(ready, 700);
+          break;
+        }
+        case 'keno': {
+          const { KenoScene } = await import('../games/three/keno3d');
+          const s = new KenoScene(el); dispose = () => s.dispose();
+          s.setView([0.1, 1.0, 0.7], 5.2, 4.2, [0.2, 0.5, 1], 1);
+          const nums = [7, 23, 41, 12, 66, 3, 58, 79, 33, 18, 50, 71, 9, 27];
+          nums.forEach((n, i) => setTimeout(() => s.lay(n, [7, 41, 66, 33].includes(n), 300), i * 110));
+          setTimeout(ready, nums.length * 110 + 900);
+          break;
+        }
         case 'chicken-cross': {
           const { CrossScene } = await import('../games/cross3d');
           const s = new CrossScene(el); dispose = () => s.dispose();

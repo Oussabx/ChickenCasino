@@ -29,8 +29,16 @@ All dealt on a shared 3D felt table (cards fly from the shoe and flip; chip stac
 | **Punto Banco** | Fast baccarat with Player Pair / Banker Pair side bets at 11:1. |
 | **Texas Hold'em** | No-limit poker with 2–8 players (you + chicken bots) and a chicken croupier who deals but never plays. Button, small/big blinds, pre-flop/flop/turn/river betting (fold, check, call, bet, raise, all-in; min-raise rules), uncalled bets returned, side pots and split pots at showdown. |
 | **5 Card Poker** | Five-card draw, Jacks or Better 9/6 pay table, hold suggestions. |
+| **Craps** | Las Vegas rules on a 3D table with a rooster boxman and ON/OFF puck. Pass/Don't Pass (bar 12), Come/Don't Come, 3-4-5× free odds at true odds (lay odds to win 6×), Place 4–10 (9:5, 7:5, 7:6), Field (2 pays double, 12 triple), hardways and one-roll props. Place bets and hardways are off on the come-out; winning bets stay up. |
 
-Cards are drawn from shoes shuffled with `crypto.getRandomValues`; the originals are tuned to ≈99% RTP and the table games use their standard casino rules.
+### Slots & keno
+
+| Game | Rules |
+| --- | --- |
+| **Golden Coop Slots** | 5 reels × 3 rows on real spinning drums, 20 fixed paylines paying left to right. Golden Rooster wild, Coop scatter: 3/4/5 pay 3×/15×/100× the total bet and award 10/15/20 free spins with every win tripled (retriggers). RTP 95.2%, calculated exactly from the reel strips. |
+| **Coop Keno** | 80 numbers, 20 drawn, pick 1–10 spots. A hen lays the numbered eggs. Pay tables tuned to ≈95% for every spot count (exact hypergeometric odds); 10 of 10 pays 100,000×. |
+
+Cards are drawn from shoes shuffled with `crypto.getRandomValues`; the originals are tuned to ≈99% RTP, the table games use their standard casino rules, and slots/keno use the return-to-player figures above.
 
 Game card thumbnails are rendered from these same scenes: `npm run build`, `npx vite preview --port 4173`, then `node scripts/render-thumbs.mjs` (needs Playwright and Python/Pillow).
 
