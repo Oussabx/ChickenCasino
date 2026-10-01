@@ -5,6 +5,7 @@ import MobileNav from './MobileNav';
 import Footer from './Footer';
 import Toaster from './Toaster';
 import AuthModal from './AuthModal';
+import { ConfirmHost } from './Confirm';
 import Ambient from './Ambient';
 import { toast, useStore, useUI } from '../store';
 import { migrateLegacyProfile } from '../lib/auth';
@@ -47,6 +48,7 @@ export default function Layout() {
       <MobileNav />
       <Toaster />
       <AuthModal />
+      <ConfirmHost />
       {storeOpen && <Suspense fallback={null}><StoreModal /></Suspense>}
     </div>
   );

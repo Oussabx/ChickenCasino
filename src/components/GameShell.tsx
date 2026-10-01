@@ -1,3 +1,4 @@
+import { ConfirmHost } from './Confirm';
 import { ReactNode, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
@@ -73,6 +74,7 @@ export default function GameShell({ id, controls, children, rules, tall }: { id:
               <div className="phone-controls min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 pt-3" style={{ paddingRight: 'max(12px, env(safe-area-inset-right))' }}>{controls}</div>
             </aside>
             {rulesModal}
+            <ConfirmHost />
           </div>,
           document.body,
         )}
