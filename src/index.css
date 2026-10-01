@@ -72,12 +72,12 @@ input[type='range'].range::-webkit-slider-runnable-track { height: 8px; border-r
 input[type='range'].range::-moz-range-track { height: 8px; background: transparent; }
 
 /* ---------- motion ---------- */
-.reveal { transition: opacity .45s cubic-bezier(.2,.8,.2,1), transform .55s cubic-bezier(.2,.8,.2,1), filter .45s ease; }
-.reveal:not(.is-in) { opacity: 0; filter: blur(3px); }
-.reveal-up:not(.is-in) { transform: translate3d(0, 22px, 0) scale(.99); }
+.reveal { transition: opacity .45s cubic-bezier(.2,.8,.2,1), transform .55s cubic-bezier(.2,.8,.2,1); }
+.reveal:not(.is-in) { opacity: 0; }
+.reveal-up:not(.is-in) { transform: translate(0, 22px) scale(.99); }
 .reveal-zoom:not(.is-in) { transform: perspective(900px) rotateX(14deg) scale(.92); }
-.reveal-left:not(.is-in) { transform: translate3d(-40px, 0, 0); }
-.reveal-right:not(.is-in) { transform: translate3d(40px, 0, 0); }
+.reveal-left:not(.is-in) { transform: translate(-40px, 0); }
+.reveal-right:not(.is-in) { transform: translate(40px, 0); }
 
 @keyframes page-in { from { opacity: 0; transform: translate3d(0, 14px, 0); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
 .page-in { animation: page-in .55s cubic-bezier(.2,.8,.2,1) backwards; } /* no fill after the animation: a lingering transform would trap position:fixed children */
@@ -182,38 +182,72 @@ input[type='range'].range::-moz-range-track { height: 8px; background: transpare
 .winfx-mascot { animation: winfx-mascot .7s cubic-bezier(.2,.9,.3,1.2) both, bob 2.4s 1s ease-in-out infinite; }
 @keyframes winfx-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
 
+/* ---------- performance ---------- */
+/* off-screen sections skip layout + paint until scrolled near */
+.cv-auto { content-visibility: auto; contain-intrinsic-size: auto 360px; }
+/* a bounded layer per section, so one animating element can't drag the rest
+   of the page into a giant overlap layer that re-rasterises on every change */
+.own-layer { will-change: transform; }
+/* frosted bars; lite devices get a solid bar instead of a live blur */
+.glass-bar { background: rgba(11, 11, 11, .82); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
+.perf-lite .glass-bar { background: #0e0e10; -webkit-backdrop-filter: none; backdrop-filter: none; }
+/* lite: no backdrop blurs anywhere (they re-blur on every frame over 3D canvases) */
+.perf-lite *, .perf-lite *::before, .perf-lite *::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+/* lite: the decorative idle loops stop; interactive & win animations still play */
+.perf-lite .bob, .perf-lite .shine-sweep { animation: none !important; }
+.perf-lite .shop-legendary:hover::before { animation: none; }
+.perf-lite .rays { animation: none !important; will-change: auto; }
+
 /* ---------- cosmetic art idle animations ---------- */
 @keyframes cos-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3.5px); } }
-.cos-bob { animation: cos-bob 2.4s ease-in-out infinite; }
 @keyframes cos-wag { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-7deg); } }
-.cos-wag { animation: cos-wag 1.6s ease-in-out infinite; transform-box: view-box; }
+.cos-wag { transform-box: view-box; }
 @keyframes cos-blink { 0%, 92%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
-.cos-blink { animation: cos-blink 4s infinite; transform-box: view-box; }
+.cos-blink { transform-box: view-box; }
 @keyframes cos-twinkle { 0%, 100% { opacity: .15; transform: scale(.5); } 50% { opacity: 1; transform: scale(1); } }
-.cos-twinkle { animation: cos-twinkle 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.cos-twinkle { transform-box: fill-box; transform-origin: center; }
 @keyframes cos-pulse { 0%, 100% { opacity: .65; } 50% { opacity: 1; } }
-.cos-pulse { animation: cos-pulse 1.4s ease-in-out infinite; }
 @keyframes cos-chip-pop { from { transform: translateY(14px) scale(.7); opacity: 0; } }
 .cos-chip-pop { animation: cos-chip-pop .45s cubic-bezier(.2,.9,.3,1.3) both; }
 @keyframes cos-card-l { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(-15deg) translateY(-2px); } }
 @keyframes cos-card-r { 0%, 100% { transform: rotate(10deg); } 50% { transform: rotate(13deg) translateY(-2px); } }
-.cos-card-l { animation: cos-card-l 3s ease-in-out infinite; }
-.cos-card-r { animation: cos-card-r 3s ease-in-out infinite; }
+/* Perf: SVG part animations repaint the drawing every frame (and even a paused
+   one keeps a compositor layer), so shelf art is still and only comes alive on
+   hover or on a "live" stage: item sheet, locker, hot drop, hatch. */
+.cos-live .cos-bob { animation: cos-bob 2.4s ease-in-out infinite; }
+.cos-live .cos-wag { animation: cos-wag 1.6s ease-in-out infinite; }
+.cos-live .cos-blink { animation: cos-blink 4s infinite; }
+.cos-live .cos-twinkle { animation: cos-twinkle 1.8s ease-in-out infinite; }
+.cos-live .cos-pulse { animation: cos-pulse 1.4s ease-in-out infinite; }
+.cos-live .cos-card-l { animation: cos-card-l 3s ease-in-out infinite; }
+.cos-live .cos-card-r { animation: cos-card-r 3s ease-in-out infinite; }
+@media (hover: hover) and (pointer: fine) {
+  .shop-card:hover .cos-bob { animation: cos-bob 2.4s ease-in-out infinite; }
+  .shop-card:hover .cos-wag { animation: cos-wag 1.6s ease-in-out infinite; }
+  .shop-card:hover .cos-blink { animation: cos-blink 4s infinite; }
+  .shop-card:hover .cos-twinkle { animation: cos-twinkle 1.8s ease-in-out infinite; }
+  .shop-card:hover .cos-pulse { animation: cos-pulse 1.4s ease-in-out infinite; }
+  .shop-card:hover .cos-card-l { animation: cos-card-l 3s ease-in-out infinite; }
+  .shop-card:hover .cos-card-r { animation: cos-card-r 3s ease-in-out infinite; }
+}
+/* big spinning light rays: keep them on their own compositor layer */
+.rays { will-change: transform; contain: strict; }
 
 /* ---------- shop ---------- */
-.shop-card { background: #17171c; box-shadow: 0 0 0 1px color-mix(in srgb, var(--rc) 35%, transparent), 0 10px 30px -18px rgba(0,0,0,.9); }
+.shop-card { isolation: isolate; background: #17171c; box-shadow: 0 0 0 1px color-mix(in srgb, var(--rc) 35%, transparent), 0 10px 30px -18px rgba(0,0,0,.9); }
 .shop-card:hover { box-shadow: 0 0 0 1px var(--rc), 0 18px 40px -16px color-mix(in srgb, var(--rc) 55%, transparent); }
 .shop-legendary::before { content: ''; position: absolute; inset: -1px; border-radius: 1rem; padding: 1.5px; z-index: 2; pointer-events: none;
   background: conic-gradient(from var(--a, 0deg), #F4C430, #fff1a8, #c98a00, #F4C430, #fff8d6, #F4C430);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: shop-border 4s linear infinite; }
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+@media (hover: hover) and (pointer: fine) { .shop-legendary:hover::before { animation: shop-border 4s linear infinite; } }
 @property --a { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
 @keyframes shop-border { to { --a: 360deg; } }
 .shop-shine { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.14) 45%, transparent 60%); transform: translateX(-120%); transition: transform .8s ease; }
 .group:hover .shop-shine { transform: translateX(120%); }
 @keyframes shop-rise { from { opacity: 0; transform: translateY(16px) scale(.97); } to { opacity: 1; transform: none; } }
-.shop-rise { animation: shop-rise .45s cubic-bezier(.2,.8,.2,1) both; }
+.shop-rise { animation: shop-rise .45s cubic-bezier(.2,.8,.2,1) backwards; }
 @keyframes shop-tab-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-.shop-tab-in { animation: shop-tab-in .35s ease-out both; }
+.shop-tab-in { animation: shop-tab-in .35s ease-out backwards; }
 @keyframes shop-stage-in { from { opacity: 0; transform: scale(.8) translateY(14px); } to { opacity: 1; transform: none; } }
 .shop-stage-in { animation: shop-stage-in .5s cubic-bezier(.2,.9,.3,1.2) both; }
 @keyframes shop-unlock-pop { 0% { transform: scale(1); } 30% { transform: scale(1.18) rotate(-3deg); filter: brightness(1.6); } 60% { transform: scale(.96) rotate(2deg); } 100% { transform: none; filter: none; } }
@@ -235,6 +269,5 @@ input[type='range'].range::-moz-range-track { height: 8px; background: transpare
 @keyframes shop-shell { to { transform: translate(-40px, 80px) rotate(-60deg); opacity: 0; } }
 .shop-shell-l { animation: shop-shell .45s ease-in both; }
 @keyframes shop-vip-on { 0%, 100% { box-shadow: 0 0 0 0 rgba(244,196,48,.0); } 50% { box-shadow: 0 0 18px 2px rgba(244,196,48,.45); } }
-.shop-vip-on { animation: shop-vip-on 2.4s ease-in-out infinite; }
-.shop-embers { background-image: radial-gradient(2px 2px at 20% 80%, rgba(255,140,60,.8), transparent), radial-gradient(2px 2px at 70% 90%, rgba(255,90,60,.7), transparent), radial-gradient(1.5px 1.5px at 40% 70%, rgba(255,200,80,.8), transparent), radial-gradient(2px 2px at 85% 60%, rgba(255,120,60,.7), transparent); background-size: 100% 100%; animation: shop-embers 6s linear infinite; }
-@keyframes shop-embers { from { background-position: 0 0, 0 0, 0 0, 0 0; } to { background-position: 0 -300px, 0 -420px, 0 -360px, 0 -500px; } }
+.shop-vip-on { box-shadow: 0 0 16px 1px rgba(244,196,48,.4); }
+.shop-embers { background-image: radial-gradient(2px 2px at 20% 80%, rgba(255,140,60,.8), transparent), radial-gradient(2px 2px at 70% 90%, rgba(255,90,60,.7), transparent), radial-gradient(1.5px 1.5px at 40% 70%, rgba(255,200,80,.8), transparent), radial-gradient(2px 2px at 85% 60%, rgba(255,120,60,.7), transparent), radial-gradient(1.5px 1.5px at 10% 30%, rgba(255,170,70,.6), transparent), radial-gradient(2px 2px at 55% 25%, rgba(255,110,60,.5), transparent); }

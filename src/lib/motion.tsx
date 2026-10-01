@@ -27,17 +27,23 @@ export function useParallax(ref: RefObject<HTMLElement>, enabled = true) {
     const el = ref.current;
     if (!el || !enabled) return;
     let tx = 0, ty = 0, x = 0, y = 0, raf = 0, alive = true;
+    // the loop only runs while something is still easing; input wakes it up
+    let running = false;
+    const wake = () => { if (!running && alive) { running = true; raf = requestAnimationFrame(tick); } };
     const onMove = (e: PointerEvent) => {
       const r = el.getBoundingClientRect();
       tx = ((e.clientX - r.left) / r.width) * 2 - 1;
       ty = ((e.clientY - r.top) / r.height) * 2 - 1;
+      wake();
     };
-    const onLeave = () => { tx = 0; ty = 0; };
+    const onLeave = () => { tx = 0; ty = 0; wake(); };
     const onTilt = (e: DeviceOrientationEvent) => {
       if (e.gamma == null || e.beta == null) return;
       tx = Math.max(-1, Math.min(1, e.gamma / 25));
       ty = Math.max(-1, Math.min(1, (e.beta - 45) / 25));
+      wake();
     };
+    let lastSy = NaN;
     const tick = () => {
       if (!alive) return;
       x += (tx - x) * 0.08;
@@ -46,17 +52,20 @@ export function useParallax(ref: RefObject<HTMLElement>, enabled = true) {
       const sy = Math.max(-1.5, Math.min(1.5, (r.top + r.height / 2 - innerHeight / 2) / innerHeight));
       el.style.setProperty('--mx', x.toFixed(4));
       el.style.setProperty('--my', y.toFixed(4));
-      el.style.setProperty('--sy', sy.toFixed(4));
+      if (sy !== lastSy) { el.style.setProperty('--sy', sy.toFixed(4)); lastSy = sy; }
+      if (Math.abs(tx - x) < 0.001 && Math.abs(ty - y) < 0.001) { running = false; return; }
       raf = requestAnimationFrame(tick);
     };
     window.addEventListener('pointermove', onMove, { passive: true });
+    window.addEventListener('scroll', wake, { passive: true });
     document.addEventListener('pointerleave', onLeave);
     if (!finePointer()) window.addEventListener('deviceorientation', onTilt, { passive: true });
-    raf = requestAnimationFrame(tick);
+    wake();
     return () => {
       alive = false;
       cancelAnimationFrame(raf);
       window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('scroll', wake);
       document.removeEventListener('pointerleave', onLeave);
       window.removeEventListener('deviceorientation', onTilt);
       ['--mx', '--my', '--sy'].forEach((p) => el.style.removeProperty(p));
@@ -151,4 +160,28 @@ export function useCountUp(value: number, ms = 600) {
     return () => cancelAnimationFrame(raf);
   }, [value, ms, ok]);
   return shown;
+}
+
+/**
+ * Renders `children` only once the placeholder scrolls near the viewport
+ * (then keeps them). Keeps long pages light: off-screen shelves cost nothing.
+ */
+export function LazyMount({ children, minHeight = 240, margin = '600px', className = '' }: { children: ReactNode; minHeight?: number; margin?: string; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [on, setOn] = useState(() => typeof IntersectionObserver === 'undefined');
+  useEffect(() => {
+    if (on || !ref.current) return;
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { setOn(true); io.disconnect(); } }, { rootMargin: margin });
+    io.observe(ref.current);
+    // also mount in spare time after the page settles, so it's ready before you scroll to it
+    let idleId = 0;
+    const timer = window.setTimeout(() => {
+      idleId = typeof requestIdleCallback === 'function' ? requestIdleCallback(() => setOn(true), { timeout: 4000 }) : (setTimeout(() => setOn(true), 0) as unknown as number);
+    }, 1200 + Math.random() * 1200);
+    return () => {
+      io.disconnect(); clearTimeout(timer);
+      if (idleId && typeof cancelIdleCallback === 'function') cancelIdleCallback(idleId);
+    };
+  }, [on, margin]);
+  return <div ref={ref} className={className} style={on ? undefined : { minHeight }}>{on ? children : null}</div>;
 }

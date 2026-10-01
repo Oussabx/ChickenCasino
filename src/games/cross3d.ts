@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RenderBudget } from '../lib/perf';
 import { buildChickenLook, chickenBodyColor, chickenGlow } from './three/models';
 
 /**
@@ -70,6 +71,7 @@ export class CrossScene {
   private raf = 0;
   private last = performance.now();
   private ro: ResizeObserver;
+  private budget: RenderBudget;
   private disposed = false;
   private finishX = 0;
   private egg!: THREE.Group;
@@ -112,9 +114,9 @@ export class CrossScene {
 
   constructor(private host: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    this.budget = new RenderBudget(this.renderer, () => this.resize());
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = RenderBudget.softShadows() ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
@@ -135,7 +137,7 @@ export class CrossScene {
     const sun = new THREE.DirectionalLight(0xffe2b8, 2.2);
     sun.position.set(-8, 18, 10);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.mapSize.set(RenderBudget.shadowSize(), RenderBudget.shadowSize());
     const sc = sun.shadow.camera;
     sc.left = -22; sc.right = 22; sc.top = 22; sc.bottom = -22; sc.near = 1; sc.far = 60;
     sun.shadow.bias = -0.0005;
@@ -150,6 +152,7 @@ export class CrossScene {
 
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(host);
+    this.budget.watch(host);
     this.resize();
     this.loop = this.loop.bind(this);
     this.raf = requestAnimationFrame(this.loop);
@@ -370,6 +373,7 @@ export class CrossScene {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
+    this.budget.dispose();
     disposeTree(this.scene);
     this.renderer.dispose();
     this.renderer.domElement.remove();
@@ -725,7 +729,8 @@ export class CrossScene {
 
     if (this.flash > 0) { this.flash = Math.max(0, this.flash - dt * 1.8); this.flashEl.style.opacity = String(this.flash); }
 
-    this.renderer.render(this.scene, this.camera);
+    this.budget.tick(dt);
+    if (this.budget.visible) this.renderer.render(this.scene, this.camera);
     this.raf = requestAnimationFrame(this.loop);
   }
 }

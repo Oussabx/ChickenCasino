@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RenderBudget } from '../../lib/perf';
 
 /**
  * Shared scaffolding for the 3D game scenes: renderer, lights, resize,
@@ -26,6 +27,7 @@ export abstract class Stage3D {
   protected key: THREE.DirectionalLight;
   private ro: ResizeObserver;
   private raf = 0;
+  private budget: RenderBudget;
   private last = performance.now();
   private pointer = { x: 0, y: 0, tx: 0, ty: 0 };
   private onPointer = (e: PointerEvent) => {
@@ -55,9 +57,9 @@ export abstract class Stage3D {
     this.host = host;
     this.camera = new THREE.PerspectiveCamera(opts.fov ?? 38, 1, 0.1, 500);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: false });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio > 2 ? 2.5 : 2, window.devicePixelRatio || 1));
+    this.budget = new RenderBudget(this.renderer, () => this.resize());
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = RenderBudget.softShadows() ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.1;
@@ -74,7 +76,7 @@ export abstract class Stage3D {
     this.key = new THREE.DirectionalLight(0xffe2b8, 2.3);
     this.key.position.set(-6, 12, 10);
     this.key.castShadow = true;
-    this.key.shadow.mapSize.set(2048, 2048);
+    this.key.shadow.mapSize.set(RenderBudget.shadowSize(), RenderBudget.shadowSize());
     const sc = this.key.shadow.camera;
     sc.left = -16; sc.right = 16; sc.top = 16; sc.bottom = -16; sc.near = 1; sc.far = 60;
     this.key.shadow.bias = -0.0006;
@@ -85,6 +87,7 @@ export abstract class Stage3D {
 
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(host);
+    this.budget.watch(host);
     host.addEventListener('pointermove', this.onPointer);
     host.addEventListener('pointerleave', this.onLeave);
     this.resize();
@@ -137,7 +140,8 @@ export abstract class Stage3D {
     this.camera.position.set(pos.x + p.x * this.parallax * 2 + sx, pos.y - p.y * this.parallax + sy, pos.z);
     this.camera.lookAt(look);
 
-    this.renderer.render(this.scene, this.camera);
+    this.budget.tick(dt);
+    if (this.budget.visible) this.renderer.render(this.scene, this.camera);
     this.placeAnchors();
     this.raf = requestAnimationFrame(this.loop);
   }
@@ -223,6 +227,7 @@ export abstract class Stage3D {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
+    this.budget.dispose();
     this.host.removeEventListener('pointermove', this.onPointer);
     this.host.removeEventListener('pointerleave', this.onLeave);
     this.scene.traverse((o) => {

@@ -64,6 +64,14 @@ export default function Settings() {
       <Section icon={<Eye size={18} />} title="Display">
         <Row label="Hide balance" desc="Streamer mode — masks your balance in the header."><Toggle on={s.settings.hideBalance} onChange={(v) => set({ hideBalance: v })} /></Row>
         <Row label="Reduce motion" desc="Minimise animations across the site."><Toggle on={s.settings.reduceMotion} onChange={(v) => set({ reduceMotion: v })} /></Row>
+        <Row label="Visual effects" desc="Lite turns off blur and background effects and lowers 3D resolution, for smooth play on any device. Auto picks lite on phones and low-power laptops.">
+          <div className="flex rounded-xl bg-ink-700 p-1 text-xs font-bold">
+            {(['auto', 'full', 'lite'] as const).map((k) => (
+              <button key={k} type="button" onClick={() => set({ effects: k })} aria-pressed={(s.settings.effects ?? 'auto') === k}
+                className={`rounded-lg px-3 py-1.5 capitalize transition ${(s.settings.effects ?? 'auto') === k ? 'bg-gold text-ink' : 'text-cream/70 hover:text-cream'}`}>{k}</button>
+            ))}
+          </div>
+        </Row>
       </Section>
 
       <Section icon={<ShieldCheck size={18} />} title="Responsible play">

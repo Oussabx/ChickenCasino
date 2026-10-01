@@ -20,15 +20,15 @@ export default function HotDrop({ onOpen }: { onOpen: (it: ShopItem) => void }) 
   const [h, m, s] = fmtLeft(left).split(':');
   const col = RARITY_COLOR[it.rarity];
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-blood/40 bg-gradient-to-br from-[#3a0b10] via-[#140608] to-black shadow-[0_30px_80px_-30px_rgba(230,57,70,.6)]">
+    <section className="own-layer relative isolate overflow-hidden rounded-3xl border border-blood/40 bg-gradient-to-br from-[#3a0b10] via-[#140608] to-black shadow-[0_30px_80px_-30px_rgba(230,57,70,.6)]">
       <div className="pointer-events-none absolute -left-20 top-1/2 h-[140%] w-[70%] -translate-y-1/2 opacity-60"
         style={{ background: `radial-gradient(circle, ${col}55, transparent 60%)` }} />
       <div className="pointer-events-none absolute inset-0 shop-embers" />
       <div className="relative grid items-center gap-4 p-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] sm:p-8">
         <button type="button" onClick={() => onOpen(it)} className="group relative mx-auto grid place-items-center" aria-label={`Look at ${it.name}`}>
-          <div className="pointer-events-none absolute h-[120%] w-[120%] opacity-50"
+          <div className="rays pointer-events-none absolute h-[120%] w-[120%] opacity-50"
             style={{ background: `repeating-conic-gradient(from 0deg, ${col}66 0deg 7deg, transparent 7deg 20deg)`, animation: 'winfx-spin 30s linear infinite', maskImage: 'radial-gradient(circle, black 15%, transparent 60%)', WebkitMaskImage: 'radial-gradient(circle, black 15%, transparent 60%)' }} />
-          <div className="relative transition duration-500 group-hover:scale-105"><ItemArt it={it} size={250} /></div>
+          <div className="cos-live relative transition duration-500 group-hover:scale-105"><ItemArt it={it} size={250} /></div>
         </button>
         <div className="text-center sm:text-left">
           <div className="inline-flex items-center gap-2 rounded-full border border-blood/60 bg-blood/20 px-3 py-1 font-display text-[11px] font-black uppercase tracking-[.25em] text-[#ff8a95]">

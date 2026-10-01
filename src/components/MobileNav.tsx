@@ -11,7 +11,7 @@ const ITEMS = [
 
 export default function MobileNav() {
   return (
-    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-50 border-t border-white/[0.07] bg-ink/90 backdrop-blur-xl pb-safe">
+    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-50 glass-bar border-t border-white/[0.07] pb-safe">
       <div className="grid grid-cols-5">
         {ITEMS.map((i) => (
           <NavLink key={i.to} to={i.to} end={i.to === '/'}

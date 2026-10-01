@@ -3,15 +3,37 @@ import { lazy, Suspense } from 'react';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import Games from './pages/Games';
-import Promotions from './pages/Promotions';
-import Tournaments from './pages/Tournaments';
-import VIP from './pages/VIP';
-import Shop from './pages/Shop';
-import Wallet from './pages/Wallet';
-import History from './pages/History';
-import Profile from './pages/Profile';
-import Settings from './pages/Settings';
-import NotFound from './pages/NotFound';
+
+// Pages other than the lobby load on demand, then get fetched quietly once
+// the browser is idle so moving between them still feels instant.
+const PAGES = {
+  Promotions: () => import('./pages/Promotions'),
+  Tournaments: () => import('./pages/Tournaments'),
+  VIP: () => import('./pages/VIP'),
+  Shop: () => import('./pages/Shop'),
+  Wallet: () => import('./pages/Wallet'),
+  History: () => import('./pages/History'),
+  Profile: () => import('./pages/Profile'),
+  Settings: () => import('./pages/Settings'),
+  NotFound: () => import('./pages/NotFound'),
+};
+const Promotions = lazy(PAGES.Promotions);
+const Tournaments = lazy(PAGES.Tournaments);
+const VIP = lazy(PAGES.VIP);
+const Shop = lazy(PAGES.Shop);
+const Wallet = lazy(PAGES.Wallet);
+const History = lazy(PAGES.History);
+const Profile = lazy(PAGES.Profile);
+const Settings = lazy(PAGES.Settings);
+const NotFound = lazy(PAGES.NotFound);
+
+if (typeof window !== 'undefined') {
+  const idle = (cb: () => void) => ('requestIdleCallback' in window ? window.requestIdleCallback(cb, { timeout: 4000 }) : setTimeout(cb, 2500));
+  // skip on data-saver / 2G so we never spend someone's data on pages they may not open
+  const conn = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+  const thrifty = !!conn?.saveData || /2g/.test(conn?.effectiveType ?? '');
+  if (!thrifty) window.addEventListener('load', () => idle(() => Object.values(PAGES).forEach((load) => load().catch(() => {}))), { once: true });
+}
 
 const Plinko = lazy(() => import('./games/Plinko'));
 const Crash = lazy(() => import('./games/Crash'));

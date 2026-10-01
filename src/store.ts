@@ -32,6 +32,8 @@ export interface Settings {
   showLiveFeed: boolean;
   bigWinCelebration: boolean;
   defaultBet: number;
+  /** 'auto' picks lite effects on phones / low-power devices. */
+  effects: 'auto' | 'full' | 'lite';
 }
 
 interface GameStat { rounds: number; wagered: number; profit: number; best: number }
@@ -170,7 +172,7 @@ interface State {
 
 const DEFAULT_SETTINGS: Settings = {
   sound: true, volume: 0.6, reduceMotion: false, turbo: false, hideBalance: false, confirmOver: 0,
-  sessionReminder: 0, lossLimit: 0, showLiveFeed: true, bigWinCelebration: true, defaultBet: 10,
+  sessionReminder: 0, lossLimit: 0, showLiveFeed: true, bigWinCelebration: true, defaultBet: 10, effects: 'auto',
 };
 
 const GAME_DEFAULTS = {

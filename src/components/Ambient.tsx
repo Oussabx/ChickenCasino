@@ -15,7 +15,7 @@ export default function Ambient() {
   const items = useMemo(() => {
     let seed = 7;
     const r = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    return Array.from({ length: 22 }, (_, i) => {
+    return Array.from({ length: 16 }, (_, i) => {
       const plane = i % 3; // 0 far, 1 mid, 2 near
       return {
         i, plane,
@@ -56,7 +56,7 @@ export default function Ambient() {
                 animation: `drift-up ${it.dur}s linear ${it.delay}s infinite`,
                 ['--dx' as string]: `${it.dx}px`, ['--rot' as string]: `${it.rot}deg`,
                 opacity: [0.05, 0.08, 0.1][plane],
-                filter: plane === 0 ? 'blur(2px)' : plane === 2 ? 'blur(1px)' : undefined,
+                willChange: 'transform',
               }}>
               {it.kind === 'chip' ? <div style={{ width: it.size, height: it.size }}><Chip color={it.red ? '#E63946' : '#F4C430'} className="block h-full w-full" /></div>
                 : it.kind === 'coin' ? <Coin style={{ width: it.size, height: it.size }} />

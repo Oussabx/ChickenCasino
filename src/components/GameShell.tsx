@@ -126,7 +126,7 @@ export function GameAction({ children, extra }: { children: ReactNode; extra?: R
     <>
       <div className="hidden lg:block">{children}</div>
       {createPortal(
-        <div className="lg:hidden fixed inset-x-0 z-40 border-t border-white/[0.07] bg-ink/90 px-3 pt-2.5 pb-2 shadow-[0_-12px_30px_-10px_rgba(0,0,0,.8)] backdrop-blur-xl"
+        <div className="lg:hidden fixed inset-x-0 z-40 glass-bar border-t border-white/[0.07] px-3 pt-2.5 pb-2 shadow-[0_-12px_30px_-10px_rgba(0,0,0,.8)]"
           style={{ bottom: 'calc(58px + env(safe-area-inset-bottom))' }}>
           {extra && <div className="mb-2">{extra}</div>}
           {children}

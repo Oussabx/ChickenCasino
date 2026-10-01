@@ -57,7 +57,7 @@ export default function Profile() {
           </div>
           <Link to="/shop?tab=locker" className="group relative hidden shrink-0 sm:block" aria-label="Open My Locker">
             <div className="absolute inset-x-4 bottom-1 h-4 rounded-[50%] bg-black/60 blur-md" />
-            <div className="transition group-hover:-translate-y-1"><ChickenArt skin={s.equipped.chicken} hat={s.equipped.hat} size={130} /></div>
+            <div className="cos-live transition group-hover:-translate-y-1"><ChickenArt skin={s.equipped.chicken} hat={s.equipped.hat} size={130} /></div>
           </Link>
           <div className="flex gap-2">
             <Link to="/shop?tab=locker" className="btn-ghost px-4 py-2.5 text-sm"><ShoppingBag size={15} />My Locker</Link>
