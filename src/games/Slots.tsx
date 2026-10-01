@@ -448,7 +448,7 @@ function JackpotPlaque({ scene, amount }: { scene: SlotsScene | null; amount: nu
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current; if (!scene || !el) return;
-    scene.anchor(el, [0, 2.47, 0.95]);
+    scene.anchor(el, [0, 2.58, 0.95]);
     return () => scene.anchor(el, null);
   }, [scene]);
   return (
