@@ -78,7 +78,7 @@ export default function Keno() {
     const win = bet * mult;
     useStore.getState().settle('keno', bet, mult, `${catches} of ${picks.length} caught`);
     setResult({ catches, spots: picks.length, win, id: ++seq.current });
-    if (mult >= 10) { sfx.bigWin(); sc?.cheer(true); } else if (mult > 1) { sfx.win(); sc?.cheer(false); } else if (mult === 0) sfx.lose();
+    if (mult >= 10) { sc?.cheer(true); } else if (mult > 1) { sfx.win(); sc?.cheer(false); } else if (mult === 0) sfx.lose();
     busy.current = false; setDrawing(false);
     return true;
   }, [picks, bet]);

@@ -178,7 +178,7 @@ const SlotMachine = forwardRef<MachineHandle, {
       style={{ background: free ? 'radial-gradient(ellipse at 50% 40%, #6b0f22 0%, #2a0610 55%, #08030a 100%)' : 'radial-gradient(ellipse at 50% 38%, #4a0d18 0%, #1c0709 55%, #070405 100%)' }}>
       {/* slow light rays + floating sparkles behind the machine */}
       <div className="pointer-events-none absolute left-1/2 top-[42%] h-[180%] w-[180%] -translate-x-1/2 -translate-y-1/2 opacity-40"
-        style={{ background: 'repeating-conic-gradient(from 0deg, rgba(244,196,48,.22) 0deg 6deg, transparent 6deg 18deg)', animation: 'spin 60s linear infinite', maskImage: 'radial-gradient(circle, black 10%, transparent 55%)', WebkitMaskImage: 'radial-gradient(circle, black 10%, transparent 55%)' }} />
+        style={{ background: 'repeating-conic-gradient(from 0deg, rgba(244,196,48,.22) 0deg 6deg, transparent 6deg 18deg)', animation: 'winfx-spin 60s linear infinite', maskImage: 'radial-gradient(circle, black 10%, transparent 55%)', WebkitMaskImage: 'radial-gradient(circle, black 10%, transparent 55%)' }} />
       {Array.from({ length: 14 }, (_, i) => (
         <span key={i} className="pointer-events-none absolute h-1 w-1 rounded-full bg-gold/70 shadow-[0_0_8px_2px_rgba(244,196,48,.6)]"
           style={{ left: `${(i * 53) % 100}%`, bottom: '-4%', animation: `slot-float ${7 + (i % 5)}s ${i * 0.7}s linear infinite` }} />

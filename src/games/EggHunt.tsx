@@ -7,7 +7,6 @@ import { useStore } from '../store';
 import { shuffle } from '../lib/rng';
 import { sfx } from '../lib/sound';
 import { fmt, fmtMult } from '../lib/format';
-import { Coin } from '../components/Icons';
 
 const N = 25;
 const multFor = (mines: number, k: number) => {
@@ -146,14 +145,6 @@ export default function EggHunt() {
           <div className="animate-pop rounded-2xl border border-blood/60 bg-blood/20 px-6 py-3 text-center backdrop-blur">
             <div className="h-display text-4xl text-blood neon-red">FOX!</div>
             <div className="text-sm text-cream/85">It ate your eggs. Lost {fmt(stake)}.</div>
-          </div>
-        </div>
-      )}
-      {status === 'won' && (
-        <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center">
-          <div className="animate-pop rounded-2xl border border-gold/50 bg-ink/80 px-6 py-3 text-center backdrop-blur">
-            <div className="h-display text-4xl text-gold-grad">{fmtMult(cur)}</div>
-            <div className="flex items-center justify-center gap-1 text-sm font-bold"><Coin className="h-4 w-4" />+{fmt(stake * cur - stake)}</div>
           </div>
         </div>
       )}

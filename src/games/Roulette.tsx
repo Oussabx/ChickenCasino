@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import GameShell, { GameAction } from '../components/GameShell';
 import { ChipPicker, ChipRow } from '../components/ChipBets';
-import { useCountUp } from '../components/TableUI';
 import { confirmBet } from '../components/BetControls';
 import { toast, useStore } from '../store';
 import { sfx } from '../lib/sound';
@@ -139,11 +138,10 @@ export default function Roulette() {
   );
 }
 
-/** The winning number as a glowing pocket disc; wins count up underneath. */
+/** The winning number as a glowing pocket disc (the win itself is shown by WinFX). */
 function WinDisc({ n, payout, total, side }: { n: number; payout: number; total: number; side: boolean }) {
   const [docked, setDocked] = useState(false);
   useEffect(() => { const t = setTimeout(() => setDocked(true), 1800); return () => clearTimeout(t); }, []);
-  const shown = useCountUp(payout);
   const col = n === 0 ? 'from-[#15b863] to-[#0a6b39]' : REDS.has(n) ? 'from-[#e8313f] to-[#8e1320]' : 'from-[#3a3a3a] to-[#080808]';
   const win = payout > total;
   return (
@@ -154,7 +152,7 @@ function WinDisc({ n, payout, total, side }: { n: number; payout: number; total:
           <span className="font-display text-5xl font-black text-white drop-shadow-lg sm:text-6xl">{n}</span>
         </div>
         <div className={`mt-2 rounded-full border px-3 py-1 text-sm font-black backdrop-blur-md ${win ? 'border-gold/60 bg-black/70 text-gold' : payout > 0 ? 'border-white/20 bg-black/70 text-cream' : 'border-white/10 bg-black/60 text-smoke'}`}>
-          {payout > 0 ? <span className="font-display tabular">+{fmt(shown)}</span> : 'No win'}
+          {payout > 0 ? <span className="font-display tabular">{payout > total ? 'Winner!' : 'Bet back'}</span> : 'No win'}
         </div>
       </div>
     </div>

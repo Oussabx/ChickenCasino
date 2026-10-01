@@ -81,17 +81,20 @@ export const toast = (t: Omit<Toast, 'id'>) => useToasts.getState().push(t);
 
 /* ---------- UI (ephemeral) ---------- */
 export type AuthView = 'login' | 'signup' | 'forgot';
+/** One winning round, as shown by the shared win animation (WinFX). */
+export interface WinEvent { id: number; game: GameId; bet: number; payout: number; mult: number; detail?: string; at: number }
 interface UIState {
   auth: null | AuthView;
-  celebrate: null | { amount: number; mult: number };
+  win: WinEvent | null;
   openAuth: (m: AuthView | null) => void;
-  setCelebrate: (c: UIState['celebrate']) => void;
+  pushWin: (w: Omit<WinEvent, 'id' | 'at'>) => void;
 }
+let winSeq = 0;
 export const useUI = create<UIState>((set) => ({
   auth: null,
-  celebrate: null,
+  win: null,
   openAuth: (auth) => set({ auth }),
-  setCelebrate: (celebrate) => set({ celebrate }),
+  pushWin: (w) => set({ win: { ...w, id: ++winSeq, at: Date.now() } }),
 }));
 
 /* ---------- main persisted store ---------- */
@@ -236,9 +239,8 @@ export const useStore = create<State>()(
           get().grant('level', `Reached level ${lvl}`, 0, eggs);
           toast({ title: `Level up! You're now level ${lvl}`, desc: `+${eggs} golden eggs 🥚`, tone: 'gold' });
         }
-        if (multiplier >= 10 && payout >= 100 && s.settings.bigWinCelebration) {
-          useUI.getState().setCelebrate({ amount: payout, mult: multiplier });
-        }
+        // every winning round gets the same win animation, whatever the game
+        if (payout > bet) useUI.getState().pushWin({ game, bet, payout, mult: multiplier, detail });
         return payout;
       },
 
@@ -347,3 +349,6 @@ export const useLevel = () => {
   const level = levelFromXp(xp);
   return { xp, level, tier: tierForLevel(level) };
 };
+
+// dev builds only: lets tests fire the shared win animation directly
+if (import.meta.env.DEV) (globalThis as { __ui?: typeof useUI }).__ui = useUI;
