@@ -49,7 +49,7 @@ export default function MythicVault({ onOpen, go }: { onOpen: (it: ShopItem) => 
                 </button>
               ))}
             </div>
-            {go && <button type="button" onClick={go} className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-[#ff9fb2] hover:underline">Enter the vault <ArrowRight size={14} /></button>}
+            {go && <button type="button" onClick={go} className="mt-2 inline-flex items-center gap-1 py-2 text-sm font-bold text-[#ff9fb2] hover:underline">Enter the vault <ArrowRight size={14} /></button>}
           </div>
         </div>
       </div>

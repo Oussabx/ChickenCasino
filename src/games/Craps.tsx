@@ -201,7 +201,7 @@ export default function Craps() {
             <button key={k} type="button" onClick={() => add(k, chip)}
               className="relative rounded-lg border border-gold/25 bg-[#0b4a2e]/60 px-2 py-2 font-display text-xs font-black text-gold transition active:scale-95">
               {l}
-              {st.bets[k] ? <span className="absolute -right-1.5 -top-1.5 rounded-full bg-gold px-1.5 text-[9px] leading-4 text-ink tabular">{fmt(st.bets[k]!, 0)}</span> : null}
+              {st.bets[k] ? <span className="absolute -right-1.5 -top-1.5 rounded-full bg-gold px-1.5 text-[10px] leading-4 text-ink tabular">{fmt(st.bets[k]!, 0)}</span> : null}
             </button>
           ))}
         </div>
@@ -250,7 +250,7 @@ export default function Craps() {
       <div className="pointer-events-none absolute left-3 top-3 z-10 flex max-w-[62%] flex-wrap items-center gap-1">
         {rolls.map((r, i) => (
           <span key={r.id} className={`flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-display text-[11px] font-black shadow ${i === 0 ? 'animate-pop bg-gold text-ink' : r.d1 + r.d2 === 7 ? 'bg-blood/80 text-white opacity-80' : 'bg-black/60 text-cream opacity-80'}`}>
-            {r.d1 + r.d2}<span className="text-[9px] opacity-70">{r.d1}·{r.d2}</span>
+            {r.d1 + r.d2}<span className="text-[10px] opacity-70">{r.d1}·{r.d2}</span>
           </span>
         ))}
       </div>

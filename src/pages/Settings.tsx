@@ -1,3 +1,4 @@
+import { ask } from '../components/Confirm';
 import { ReactNode, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Volume2, Gamepad2, Eye, ShieldCheck, Database, User, KeyRound, AlertTriangle } from 'lucide-react';
@@ -39,15 +40,15 @@ export default function Settings() {
       {s.user && <Security />}
 
       <Section icon={<Volume2 size={18} />} title="Sound">
-        <Row label="Sound effects" desc="Clicks, clucks and big-win fanfares."><Toggle on={s.settings.sound} onChange={(v) => set({ sound: v })} /></Row>
+        <Row label="Sound effects" desc="Clicks, clucks and big-win fanfares."><Toggle label="Sound effects" on={s.settings.sound} onChange={(v) => set({ sound: v })} /></Row>
         <Row label="Volume">
           <input type="range" min={0} max={1} step={0.05} value={s.settings.volume} onChange={(e) => set({ volume: +e.target.value })} className="w-36 accent-[#F4C430]" aria-label="Volume" />
         </Row>
       </Section>
 
       <Section icon={<Gamepad2 size={18} />} title="Gameplay">
-        <Row label="Turbo mode" desc="Speed up animations in every game."><Toggle on={s.settings.turbo} onChange={(v) => set({ turbo: v })} /></Row>
-        <Row label="Big win celebration" desc="Coin shower on 10×+ wins."><Toggle on={s.settings.bigWinCelebration} onChange={(v) => set({ bigWinCelebration: v })} /></Row>
+        <Row label="Turbo mode" desc="Speed up animations in every game."><Toggle label="Turbo mode" on={s.settings.turbo} onChange={(v) => set({ turbo: v })} /></Row>
+        <Row label="Big win celebration" desc="Full-screen show for wins of 15× or more (otherwise a smaller banner)."><Toggle label="Big win celebration" on={s.settings.bigWinCelebration} onChange={(v) => set({ bigWinCelebration: v })} /></Row>
         <Row label="Default bet" desc="Pre-filled bet when you open a game.">
           <input type="number" min={0} className="input w-28 text-right" value={s.settings.defaultBet} onChange={(e) => set({ defaultBet: Math.max(0, +e.target.value || 0) })} aria-label="Default bet" />
         </Row>
@@ -62,8 +63,8 @@ export default function Settings() {
       </Section>
 
       <Section icon={<Eye size={18} />} title="Display">
-        <Row label="Hide balance" desc="Streamer mode — masks your balance in the header."><Toggle on={s.settings.hideBalance} onChange={(v) => set({ hideBalance: v })} /></Row>
-        <Row label="Reduce motion" desc="Minimise animations across the site."><Toggle on={s.settings.reduceMotion} onChange={(v) => set({ reduceMotion: v })} /></Row>
+        <Row label="Hide balance" desc="Streamer mode — masks your balance in the header."><Toggle label="Hide balance" on={s.settings.hideBalance} onChange={(v) => set({ hideBalance: v })} /></Row>
+        <Row label="Reduce motion" desc="Minimise animations across the site."><Toggle label="Reduce motion" on={s.settings.reduceMotion} onChange={(v) => set({ reduceMotion: v })} /></Row>
         <Row label="Visual effects" desc="Lite turns off blur and background effects and lowers 3D resolution, for smooth play on any device. Auto picks lite on phones and low-power laptops.">
           <div className="flex rounded-xl bg-ink-700 p-1 text-xs font-bold">
             {(['auto', 'full', 'lite'] as const).map((k) => (
@@ -86,7 +87,8 @@ export default function Settings() {
         <Row label="Take a break" desc={onBreak ? `On break until ${new Date(s.breakUntil).toLocaleString()}` : 'Pause all betting for a while. Cannot be undone early.'}>
           <select className="input w-32" disabled={onBreak} value="" onChange={(e) => {
             const h = +e.target.value; if (!h) return;
-            if (window.confirm(`Pause betting for ${h >= 24 ? `${h / 24} day(s)` : `${h} hours`}?`)) { s.takeBreak(h); toast({ title: 'Break started. See you soon 🐔', tone: 'neutral' }); }
+            ask({ title: 'Take a break?', body: `Betting will be paused for ${h >= 24 ? `${h / 24} day${h > 24 ? 's' : ''}` : `${h} hour${h === 1 ? '' : 's'}`}. You can still browse, but you won’t be able to place bets until it ends.`, confirm: 'Start break' })
+              .then((ok) => { if (ok) { s.takeBreak(h); toast({ title: 'Break started. See you soon 🐔', tone: 'neutral' }); } });
           }} aria-label="Take a break">
             <option value="">{onBreak ? 'Active' : 'Choose…'}</option><option value={1}>1 hour</option><option value={24}>24 hours</option><option value={168}>7 days</option>
           </select>
@@ -98,7 +100,7 @@ export default function Settings() {
         {s.user && (
           <Row label="Delete account" desc="Permanently removes this account, its balance, items and history from this device.">
             <button className="btn px-3 py-1.5 text-sm border border-blood/40 text-blood hover:bg-blood/10"
-              onClick={() => { if (window.confirm(`Delete the account "${s.user!.name}"? This cannot be undone.`)) { deleteAccount(); toast({ title: 'Account deleted', tone: 'red' }); nav('/'); } }}>Delete</button>
+              onClick={() => { ask({ title: 'Delete account?', body: `“${s.user!.name}” and all its coins, items, cards and history will be removed from this device. This can’t be undone.`, confirm: 'Delete account', danger: true }).then((ok) => { if (ok) { deleteAccount(); toast({ title: 'Account deleted', tone: 'red' }); nav('/'); } }); }}>Delete</button>
           </Row>
         )}
       </Section>

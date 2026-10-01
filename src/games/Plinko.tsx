@@ -218,7 +218,7 @@ export default function Plinko() {
 function Stat({ label, value, gold }: { label: string; value: string; gold?: boolean }) {
   return (
     <div className="rounded-lg bg-ink-900 px-1 py-1.5">
-      <div className="text-[9px] font-semibold uppercase tracking-wider text-smoke">{label}</div>
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-smoke">{label}</div>
       <div className={`font-display text-xs font-black tabular ${gold ? 'text-gold' : ''}`}>{value}</div>
     </div>
   );

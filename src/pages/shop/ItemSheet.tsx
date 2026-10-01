@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, Crown, Shirt, ShoppingBag } from 'lucide-react';
+import { Check, Crown, Plus, Shirt, ShoppingBag } from 'lucide-react';
 import Modal from '../../components/Modal';
 import { ChickenArt, ItemArt, TableArt } from '../../components/CosmeticArt';
 import { ShopItem, itemById } from '../../lib/data';
@@ -7,7 +7,7 @@ import { onSale } from '../../lib/shopLogic';
 import { dropEndsAt } from '../../lib/cosmetics';
 import { fmt } from '../../lib/format';
 import { sfx } from '../../lib/sound';
-import { toast, useLevel, useStore } from '../../store';
+import { toast, useLevel, useStore, useUI } from '../../store';
 import { Coin } from '../../components/Icons';
 import { ItemBadges, Price, RARITY_COLOR, SHOWS, UnlockBurst, fmtLeft, useItemState } from './common';
 
@@ -32,7 +32,6 @@ function Sheet({ it, onClose, onOpenItem }: { it: ShopItem; onClose: () => void;
   const { level } = useLevel();
   const [arming, setArming] = useState(false);
   const [justBought, setJustBought] = useState(false);
-  const [shake, setShake] = useState(false);
   const [now, setNow] = useState(Date.now());
   const col = RARITY_COLOR[it.rarity];
   const have = it.currency === 'eggs' ? eggs : balance;
@@ -42,7 +41,7 @@ function Sheet({ it, onClose, onOpenItem }: { it: ShopItem; onClose: () => void;
   useEffect(() => { if (!arming) return; const t = setTimeout(() => setArming(false), 3500); return () => clearTimeout(t); }, [arming]);
 
   const buy = () => {
-    if (short > 0) { setShake(true); sfx.lose(); setTimeout(() => setShake(false), 500); return; }
+    if (short > 0) { useUI.getState().openStore({ tab: it.currency === 'eggs' ? 'eggs' : 'coins' }); return; }
     if (!arming) { setArming(true); sfx.click(); return; }
     const err = useStore.getState().buy(it.id);
     setArming(false);
@@ -137,9 +136,9 @@ function Sheet({ it, onClose, onOpenItem }: { it: ShopItem; onClose: () => void;
           ) : !sale ? (
             <button className="btn-dark w-full py-3" disabled>Drop ended — check back next week</button>
           ) : (
-            <div className={shake ? 'animate-shake' : ''}>
-              <button className={`w-full py-3 text-base ${short > 0 ? 'btn-dark' : arming ? 'btn-red' : 'btn-gold'} ${arming ? 'shop-arm' : ''}`} onClick={buy}>
-                {short > 0 ? <>Need {fmt(short, 0)} more {it.currency === 'eggs' ? 'golden eggs' : 'coins'}</> : arming ? <>Tap again to confirm · <Price it={it} price={price} /></> : <>Buy · <Price it={it} price={price} /></>}
+            <div>
+              <button className={`w-full py-3 text-base ${short > 0 ? 'btn-ghost' : arming ? 'btn-red' : 'btn-gold'} ${arming ? 'shop-arm' : ''}`} onClick={buy}>
+                {short > 0 ? <><Plus size={16} />Need {fmt(short, 0)} more {it.currency === 'eggs' ? 'eggs' : 'coins'} · Top up</> : arming ? <>Tap again to confirm · <Price it={it} price={price} /></> : <>Buy · <Price it={it} price={price} /></>}
               </button>
               <div className="mt-2 text-center text-[11px] text-smoke">You have <Price it={it} price={have} className="text-cream" /></div>
             </div>

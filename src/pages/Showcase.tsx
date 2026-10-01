@@ -61,7 +61,7 @@ export default function Showcase() {
         }
         case 'poker': {
           const { TableScene } = await import('../games/three/table3d');
-          const s = new TableScene(el, { felt: 0x0f4d33, oval: { portrait: false }, logoZ: null }); dispose = () => s.dispose();
+          const s = new TableScene(el, { felt: 0x0f4d33, oval: { portrait: false }, logoZ: null, dealer: false }); dispose = () => s.dispose();
           s.setTurbo(true);
           const C = (r: number, suit: 'S' | 'H' | 'D' | 'C') => ({ r, s: suit });
           s.setView([0, 0, 0.3], 11.5, 7.6, [0, 1.6, 1], 1);
@@ -83,7 +83,7 @@ export default function Showcase() {
           const cfg = id === 'blackjack' ? (await import('../games/Blackjack')).TABLE
             : id === 'video-poker' ? (await import('../games/VideoPoker')).TABLE
             : (await import('../games/Baccarat')).tableFor(id === 'punto-banco');
-          const s = new TableScene(el, cfg); dispose = () => s.dispose();
+          const s = new TableScene(el, { ...cfg, dealer: false }); dispose = () => s.dispose(); // tight thumbnail framing: no croupier
           s.setTurbo(true);
           const C = (r: number, suit: 'S' | 'H' | 'D' | 'C') => ({ r, s: suit });
           s.setView([0, 0, -0.35], 7.4, 5.2, [0, 1.3, 1], 1);

@@ -244,7 +244,7 @@ function Flex({ onOpen }: { onOpen: (it: ShopItem) => void }) {
 
 function More({ onOpen }: { onOpen: (it: ShopItem) => void }) {
   const groups: [ItemKind, string, string?][] = [
-    ['bundle', 'Coin packs', 'Trade golden eggs — earned from level-ups, streaks, missions and promo codes — for coins.'],
+    ['bundle', 'Trade eggs for coins', 'Swap golden eggs — earned from level-ups, streaks and missions — for coins. Want more? Top up in the Wallet.'],
     ['avatar', 'Avatars'], ['frame', 'Avatar frames'], ['title', 'Titles'], ['ball', 'Plinko eggs'],
   ];
   return (

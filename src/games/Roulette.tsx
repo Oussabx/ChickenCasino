@@ -95,7 +95,7 @@ export default function Roulette() {
             <button key={k} type="button" aria-label={`Bet ${k}`} onClick={() => place(k)}
               className={`relative rounded-lg border px-2 py-2 font-display text-xs font-black transition active:scale-95 ${k === 'red' ? 'border-blood/50 bg-blood/20 text-white' : k === 'black' ? 'border-white/20 bg-black text-white' : 'border-gold/25 bg-[#0b4a2e]/60 text-gold'}`}>
               {l}
-              {bets[k] ? <span className="absolute -right-1.5 -top-1.5 animate-pop rounded-full bg-gold px-1.5 text-[9px] leading-4 text-ink tabular">{bets[k]}</span> : null}
+              {bets[k] ? <span className="absolute -right-1.5 -top-1.5 animate-pop rounded-full bg-gold px-1.5 text-[10px] leading-4 text-ink tabular">{bets[k]}</span> : null}
             </button>
           ))}
         </div>
@@ -122,7 +122,7 @@ export default function Roulette() {
       <div ref={hostRef} className="absolute inset-0" aria-label="Roulette wheel" />
       <div className="table-vignette pointer-events-none absolute inset-0" />
       <div className="pointer-events-none absolute left-3 top-3 z-10 flex max-w-[70%] flex-wrap items-center gap-1">
-        {history.length > 0 && <span className="mr-1 text-[9px] font-bold uppercase tracking-widest text-smoke">Last</span>}
+        {history.length > 0 && <span className="mr-1 text-[10px] font-bold uppercase tracking-widest text-smoke">Last</span>}
         {history.map((n, i) => (
           <span key={history.length - i} className={`grid h-6 min-w-[24px] place-items-center rounded-full px-1 font-display text-[11px] font-black text-white shadow ${i === 0 ? 'animate-pop ring-2 ring-gold' : 'opacity-75'} ${n === 0 ? 'bg-[#0e8f4a]' : REDS.has(n) ? 'bg-[#b3192a]' : 'bg-[#141414] ring-1 ring-white/20'}`}>{n}</span>
         ))}

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ChevronDown, Info, Shirt } from 'lucide-react';
+import { ChevronDown, Info, Shirt, Plus } from 'lucide-react';
 import Modal from '../../components/Modal';
 import { EggArt, ItemArt } from '../../components/CosmeticArt';
 import { EGGS, EggDef, Rarity } from '../../lib/cosmetics';
@@ -7,7 +7,7 @@ import { eggPool } from '../../lib/shopLogic';
 import { ShopItem, itemById } from '../../lib/data';
 import { fmt } from '../../lib/format';
 import { sfx } from '../../lib/sound';
-import { toast, useStore } from '../../store';
+import { toast, useStore, useUI } from '../../store';
 import { Coin } from '../../components/Icons';
 import { RARITY_COLOR, UnlockBurst } from './common';
 
@@ -43,10 +43,8 @@ function EggCard({ egg, onHatch, onOpen }: { egg: EggDef; onHatch: () => void; o
         <div className="shop-egg-idle"><EggArt egg={egg.id} size={104} /></div>
       </div>
       <div className="flex flex-1 flex-col p-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-2">
-          <div className="font-display text-lg font-black">{egg.name}</div>
-          <div className="flex items-center gap-1 font-display font-black text-gold"><Coin className="h-4 w-4" />{fmt(egg.price, 0)}</div>
-        </div>
+        <div className="font-display text-lg font-black leading-tight">{egg.name}</div>
+        <div className="flex items-center gap-1 font-display font-black text-gold"><Coin className="h-4 w-4" />{fmt(egg.price, 0)}</div>
         <p className="text-xs text-smoke">{egg.desc}</p>
         <div className="mt-3 min-h-[60px] space-y-1.5">
           {(Object.keys(egg.weights) as Rarity[]).map((r) => {
@@ -73,9 +71,13 @@ function EggCard({ egg, onHatch, onOpen }: { egg: EggDef; onHatch: () => void; o
           </div>
         )}
         <div className="flex-1" />
-        <button className="btn-gold mt-4 w-full py-2.5" disabled={empty || balance < egg.price} onClick={onHatch}>
-          {empty ? 'Collection complete' : balance < egg.price ? `Need ${fmt(egg.price - balance, 0)} more` : 'Hatch it'}
-        </button>
+        {!empty && balance < egg.price ? (
+          <button className="btn-ghost mt-4 w-full py-2.5 text-sm" onClick={() => useUI.getState().openStore({ tab: 'coins' })}>
+            <Plus size={15} />Need {fmt(egg.price - balance, 0)} more · Get coins
+          </button>
+        ) : (
+          <button className="btn-gold mt-4 w-full py-2.5" disabled={empty} onClick={onHatch}>{empty ? 'Collection complete' : 'Hatch it'}</button>
+        )}
       </div>
     </div>
   );

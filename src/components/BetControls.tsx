@@ -1,3 +1,4 @@
+import { ask, captureReplay } from './Confirm';
 import { useStore } from '../store';
 import { Coin } from './Icons';
 import { sfx } from '../lib/sound';
@@ -27,7 +28,7 @@ export default function BetControls({ value, onChange, disabled, label = 'Bet am
       </div>
       <div className="phone-hide mt-2 grid grid-cols-4 gap-1.5">
         {[10, 50, 100, 500].map((v) => (
-          <button key={v} type="button" disabled={disabled} onClick={() => set(v)} className={`rounded-lg border py-1 text-xs font-semibold transition ${value === v ? 'border-gold/60 text-gold bg-gold/10' : 'border-white/5 bg-ink-700 text-smoke hover:text-cream'}`}>{v}</button>
+          <button key={v} type="button" disabled={disabled} onClick={() => set(v)} className={`rounded-lg border py-1.5 text-xs font-semibold transition ${value === v ? 'border-gold/60 text-gold bg-gold/10' : 'border-white/5 bg-ink-700 text-smoke hover:text-cream'}`}>{v}</button>
         ))}
       </div>
     </div>
@@ -46,11 +47,20 @@ export function Seg<T extends string | number>({ options, value, onChange, disab
   );
 }
 
-/** Returns true if the bet should proceed (asks for confirmation above the user's threshold). */
+let approved: number | null = null;
+/**
+ * Returns true if the bet should proceed. Above the user's "Confirm large
+ * bets" threshold it opens the in-app confirm dialog and returns false; if the
+ * player confirms, the same click / key press is replayed and goes through.
+ */
 export function confirmBet(amount: number) {
   const t = useStore.getState().settings.confirmOver;
-  if (t > 0 && amount >= t) return window.confirm(`Confirm bet of ${amount.toLocaleString()} coins?`);
-  return true;
+  if (!(t > 0 && amount >= t)) return true;
+  if (approved === amount) { approved = null; return true; }
+  const replay = captureReplay();
+  ask({ title: 'Confirm large bet', body: `Place a bet of ${amount.toLocaleString()} coins? You asked to confirm bets of ${t.toLocaleString()} or more (Settings).`, confirm: 'Place bet' })
+    .then((ok) => { if (ok) { approved = amount; replay(); setTimeout(() => { approved = null; }, 1500); } });
+  return false;
 }
 
 /** Compact bet stepper for the pinned mobile action bar. */

@@ -1,7 +1,6 @@
-import { Link } from 'react-router-dom';
 import { Plus } from 'lucide-react';
-import { useStore } from '../store';
-import { fmt } from '../lib/format';
+import { useStore, useUI } from '../store';
+import { fmt, fmtCompact } from '../lib/format';
 import { Coin, Egg } from './Icons';
 import { useEffect, useRef, useState } from 'react';
 import { useCountUp } from '../lib/motion';
@@ -25,14 +24,14 @@ export default function Balance({ compact = false }: { compact?: boolean }) {
     <div className="flex items-center rounded-xl border border-white/10 bg-ink-900/80 pl-2.5 pr-1 py-1 gap-2">
       <Coin className="h-5 w-5 shrink-0" />
       <span className={`font-display font-bold tabular text-sm transition-all duration-300 ${flash === 'up' ? 'text-emerald-400 scale-110' : flash === 'down' ? 'text-blood' : ''} inline-block`}>
-        {hide ? '••••••' : fmt(shown)}
+        {hide ? '••••••' : <><span className="max-[419px]:hidden">{fmt(shown)}</span><span className="min-[420px]:hidden">{shown >= 1e5 ? fmtCompact(shown) : fmt(shown, 0)}</span></>}
       </span>
       {!compact && (
         <span className="hidden md:flex items-center gap-1 border-l border-white/10 pl-2 text-sm font-display font-bold">
           <Egg className="h-4 w-4" />{hide ? '••' : eggs}
         </span>
       )}
-      <Link to="/wallet" className="ml-1 grid h-7 w-7 place-items-center rounded-lg bg-gold text-ink hover:bg-gold-300" aria-label="Wallet"><Plus size={16} strokeWidth={3} /></Link>
+      <button type="button" onClick={() => useUI.getState().openStore({ tab: 'coins' })} className="ml-1 grid h-7 w-7 place-items-center rounded-lg bg-gold text-ink transition hover:bg-gold-300 active:scale-95" aria-label="Buy coins"><Plus size={16} strokeWidth={3} /></button>
     </div>
   );
 }

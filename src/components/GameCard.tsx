@@ -20,7 +20,7 @@ export default function GameCard({ g, size = 'md' }: { g: GameMeta; size?: 'md' 
         </div>
         <button
           onClick={(e) => { e.preventDefault(); toggle(g.id); }}
-          className={`absolute right-2.5 top-2.5 grid h-8 w-8 place-items-center rounded-full backdrop-blur transition [transform:translateZ(30px)] ${fav ? 'bg-gold text-ink' : 'bg-black/40 text-cream/80 opacity-100 lg:opacity-0 group-hover:opacity-100'}`}
+          className={`absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-full backdrop-blur transition [transform:translateZ(30px)] ${fav ? 'bg-gold text-ink' : 'bg-black/40 text-cream/80 opacity-100 lg:opacity-0 group-hover:opacity-100'}`}
           aria-label={fav ? 'Remove favourite' : 'Add favourite'}
         >
           <Star size={15} fill={fav ? 'currentColor' : 'none'} />

@@ -168,7 +168,7 @@ export default function Slots() {
       <BetControls value={bet} onChange={setBet} disabled={running} label="Total bet" />
       <div className="phone-hide flex items-center justify-between rounded-xl bg-ink-900 px-3 py-2 text-xs">
         <span className="text-smoke">20 lines × <b className="font-display text-cream tabular">{fmt(bet / LINES)}</b> per line</span>
-        <button type="button" onClick={() => setPayOpen(true)} className="flex items-center gap-1 font-bold text-gold hover:underline"><BookOpen size={13} />Paytable</button>
+        <button type="button" onClick={() => setPayOpen(true)} className="-my-2 flex items-center gap-1 py-2 font-bold text-gold hover:underline"><BookOpen size={13} />Paytable</button>
       </div>
       <div>
         <div className="label mb-1.5">Autoplay</div>
@@ -260,7 +260,7 @@ function Meter({ shown }: { shown: Shown }) {
       <div className={`font-display font-black tabular leading-none text-[clamp(16px,2.6vw,28px)] ${lit ? (shown.tone === 'free' ? 'text-blood' : 'text-gold-grad') : 'text-cream/35'}`}>
         {lit ? `WIN ${fmt(amt)}` : 'WIN 0.00'}
       </div>
-      <div className="mt-0.5 max-w-[70vw] truncate text-[clamp(9px,1.3vw,12px)] font-semibold text-cream/70">{shown.label || '\u00a0'}</div>
+      <div className="mt-0.5 max-w-[70vw] truncate text-[clamp(10px,1.3vw,12px)] font-semibold text-cream/70">{shown.label || '\u00a0'}</div>
     </div>
   );
 }
@@ -373,7 +373,7 @@ function Legend({ urls, lineBet, bet, lit, free, compact }: { urls: Record<strin
       </div>
       {/* symbol pays */}
       <div className="rounded-xl bg-white/[0.04] p-1.5">
-        <div className="mb-1 grid grid-cols-[28px_1fr_1fr_1fr] gap-1 px-0.5 text-center text-[9px] font-bold uppercase tracking-wider text-smoke">
+        <div className="mb-1 grid grid-cols-[28px_1fr_1fr_1fr] gap-1 px-0.5 text-center text-[10px] font-bold uppercase tracking-wider text-smoke">
           <span /><span>×3</span><span>×4</span><span>×5</span>
         </div>
         {PAY_ORDER.filter((s) => s !== 'wild').map((s) => (
@@ -382,7 +382,7 @@ function Legend({ urls, lineBet, bet, lit, free, compact }: { urls: Record<strin
             {LINE_PAYS[s]!.map((p, i) => <span key={i}>{money(p * lineBet)}</span>)}
           </div>
         ))}
-        <div className="mt-1 text-center text-[9px] text-smoke">Coins per line · left to right · 20 lines</div>
+        <div className="mt-1 text-center text-[10px] text-smoke">Coins per line · left to right · 20 lines</div>
       </div>
     </div>
   );
@@ -402,7 +402,7 @@ function SessionStats({ s, onReset, compact }: { s: Session; onReset: () => void
   const net = s.won - s.spent;
   const cell = (label: string, value: string, tone = 'text-cream') => (
     <div className="min-w-0 rounded-lg bg-black/40 px-1.5 py-1">
-      <div className="truncate text-[9px] font-bold uppercase tracking-wider text-smoke">{label}</div>
+      <div className="truncate text-[10px] font-bold uppercase tracking-wider text-smoke">{label}</div>
       <div className={`truncate font-display text-[13px] font-black tabular leading-tight ${tone}`}>{value}</div>
     </div>
   );

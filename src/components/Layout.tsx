@@ -1,20 +1,24 @@
 import { Outlet, useLocation } from 'react-router-dom';
-import { Suspense, useEffect, useRef } from 'react';
+import { Suspense, lazy, useEffect, useRef } from 'react';
 import Header from './Header';
 import MobileNav from './MobileNav';
 import Footer from './Footer';
 import Toaster from './Toaster';
 import AuthModal from './AuthModal';
+import { ConfirmHost } from './Confirm';
 import Ambient from './Ambient';
 import { toast, useStore, useUI } from '../store';
 import { migrateLegacyProfile } from '../lib/auth';
 import { useLite } from '../lib/perf';
+
+const StoreModal = lazy(() => import('./store/StoreModal'));
 
 export default function Layout() {
   const { pathname } = useLocation();
   const reduce = useStore((s) => s.settings.reduceMotion);
   const reminder = useStore((s) => s.settings.sessionReminder);
   const lite = useLite();
+  const storeOpen = useUI((s) => !!s.store);
   const start = useRef(Date.now());
 
   useEffect(() => { migrateLegacyProfile(); }, []);
@@ -44,6 +48,8 @@ export default function Layout() {
       <MobileNav />
       <Toaster />
       <AuthModal />
+      <ConfirmHost />
+      {storeOpen && <Suspense fallback={null}><StoreModal /></Suspense>}
     </div>
   );
 }

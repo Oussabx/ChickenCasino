@@ -56,6 +56,8 @@ export interface TableOpts {
   logoZ?: number | null;
   /** Oval poker table (long axis vertical when `portrait`) instead of the D-shaped table. */
   oval?: { portrait: boolean };
+  /** Chicken croupier behind the D table (on by default). */
+  dealer?: boolean;
   /** Camera framing: [centre z, width, height] for wide and narrow viewports. */
   view?: { wide?: [number, number, number]; narrow?: [number, number, number] };
 }
@@ -180,6 +182,37 @@ export class TableScene extends Stage3D {
     tray.add(box(MAT.gold, [3.84, 0.04, 0.05], [0, 0.09, 0.43]));
     [1, 5, 25, 100, 500, 1000].forEach((v, i) => { for (let k = 0; k < 6; k++) { const c = chipColor(v, k); const ch = makeChip(c.color, 0.23, c.stripe, c.glow); ch.rotation.x = Math.PI / 2; ch.position.set(-1.55 + i * 0.62, 0.2, -0.28 + k * 0.1); tray.add(ch); } });
     tray.position.set(0, 0.16, this.trayPos.z); this.scene.add(tray);
+
+    // the chicken croupier, behind the tray
+    if (this.opts.dealer !== false) this.addDealer(new THREE.Vector3(0, -0.42, -D - 0.95), 1.4);
+  }
+
+  /** A chicken croupier: vest, collar, bow tie, green visor and a dealing wing. */
+  private addDealer(at: THREE.Vector3, scale: number, lean = 0.12) {
+    const ch = makeChicken('#F8F6EF');
+    ch.root.scale.setScalar(scale);
+    ch.root.position.copy(at);
+    ch.root.rotation.y = -Math.PI / 2; // face the players (the model faces +x)
+    const vest = std(0x141416, { roughness: 0.55 });
+    ch.body.add(
+      box(vest, [0.97, 0.56, 0.87], [0.005, 0.62, 0]),           // waistcoat
+      box(std(0xf8f6ef, { roughness: 0.6 }), [0.04, 0.4, 0.26], [0.5, 0.74, 0]), // shirt front
+      box(MAT.gold, [0.03, 0.05, 0.05], [0.52, 0.7, 0]), box(MAT.gold, [0.03, 0.05, 0.05], [0.52, 0.58, 0]), // buttons
+      box(MAT.red, [0.1, 0.14, 0.36], [0.5, 1.02, 0]),           // bow tie
+      box(MAT.red, [0.12, 0.08, 0.08], [0.52, 1.02, 0]),
+      box(std(0x0e3b2a, { roughness: 0.6 }), [0.04, 0.12, 0.12], [0.5, 0.82, 0.3]), // name badge
+      box(MAT.gold, [0.045, 0.04, 0.1], [0.51, 0.84, 0.3]),
+    );
+    // dealing wing (the one on the shoe side) — swings out on every card
+    const arm = new THREE.Group();
+    arm.position.set(-0.05, 0.95, -0.45);
+    arm.add(box(std(0xf8f6ef, { roughness: 0.75 }), [0.5, 0.35, 0.12], [0, -0.2, 0]));
+    arm.add(box(vest, [0.3, 0.12, 0.14], [0.05, -0.02, 0]));
+    ch.body.add(arm);
+    this.dealerArm = arm;
+    ch.body.rotation.z = lean; // lean back a touch so the face reads from the overhead camera
+    this.scene.add(ch.root);
+    this.chicken = ch;
   }
 
   // ---------- oval poker table ----------
@@ -187,6 +220,8 @@ export class TableScene extends Stage3D {
   private chicken: ReturnType<typeof makeChicken> | null = null;
   private chickenLook = -Math.PI / 2;
   private chickenHop = 0;
+  private dealerArm: THREE.Group | null = null;
+  private armSwing = 0;
 
   /** Point on the table edge at arc-length fraction f (0 = bottom centre, then clockwise on screen), pushed `out` along the outward normal. */
   edge(f: number, out = 0) {
@@ -239,16 +274,7 @@ export class TableScene extends Stage3D {
 
     // the chicken dealer stands behind the top of the table
     const top5 = this.edge(0.5, 0.75);
-    const ch = makeChicken('#F8F6EF');
-    ch.root.scale.setScalar(1.35);
-    ch.root.position.copy(top5.p).setY(-0.55);
-    ch.root.rotation.y = -Math.PI / 2; // face the players (the model faces +x)
-    // bow tie + visor so it looks like a croupier
-    const tie = box(MAT.red, [0.1, 0.16, 0.34], [0.5, 1.02, 0]);
-    const visor = box(std(0x10b981, { roughness: 0.5 }), [0.4, 0.05, 0.62], [0.42, 1.72, 0]);
-    ch.body.add(tie, visor);
-    this.scene.add(ch.root);
-    this.chicken = ch;
+    if (this.opts.dealer !== false) this.addDealer(top5.p.clone().setY(-0.55), 1.35, 0.42);
 
     // shoe + discard next to the dealer
     const inward = top5.n.clone().negate();
@@ -313,6 +339,7 @@ export class TableScene extends Stage3D {
     const p = this.chicken.root.position;
     this.chickenLook = Math.atan2(-(z - p.z), x - p.x);
     this.chickenHop = 1;
+    this.armSwing = 1;
   }
 
   // ---------- felt artwork ----------
@@ -414,16 +441,18 @@ export class TableScene extends Stage3D {
     if (this.opts.oval) {
       const { L, R, portrait } = this.ov;
       // tight framing: the rail just fits, so the cards are as big as possible
-      if (portrait) this.frame(new THREE.Vector3(0, 0, 0.25), 2 * R + 0.9, 2 * (L + R) + 1.1, new THREE.Vector3(0, 3.6, 1), 1);
+      if (portrait) this.frame(new THREE.Vector3(0, 0, -0.15), 2 * R + 0.9, 2 * (L + R) + 1.9, new THREE.Vector3(0, 3.6, 1), 1);
       else {
         // squarer views look down more steeply so the table fills the height too
         const tilt = THREE.MathUtils.clamp(2.3 + (1.6 - this.aspect) * 5, 2.3, 5);
-        this.frame(new THREE.Vector3(0, 0, 0.3), 2 * (L + R) + 1.9, 2 * R + 1.5, new THREE.Vector3(0, tilt, 1), 1);
+        this.frame(new THREE.Vector3(0, 0, -0.25), 2 * (L + R) + 1.9, 2 * R + 2.6, new THREE.Vector3(0, tilt, 1), 1);
       }
       return;
     }
     const narrow = this.aspect < 1;
-    const v = narrow ? this.opts.view?.narrow ?? [-0.1, 8.4, 7.6] : this.opts.view?.wide ?? [-0.35, 11, 5.8];
+    const v0 = narrow ? this.opts.view?.narrow ?? [-0.1, 8.4, 7.6] : this.opts.view?.wide ?? [-0.35, 11, 5.8];
+    // headroom so the croupier's head and visor are in shot
+    const v = this.chicken ? [v0[0] - 1.2, v0[1], v0[2] + 2.4] : v0;
     this.frame(new THREE.Vector3(0, 0, v[0]), v[1], v[2], narrow ? new THREE.Vector3(0, 2.5, 1) : new THREE.Vector3(0, 1.45, 1), 1);
   }
 
@@ -793,6 +822,12 @@ export class TableScene extends Stage3D {
       this.chicken.body.position.y = Math.sin(t * 2.2) * 0.03 + Math.sin(this.chickenHop * Math.PI) * 0.18;
       this.chicken.body.rotation.x = Math.sin(t * 1.3) * 0.03;
       if (this.chickenHop === 0) this.chickenLook += (base - this.chickenLook) * Math.min(1, dt * 1.5);
+      if (this.dealerArm) {
+        this.armSwing = Math.max(0, this.armSwing - dt * 2.6);
+        const s = Math.sin(this.armSwing * Math.PI);
+        this.dealerArm.rotation.x = -s * 1.1;             // wing lifts out
+        this.dealerArm.rotation.z = s * 0.5 + Math.sin(t * 1.6) * 0.04;
+      }
     }
     // lamp flash on wins, gentle flicker otherwise
     this.flash = Math.max(0, this.flash - dt * 1.4);

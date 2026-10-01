@@ -44,7 +44,7 @@ export default function VipTrack({ onOpen, compact }: { onOpen: (it: ShopItem) =
                   {on ? <Crown size={18} style={{ color: t.color }} /> : <Lock size={14} className="text-smoke" />}
                 </div>
                 <div className="mt-1.5 w-16 text-center font-display text-[10px] leading-tight sm:w-auto sm:whitespace-nowrap font-black uppercase tracking-wider sm:text-xs" style={{ color: on ? t.color : '#8a8a8a' }}>{t.name}</div>
-                <div className="text-[10px] text-smoke">Lv {t.level}</div>
+                <div className="whitespace-nowrap text-[10px] text-smoke">Lv {t.level}</div>
               </div>
             );
           })}
@@ -64,13 +64,13 @@ export default function VipTrack({ onOpen, compact }: { onOpen: (it: ShopItem) =
                     const have = inv.includes(id);
                     return (
                       <div key={id} className="flex items-center gap-2">
-                        <button type="button" onClick={() => onOpen(it)} className={`grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-black/40 ring-1 ${on ? '' : 'opacity-50 grayscale'}`} style={{ ['--tw-ring-color' as string]: `${RARITY_COLOR[it.rarity]}66` }}>
+                        <button type="button" onClick={() => onOpen(it)} aria-label={`Look at ${it.name}`} className={`grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-black/40 ring-1 ${on ? '' : 'opacity-50 grayscale'}`} style={{ ['--tw-ring-color' as string]: `${RARITY_COLOR[it.rarity]}66` }}>
                           <ItemArt it={it} size={52} tryOn={false} />
                         </button>
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-xs font-bold">{it.name}</div>
                           {have ? <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-400"><Check size={11} />Claimed</span>
-                            : on ? <button className="btn-gold mt-0.5 px-2.5 py-1 text-[11px]" onClick={() => claim(id)}>Claim</button>
+                            : on ? <button className="btn-gold mt-0.5 min-h-[32px] px-3 py-1.5 text-xs" onClick={() => claim(id)}>Claim</button>
                             : <span className="text-[11px] text-smoke">Level {t.level}</span>}
                         </div>
                       </div>

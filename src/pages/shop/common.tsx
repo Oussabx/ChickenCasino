@@ -46,7 +46,7 @@ export function Badge({ tone, children }: { tone: 'new' | 'hot' | 'limited' | 'v
     new: 'bg-sky-400 text-ink', hot: 'bg-blood text-white', limited: 'bg-gradient-to-r from-[#ff7a1a] to-blood text-white',
     vip: 'bg-gradient-to-r from-[#fff1a8] to-gold text-ink', owned: 'bg-emerald-500 text-ink', equipped: 'bg-gold text-ink',
   };
-  return <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-display text-[9px] font-black uppercase tracking-wider shadow ${map[tone]}`}>{children}</span>;
+  return <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-display text-[10px] font-black uppercase tracking-wider shadow ${map[tone]}`}>{children}</span>;
 }
 
 export function ItemBadges({ it, owned, equipped }: { it: ShopItem; owned: boolean; equipped: boolean }) {

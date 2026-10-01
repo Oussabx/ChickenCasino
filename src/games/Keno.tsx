@@ -160,7 +160,7 @@ export default function Keno() {
                 : p ? 'border-gold/80 bg-gold/15 text-gold'
                 : d ? 'border-white/10 bg-white/[0.07] text-cream/40'
                 : 'border-white/10 bg-black/40 text-cream/90 hover:border-gold/50'}`}
-            style={{ fontSize: 'clamp(9px, 1.5vmin + 0.4vw, 18px)' }}>
+            style={{ fontSize: 'clamp(10px, 1.5vmin + 0.4vw, 18px)' }}>
             {d && !hit && <span className="absolute h-[62%] w-[46%] rounded-[50%/60%_60%_40%_40%] bg-cream/15" aria-hidden />}
             <span className="relative">{n}</span>
           </button>
