@@ -210,6 +210,8 @@ input[type='range'].range::-moz-range-track { height: 8px; background: transpare
 @keyframes cos-chip-pop { from { transform: translateY(14px) scale(.7); opacity: 0; } }
 .cos-chip-pop { animation: cos-chip-pop .45s cubic-bezier(.2,.9,.3,1.3) both; }
 @keyframes cos-card-l { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(-15deg) translateY(-2px); } }
+@keyframes cos-sheen { 0% { transform: skewX(-20deg) translateX(0); } 60%, 100% { transform: skewX(-20deg) translateX(320px); } }
+@keyframes cos-flicker { 0%, 100% { transform: scale(1, 1); } 30% { transform: scale(1.03, .94); } 60% { transform: scale(.97, 1.06); } }
 @keyframes cos-card-r { 0%, 100% { transform: rotate(10deg); } 50% { transform: rotate(13deg) translateY(-2px); } }
 /* Perf: SVG part animations repaint the drawing every frame (and even a paused
    one keeps a compositor layer), so shelf art is still and only comes alive on
@@ -221,6 +223,8 @@ input[type='range'].range::-moz-range-track { height: 8px; background: transpare
 .cos-live .cos-pulse { animation: cos-pulse 1.4s ease-in-out infinite; }
 .cos-live .cos-card-l { animation: cos-card-l 3s ease-in-out infinite; }
 .cos-live .cos-card-r { animation: cos-card-r 3s ease-in-out infinite; }
+.cos-live .cos-sheen { animation: cos-sheen 3.2s ease-in-out infinite; }
+.cos-live .cos-flicker { animation: cos-flicker .9s ease-in-out infinite; }
 @media (hover: hover) and (pointer: fine) {
   .shop-card:hover .cos-bob { animation: cos-bob 2.4s ease-in-out infinite; }
   .shop-card:hover .cos-wag { animation: cos-wag 1.6s ease-in-out infinite; }
@@ -229,6 +233,8 @@ input[type='range'].range::-moz-range-track { height: 8px; background: transpare
   .shop-card:hover .cos-pulse { animation: cos-pulse 1.4s ease-in-out infinite; }
   .shop-card:hover .cos-card-l { animation: cos-card-l 3s ease-in-out infinite; }
   .shop-card:hover .cos-card-r { animation: cos-card-r 3s ease-in-out infinite; }
+  .shop-card:hover .cos-sheen { animation: cos-sheen 3.2s ease-in-out infinite; }
+  .shop-card:hover .cos-flicker { animation: cos-flicker .9s ease-in-out infinite; }
 }
 /* big spinning light rays: keep them on their own compositor layer */
 .rays { will-change: transform; contain: strict; }
@@ -241,6 +247,27 @@ input[type='range'].range::-moz-range-track { height: 8px; background: transpare
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
 @media (hover: hover) and (pointer: fine) { .shop-legendary:hover::before { animation: shop-border 4s linear infinite; } }
 @property --a { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+/* mythic: molten rose-gold-violet border */
+.shop-mythic::before { content: ''; position: absolute; inset: -1px; border-radius: 1rem; padding: 2px; z-index: 2; pointer-events: none;
+  background: conic-gradient(from var(--a, 0deg), #ff4d6d, #ffb347, #fff1a8, #c084fc, #22d3ee, #ff4d6d);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+.shop-mythic { box-shadow: 0 0 0 1px rgba(255,77,109,.4), 0 14px 40px -18px rgba(255,77,109,.7); }
+@media (hover: hover) and (pointer: fine) { .shop-mythic:hover::before { animation: shop-border 2.5s linear infinite; } }
+.shop-mythic-frame { position: relative; }
+.shop-mythic-frame::before { content: ''; position: absolute; left: 50%; top: 50%; width: 200%; aspect-ratio: 1; z-index: -1; transform: translate(-50%, -50%);
+  background: conic-gradient(#ff4d6d, #ffb347, #fff1a8, #c084fc, #22d3ee, #ff4d6d); animation: mythic-spin 6s linear infinite; will-change: transform; }
+@keyframes mythic-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+.perf-lite .shop-mythic-frame::before { animation: none; }
+.name-fire { background: linear-gradient(90deg, #ff3d00, #ffb347, #fff1a8, #ffb347, #ff3d00); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: name-flow 2.4s linear infinite; filter: drop-shadow(0 0 8px rgba(255,90,31,.45)); }
+.name-rainbow { background: linear-gradient(90deg, #f87171, #fb923c, #facc15, #4ade80, #38bdf8, #a78bfa, #f472b6, #f87171); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: name-flow 4s linear infinite; }
+.name-ice { background: linear-gradient(180deg, #ffffff, #a5f3fc 55%, #38bdf8); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 8px rgba(125,211,252,.5)); }
+@keyframes name-flow { to { background-position: -200% 0; } }
+.perf-lite .name-fire, .perf-lite .name-rainbow { animation: none; }
+.text-mythic-grad { background: linear-gradient(100deg, #ff4d6d, #ffb347 40%, #fff1a8 55%, #c084fc 80%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.btn-mythic { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; border-radius: .9rem; font-weight: 800; color: #1a0508;
+  background: linear-gradient(100deg, #ff4d6d, #ffb347 50%, #fff1a8); box-shadow: 0 10px 30px -10px rgba(255,77,109,.8); transition: transform .2s, filter .2s; }
+.btn-mythic:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.btn-mythic:active { transform: scale(.98); }
 @keyframes shop-border { to { --a: 360deg; } }
 .shop-shine { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.14) 45%, transparent 60%); transform: translateX(-120%); transition: transform .8s ease; }
 .group:hover .shop-shine { transform: translateX(120%); }

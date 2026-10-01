@@ -6,7 +6,7 @@ import { Coin, Egg } from '../../components/Icons';
 import { useStore } from '../../store';
 import { setPrice, vipTierOf } from '../../lib/shopLogic';
 
-export const RARITY_COLOR: Record<ShopItem['rarity'], string> = { common: '#A3A3A3', rare: '#38BDF8', epic: '#C084FC', legendary: '#F4C430' };
+export const RARITY_COLOR: Record<ShopItem['rarity'], string> = { common: '#A3A3A3', rare: '#38BDF8', epic: '#C084FC', legendary: '#F4C430', mythic: '#FF4D6D' };
 
 /** Where a cosmetic shows up, for the item sheet. */
 export const SHOWS: Partial<Record<ShopItem['kind'], string>> = {

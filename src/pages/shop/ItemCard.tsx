@@ -12,7 +12,7 @@ export default function ItemCard({ it, onOpen, compact }: { it: ShopItem; onOpen
   const gone = it.limited && !onSale(it) && !owned;
   return (
     <button type="button" onClick={() => onOpen(it)}
-      className={`shop-card group relative flex h-full w-full flex-col overflow-hidden rounded-2xl text-left transition duration-300 hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold ${legendary ? 'shop-legendary' : ''}`}
+      className={`shop-card group relative flex h-full w-full flex-col overflow-hidden rounded-2xl text-left transition duration-300 hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold ${legendary ? 'shop-legendary' : it.rarity === 'mythic' ? 'shop-mythic' : ''}`}
       style={{ '--rc': col } as React.CSSProperties}>
       <div className="relative grid place-items-center overflow-hidden" style={{ aspectRatio: compact ? '1 / .92' : '1 / 1', background: `radial-gradient(circle at 50% 60%, ${col}33, transparent 62%), linear-gradient(180deg,#1b1b22,#121216)` }}>
         <span className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/50 to-transparent" />

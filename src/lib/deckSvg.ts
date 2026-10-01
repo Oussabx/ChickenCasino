@@ -57,6 +57,27 @@ function pattern(d: DeckTheme): { defs: string; body: string } {
         defs: `<pattern id="p" width="58" height="58" patternUnits="userSpaceOnUse"><g fill="none" stroke="${a}" stroke-width="3"><circle cx="29" cy="29" r="16"/><path d="M20 33 Q29 42 38 33"/></g><circle cx="23" cy="25" r="2.5" fill="${a}"/><circle cx="35" cy="25" r="2.5" fill="${a}"/></pattern>`,
         body: '<rect width="500" height="700" fill="url(#p)"/>',
       };
+    case 'galaxy': {
+      // nebula clouds + a fixed starfield (seeded, so every render matches)
+      let s = 11; const r = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+      let stars = '';
+      for (let i = 0; i < 140; i++) stars += `<circle cx="${(r() * 500).toFixed(1)}" cy="${(r() * 700).toFixed(1)}" r="${(r() * 2.2 + 0.4).toFixed(2)}" fill="${a}" opacity="${(r() * 0.7 + 0.3).toFixed(2)}"/>`;
+      return {
+        defs: `<radialGradient id="n1" cx="30%" cy="28%" r="45%"><stop offset="0" stop-color="#f472b6" stop-opacity=".55"/><stop offset="1" stop-color="#f472b6" stop-opacity="0"/></radialGradient><radialGradient id="n2" cx="72%" cy="74%" r="50%"><stop offset="0" stop-color="#38bdf8" stop-opacity=".45"/><stop offset="1" stop-color="#38bdf8" stop-opacity="0"/></radialGradient>`,
+        body: `<rect width="500" height="700" fill="url(#n1)"/><rect width="500" height="700" fill="url(#n2)"/>${stars}`,
+      };
+    }
+    case 'holo':
+      return {
+        defs: `<linearGradient id="h" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a5f3fc"/><stop offset=".25" stop-color="#c7d2fe"/><stop offset=".5" stop-color="#f0abfc"/><stop offset=".75" stop-color="#fde68a"/><stop offset="1" stop-color="#bbf7d0"/></linearGradient><pattern id="p" width="40" height="40" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="14" height="40" fill="${a}"/></pattern>`,
+        body: '<rect width="500" height="700" fill="url(#h)" opacity=".85"/><rect width="500" height="700" fill="url(#p)"/>',
+      };
+    case 'flames': {
+      let f = '';
+      for (let i = 0; i < 9; i++) { const x = i * 62 - 10; f += `<path d="M${x} 700 Q${x + 10} 560 ${x + 34} 470 Q${x + 40} 560 ${x + 62} 520 Q${x + 58} 620 ${x + 70} 700Z" fill="${a}"/>`; }
+      for (let i = 0; i < 9; i++) { const x = i * 62 + 20; f += `<path d="M${x} 0 Q${x + 10} 120 ${x + 30} 190 Q${x + 36} 120 ${x + 56} 150 Q${x + 50} 70 ${x + 62} 0Z" fill="${a}" opacity=".55"/>`; }
+      return { defs: '', body: f };
+    }
     case 'sunburst': {
       let rays = '';
       for (let i = 0; i < 36; i++) { const a0 = (i / 36) * Math.PI * 2, a1 = a0 + Math.PI / 54; rays += `<path d="M250 350 L${250 + Math.cos(a0) * 700} ${350 + Math.sin(a0) * 700} L${250 + Math.cos(a1) * 700} ${350 + Math.sin(a1) * 700}Z" fill="${a}"/>`; }
@@ -82,6 +103,12 @@ function emblem(d: DeckTheme) {
       return `<path d="M268 270 L200 366 L246 366 L228 434 L302 330 L256 330Z" fill="${f}" stroke="#FF2BD6" stroke-width="6" stroke-linejoin="round"/>`;
     case 'laugh':
       return `<circle cx="250" cy="350" r="78" fill="#FACC15" stroke="#111" stroke-width="5"/><path d="M212 330 q12 -14 24 0 M264 330 q12 -14 24 0" fill="none" stroke="#111" stroke-width="7" stroke-linecap="round"/><path d="M204 362 Q250 420 296 362Z" fill="#111"/><path d="M216 372 Q250 404 284 372Z" fill="#E63946"/>`;
+    case 'star':
+      return `<path d="M250 262 L274 326 L342 330 L289 372 L307 438 L250 400 L193 438 L211 372 L158 330 L226 326Z" fill="${f}" stroke="#f472b6" stroke-width="6" stroke-linejoin="round"/><circle cx="250" cy="356" r="16" fill="#f472b6"/>`;
+    case 'diamond':
+      return `<path d="M190 316 L218 280 H282 L310 316 L250 432Z" fill="#e0f2fe" stroke="#6366f1" stroke-width="6" stroke-linejoin="round"/><path d="M190 316 H310 M218 280 L236 316 L250 432 L264 316 L282 280" fill="none" stroke="#6366f1" stroke-width="4"/>`;
+    case 'phoenix':
+      return `<path d="M250 440 C214 412 196 372 210 330 C220 352 234 360 240 362 C226 324 236 290 262 266 C258 300 276 316 290 330 C300 310 302 296 300 282 C330 320 330 400 250 440Z" fill="#ffb347" stroke="#7c1d06" stroke-width="5" stroke-linejoin="round"/><path d="M250 420 C232 404 228 380 238 362 C250 380 262 384 266 372 C276 392 270 410 250 420Z" fill="#fff1a8"/>`;
     case 'coin':
       return `<circle cx="250" cy="350" r="80" fill="#F4C430" stroke="#7a4f00" stroke-width="6"/><circle cx="250" cy="350" r="58" fill="none" stroke="#a86b00" stroke-width="5" stroke-dasharray="8 8"/><text x="250" y="378" text-anchor="middle" font-family="Montserrat, Arial" font-weight="900" font-size="84" fill="#7a4f00">C</text>`;
   }

@@ -1,6 +1,6 @@
 import { ReactNode, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowRight, ChevronLeft, ChevronRight, Crown, Egg as EggIcon, Flame, Gem, Layers, Package, Shirt, Sparkles, Star } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, Crown, Egg as EggIcon, Flame, Gem, Layers, Package, Shirt, Sparkles, Star, Zap } from 'lucide-react';
 import { useStore } from '../store';
 import { ItemKind, SHOP, ShopItem } from '../lib/data';
 import { fmt } from '../lib/format';
@@ -14,30 +14,33 @@ import ItemSheet from './shop/ItemSheet';
 import HotDrop from './shop/HotDrop';
 import EggShop from './shop/EggShop';
 import VipTrack from './shop/VipTrack';
+import MythicVault from './shop/MythicVault';
 import Locker from './shop/Locker';
 
-type Tab = 'featured' | 'chicken' | 'hat' | 'table' | 'chips' | 'deck' | 'set' | 'eggs' | 'vip' | 'locker' | 'more';
+type Tab = 'featured' | 'mythic' | 'chicken' | 'hat' | 'table' | 'chips' | 'deck' | 'set' | 'eggs' | 'flex' | 'vip' | 'locker' | 'more';
 const TABS: { k: Tab; label: string; icon?: ReactNode }[] = [
   { k: 'featured', label: 'Featured', icon: <Flame size={14} /> },
+  { k: 'mythic', label: 'Mythic', icon: <Gem size={14} /> },
   { k: 'chicken', label: 'Chickens' },
   { k: 'hat', label: 'Hats' },
   { k: 'table', label: 'Tables' },
   { k: 'chips', label: 'Chips' },
   { k: 'deck', label: 'Cards' },
+  { k: 'flex', label: 'Win FX', icon: <Zap size={14} /> },
   { k: 'set', label: 'Bundles', icon: <Package size={14} /> },
   { k: 'eggs', label: 'Egg Shop', icon: <EggIcon size={14} /> },
   { k: 'vip', label: 'VIP', icon: <Crown size={14} /> },
   { k: 'locker', label: 'My Locker', icon: <Shirt size={14} /> },
   { k: 'more', label: 'More' },
 ];
-const ORDER: Record<ShopItem['rarity'], number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
+const ORDER: Record<ShopItem['rarity'], number> = { common: 0, rare: 1, epic: 2, legendary: 3, mythic: 4 };
 
 export default function Shop() {
   const [params, setParams] = useSearchParams();
   const tab = (TABS.find((t) => t.k === params.get('tab'))?.k ?? 'featured') as Tab;
   const setTab = (k: Tab) => { setParams(k === 'featured' ? {} : { tab: k }, { replace: true }); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   const [open, setOpen] = useState<ShopItem | null>(null);
-  const toShop = (k: ItemKind) => setTab(k === 'fx' || k === 'name' ? 'vip' : (['chicken', 'hat', 'table', 'chips', 'deck'].includes(k) ? k : 'more') as Tab);
+  const toShop = (k: ItemKind) => setTab(k === 'fx' || k === 'name' ? 'flex' : (['chicken', 'hat', 'table', 'chips', 'deck'].includes(k) ? k : 'more') as Tab);
 
   return (
     <div className="mx-auto max-w-7xl space-y-5 px-4 pt-6 lg:px-6">
@@ -58,6 +61,8 @@ export default function Shop() {
         {tab === 'featured' && <Featured onOpen={setOpen} go={setTab} />}
         {(['chicken', 'hat', 'table', 'chips', 'deck'] as Tab[]).includes(tab) && <Category kind={tab as ItemKind} onOpen={setOpen} />}
         {tab === 'set' && <Grid items={SHOP.filter((i) => i.kind === 'set')} onOpen={setOpen} wide />}
+        {tab === 'mythic' && <MythicTab onOpen={setOpen} />}
+        {tab === 'flex' && <Flex onOpen={setOpen} />}
         {tab === 'eggs' && <EggShop onOpen={setOpen} />}
         {tab === 'vip' && <VipTrack onOpen={setOpen} />}
         {tab === 'locker' && <Locker onShop={toShop} />}
@@ -102,6 +107,7 @@ function Featured({ onOpen, go }: { onOpen: (it: ShopItem) => void; go: (t: Tab)
   return (
     <>
       <HotDrop onOpen={onOpen} />
+      <MythicVault onOpen={onOpen} go={() => go('mythic')} />
       <Shelf title="Best sellers" icon={<Star size={18} className="text-gold" />} items={best} onOpen={onOpen} />
       <Shelf title="New arrivals" icon={<Sparkles size={18} className="text-sky-300" />} items={fresh} onOpen={onOpen} />
       <section className="own-layer cv-auto">
@@ -191,10 +197,48 @@ function EggTeaser({ go }: { go: () => void }) {
       <h3 className="h-display mt-1 text-3xl text-gold-grad">Hatch a surprise</h3>
       <p className="mt-1 text-sm text-cream/70">Cosmetics only, never a duplicate, odds shown up front.</p>
       <div className="mt-4 flex items-end justify-between">
-        {EGGS.map((e, i) => <div key={e.id} className="shop-egg-idle transition group-hover:-translate-y-1" style={{ animationDelay: `${i * 0.3}s` }}><EggArt egg={e.id} size={56 + i * 8} /></div>)}
+        {EGGS.map((e, i) => <div key={e.id} className="shop-egg-idle transition group-hover:-translate-y-1" style={{ animationDelay: `${i * 0.3}s` }}><EggArt egg={e.id} size={44 + i * 8} /></div>)}
       </div>
       <span className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-gold">Open the Egg Shop <ArrowRight size={14} className="transition group-hover:translate-x-1" /></span>
     </button>
+  );
+}
+
+function MythicTab({ onOpen }: { onOpen: (it: ShopItem) => void }) {
+  const items = SHOP.filter((i) => i.rarity === 'mythic' && i.kind !== 'set').sort((a, b) => b.price - a.price);
+  return (
+    <>
+      <MythicVault onOpen={onOpen} />
+      <section>
+        <h2 className="mb-1 font-display text-xl font-extrabold sm:text-2xl"><span className="text-mythic-grad">Every mythic</span></h2>
+        <p className="mb-3 text-sm text-smoke">The rarest cosmetics in the coop. Buy them outright, or try your luck with a Mythic Egg.</p>
+        <Grid items={items} onOpen={onOpen} />
+      </section>
+      <section>
+        <h2 className="mb-3 font-display text-xl font-extrabold sm:text-2xl">Mythic bundles</h2>
+        <Grid items={SHOP.filter((i) => i.kind === 'set' && i.rarity === 'mythic')} onOpen={onOpen} wide />
+      </section>
+    </>
+  );
+}
+
+/** Win shows and name styles: how everyone else sees you win. */
+function Flex({ onOpen }: { onOpen: (it: ShopItem) => void }) {
+  const fx = SHOP.filter((i) => i.kind === 'fx' && !i.vip && i.price > 0).sort((a, b) => ORDER[a.rarity] - ORDER[b.rarity] || a.price - b.price);
+  const names = SHOP.filter((i) => i.kind === 'name' && !i.vip && i.price > 0).sort((a, b) => ORDER[a.rarity] - ORDER[b.rarity] || a.price - b.price);
+  return (
+    <>
+      <section>
+        <h2 className="mb-1 font-display text-xl font-extrabold sm:text-2xl">Win shows</h2>
+        <p className="mb-3 text-sm text-smoke">Replace the big-win celebration in every game. Tap one to see it.</p>
+        <Grid items={fx} onOpen={onOpen} />
+      </section>
+      <section>
+        <h2 className="mb-1 font-display text-xl font-extrabold sm:text-2xl">Name styles</h2>
+        <p className="mb-3 text-sm text-smoke">How your name looks in the header, your profile and your locker.</p>
+        <Grid items={names} onOpen={onOpen} />
+      </section>
+    </>
   );
 }
 

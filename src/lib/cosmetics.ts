@@ -5,8 +5,8 @@
  */
 
 // ---------------- chickens ----------------
-export type Outfit = 'none' | 'suit' | 'tux' | 'cowboy' | 'space' | 'robe' | 'armor' | 'cyber' | 'bones' | 'pirate' | 'zombie' | 'lava' | 'frost' | 'ninja' | 'disco';
-export type Eyes = 'shades' | 'eye' | 'visor' | 'skull' | 'patch' | 'mask' | 'stars';
+export type Outfit = 'none' | 'suit' | 'tux' | 'cowboy' | 'space' | 'robe' | 'armor' | 'cyber' | 'bones' | 'pirate' | 'zombie' | 'lava' | 'frost' | 'ninja' | 'disco' | 'phoenix';
+export type Eyes = 'shades' | 'eye' | 'visor' | 'skull' | 'patch' | 'mask' | 'stars' | 'glow';
 export interface ChickenStyle {
   body: [string, string];   // gradient light → dark
   belly: string;
@@ -20,6 +20,7 @@ export interface ChickenStyle {
   sparkle?: string;         // twinkling stars
   glow?: string;            // aura
   facets?: boolean;         // diamond cut
+  skin?: 'galaxy' | 'holo' | 'chrome'; // mythic body finishes
 }
 const base = { belly: '#ffffff', comb: '#E63946', beak: '#F6A623', legs: '#F6A623', eyes: 'shades' as Eyes, outfit: 'none' as Outfit };
 export const CHICKENS: Record<string, ChickenStyle> = {
@@ -42,14 +43,21 @@ export const CHICKENS: Record<string, ChickenStyle> = {
   'ch-lava': { ...base, body: ['#3b1d16', '#130705'], belly: '#2a120c', wing: '#22100b', comb: '#ff7a1a', beak: '#ffb347', legs: '#ff7a1a', eyes: 'visor', outfit: 'lava', accent: '#ff7a1a', glow: 'rgba(255,122,26,.55)' },
   'ch-frost': { ...base, body: ['#ffffff', '#b9e3f5'], belly: '#ecf9ff', wing: '#a8d8ef', comb: '#7dd3fc', beak: '#c7ecff', legs: '#9cc9e0', eyes: 'eye', outfit: 'frost', sparkle: '#ffffff', glow: 'rgba(125,211,252,.5)' },
   'ch-ninja': { ...base, body: ['#2b2b30', '#0e0e12'], belly: '#1d1d22', wing: '#18181c', comb: '#b3192a', eyes: 'mask', outfit: 'ninja', accent: '#e63946' },
+  // mythic
+  'ch-phoenix': { ...base, body: ['#ffe07a', '#e2361b'], belly: '#ffd27a', wing: '#ff7a1a', comb: '#ffd84d', beak: '#ffe9a8', legs: '#ff9f43', eyes: 'glow', outfit: 'phoenix', accent: '#ffd84d', sparkle: '#ffcf5a', glow: 'rgba(255,110,30,.75)' },
+  'ch-galaxy': { ...base, body: ['#6d28d9', '#0b0a2a'], belly: '#4c1d95', wing: '#312e81', comb: '#f472b6', beak: '#c4b5fd', legs: '#a78bfa', eyes: 'eye', outfit: 'none', sparkle: '#ffffff', glow: 'rgba(167,139,250,.7)', skin: 'galaxy' },
+  'ch-holo': { ...base, body: ['#a5f3fc', '#f0abfc'], belly: '#ffffff', wing: '#c7d2fe', comb: '#f472b6', beak: '#fde68a', legs: '#c4b5fd', sparkle: '#ffffff', glow: 'rgba(240,171,252,.6)', skin: 'holo' },
+  'ch-24k': { ...base, body: ['#fff6c8', '#8a5a00'], belly: '#ffe9a0', wing: '#d4a017', comb: '#ffd84d', beak: '#fff1a8', legs: '#d4a017', sparkle: '#ffffff', glow: 'rgba(255,200,40,.7)', skin: 'chrome' },
+  'ch-shadow': { ...base, body: ['#2a2238', '#050308'], belly: '#16111f', wing: '#120d1a', comb: '#4c0519', beak: '#3f3f46', legs: '#3f3f46', eyes: 'glow', outfit: 'none', accent: '#ff1f3d', glow: 'rgba(124,58,237,.75)' },
   // VIP
   'ch-vip': { ...base, body: ['#ffffff', '#a7adbb'], belly: '#f4f6fa', wing: '#c2c7d2', comb: '#e5e7eb', beak: '#f4c430', legs: '#cfd3dc', outfit: 'tux', accent: '#F4C430', sparkle: '#ffffff', glow: 'rgba(226,232,240,.6)' },
 };
 
-export type HatKind = 'none' | 'tophat' | 'crown' | 'cowboy' | 'chef' | 'viking' | 'santa' | 'headphones' | 'sombrero' | 'gradcap' | 'chain';
+export type HatKind = 'none' | 'tophat' | 'crown' | 'cowboy' | 'chef' | 'viking' | 'santa' | 'headphones' | 'sombrero' | 'gradcap' | 'chain' | 'halo' | 'horns' | 'diamondcrown' | 'wizard' | 'pharaoh';
 export const HATS: Record<string, HatKind> = {
   'hat-none': 'none', 'hat-top': 'tophat', 'hat-crown': 'crown', 'hat-cowboy': 'cowboy', 'hat-chef': 'chef', 'hat-viking': 'viking',
   'hat-santa': 'santa', 'hat-headphones': 'headphones', 'hat-sombrero': 'sombrero', 'hat-grad': 'gradcap', 'hat-chain': 'chain',
+  'hat-halo': 'halo', 'hat-horns': 'horns', 'hat-diamondcrown': 'diamondcrown', 'hat-wizard': 'wizard', 'hat-pharaoh': 'pharaoh',
 };
 
 // ---------------- tables ----------------
@@ -71,6 +79,9 @@ export const TABLES: Record<string, TableTheme> = {
   'tb-diamond': { felt: 0x1c5f7a, edge: 0x0a2a38, rail: 0xdfe8ef, trim: 0xbfefff, ink: '#E9FBFF', pattern: 'sparkle', glow: 0x6ee7ff },
   'tb-blackgold': { felt: 0x111111, edge: 0x000000, rail: 0x0b0b0b, trim: 0xf4c430, ink: '#F4C430', pattern: 'damask' },
   'tb-cyber': { felt: 0x1b1340, edge: 0x07051a, rail: 0x111827, trim: 0x22d3ee, ink: '#F0ABFC', glow: 0x22d3ee, pattern: 'grid' },
+  'tb-galaxy': { felt: 0x1e1048, edge: 0x07041a, rail: 0x0b0820, trim: 0xf472b6, ink: '#E9D5FF', glow: 0xa78bfa, pattern: 'stars' },
+  'tb-inferno': { felt: 0x3a0a05, edge: 0x120201, rail: 0x0d0605, trim: 0xff7a1a, ink: '#FFB347', glow: 0xff5a1f, pattern: 'sparkle' },
+  'tb-billionaire': { felt: 0x064e3b, edge: 0x022c22, rail: 0xf5ecd0, trim: 0xf4c430, ink: '#FFE27A', glow: 0xffd84d, pattern: 'damask' },
   'tb-vip': { felt: 0x2d3340, edge: 0x11141b, rail: 0xc9ced8, trim: 0xf4c430, ink: '#F4C430', pattern: 'stars' },
 };
 
@@ -87,6 +98,9 @@ export const CHIPSETS: Record<string, ChipTheme> = {
   'cp-blackgold': { colors: ['#2a2a2a', '#1e1e1e', '#151515', '#0f0f0f', '#0a0a0a', '#000000'], stripe: '#F4C430', text: '#F4C430' },
   'cp-money': { colors: ['#d1fae5', '#86efac', '#4ade80', '#16a34a', '#15803d', '#14532d'], stripe: '#fefce8', text: '#052e16' },
   'cp-rainbow': { colors: ['#f87171', '#fb923c', '#facc15', '#4ade80', '#38bdf8', '#a78bfa'], stripe: '#ffffff', text: '#0b0b0b', rainbow: true },
+  'cp-galaxy': { colors: ['#e9d5ff', '#c084fc', '#a855f7', '#7c3aed', '#4c1d95', '#1e1b4b'], stripe: '#f472b6', text: '#ffffff', glow: true },
+  'cp-ruby': { colors: ['#ffe4e6', '#fda4af', '#fb7185', '#e11d48', '#9f1239', '#4c0519'], stripe: '#fff1a8', text: '#ffffff', glow: true },
+  'cp-holo': { colors: ['#a5f3fc', '#c7d2fe', '#f0abfc', '#fde68a', '#bbf7d0', '#fbcfe8'], stripe: '#ffffff', text: '#1e1b4b', glow: true, rainbow: true },
   'cp-vip': { colors: ['#f4f6fa', '#d7dbe3', '#b8bfcc', '#99a1b0', '#6b7280', '#374151'], stripe: '#F4C430', text: '#111827' },
 };
 
@@ -94,9 +108,9 @@ export const CHIPSETS: Record<string, ChipTheme> = {
 export interface DeckTheme {
   back: [string, string];   // radial gradient centre → edge
   frame: string;            // card border colour
-  pattern: 'lattice' | 'stripes' | 'circuit' | 'damask' | 'chicken' | 'pinstripe' | 'emoji' | 'sunburst';
+  pattern: 'lattice' | 'stripes' | 'circuit' | 'damask' | 'chicken' | 'pinstripe' | 'emoji' | 'sunburst' | 'galaxy' | 'holo' | 'flames';
   accent: string;           // pattern colour
-  emblem: 'head' | 'crown' | 'fedora' | 'egg' | 'bolt' | 'laugh' | 'coin';
+  emblem: 'head' | 'crown' | 'fedora' | 'egg' | 'bolt' | 'laugh' | 'coin' | 'star' | 'diamond' | 'phoenix';
   paper: string;            // face colour
   red: string;
   black: string;
@@ -109,6 +123,10 @@ export const DECKS: Record<string, DeckTheme> = {
   'dk-neon': { back: ['#1a0b33', '#05020e'], frame: '#22D3EE', pattern: 'circuit', accent: 'rgba(255,43,214,.55)', emblem: 'bolt', paper: '#0f0a1f', red: '#FF2BD6', black: '#22D3EE' },
   'dk-meme': { back: ['#22c55e', '#0f6b33'], frame: '#FFFFFF', pattern: 'emoji', accent: 'rgba(255,255,255,.22)', emblem: 'laugh', paper: '#FFFFFF', red: '#DC2626', black: '#111827' },
   'dk-gold': { back: ['#fff1a8', '#a86b00'], frame: '#F4C430', pattern: 'sunburst', accent: 'rgba(255,255,255,.35)', emblem: 'coin', paper: '#FFF9E6', red: '#B45309', black: '#3a2600' },
+  'dk-galaxy': { back: ['#4c1d95', '#05031a'], frame: '#E9D5FF', pattern: 'galaxy', accent: 'rgba(255,255,255,.85)', emblem: 'star', paper: '#0f0b24', red: '#F472B6', black: '#C4B5FD' },
+  'dk-holo': { back: ['#e0f2fe', '#c4b5fd'], frame: '#FFFFFF', pattern: 'holo', accent: 'rgba(255,255,255,.55)', emblem: 'diamond', paper: '#FFFFFF', red: '#DB2777', black: '#312E81' },
+  'dk-24k': { back: ['#fff6c8', '#8a5a00'], frame: '#FFF1A8', pattern: 'sunburst', accent: 'rgba(255,255,255,.3)', emblem: 'coin', paper: '#FFF8DC', red: '#9A3412', black: '#3a2600' },
+  'dk-inferno': { back: ['#7c1d06', '#140301'], frame: '#FFB347', pattern: 'flames', accent: 'rgba(255,122,26,.6)', emblem: 'phoenix', paper: '#FFF7ED', red: '#C2410C', black: '#1C0A03' },
   'dk-vip': { back: ['#e5e7eb', '#6b7280'], frame: '#F4C430', pattern: 'damask', accent: 'rgba(244,196,48,.4)', emblem: 'crown', paper: '#FFFFFF', red: '#B91C1C', black: '#111827' },
 };
 
@@ -138,11 +156,12 @@ export const nextDrop = (t = Date.now()) => DROP_POOL[(dropIndex(t) + 1) % DROP_
 export const dropEndsAt = (t = Date.now()) => (dropIndex(t) + 1) * DAY;
 
 // ---------------- eggs ----------------
-export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
+export type Rarity = 'common' | 'rare' | 'epic' | 'legendary' | 'mythic';
 export interface EggDef { id: string; name: string; price: number; desc: string; weights: Partial<Record<Rarity, number>>; shell: [string, string]; spots: string }
 export const EGGS: EggDef[] = [
-  { id: 'egg-basic', name: 'Basic Egg', price: 2000, desc: 'Common and rare cosmetics.', weights: { common: 75, rare: 25 }, shell: ['#fffaf0', '#e8d9b8'], spots: '#d9c49a' },
-  { id: 'egg-golden', name: 'Golden Egg', price: 10000, desc: 'Mostly rare, a shot at epic and legendary.', weights: { rare: 60, epic: 35, legendary: 5 }, shell: ['#fff1a8', '#d99a00'], spots: '#fff8d6' },
-  { id: 'egg-diamond', name: 'Diamond Egg', price: 50000, desc: 'Epic or legendary, guaranteed.', weights: { epic: 70, legendary: 30 }, shell: ['#e9fbff', '#5fc9e8'], spots: '#ffffff' },
-  { id: 'egg-royal', name: 'Royal Egg', price: 250000, desc: 'A legendary item, guaranteed.', weights: { legendary: 100 }, shell: ['#c084fc', '#5b21b6'], spots: '#F4C430' },
+  { id: 'egg-basic', name: 'Basic Egg', price: 10000, desc: 'Common and rare cosmetics.', weights: { common: 75, rare: 25 }, shell: ['#fffaf0', '#e8d9b8'], spots: '#d9c49a' },
+  { id: 'egg-golden', name: 'Golden Egg', price: 50000, desc: 'Mostly rare, a shot at epic and legendary.', weights: { rare: 60, epic: 35, legendary: 5 }, shell: ['#fff1a8', '#d99a00'], spots: '#fff8d6' },
+  { id: 'egg-diamond', name: 'Diamond Egg', price: 250000, desc: 'Epic or legendary, guaranteed.', weights: { epic: 70, legendary: 30 }, shell: ['#e9fbff', '#5fc9e8'], spots: '#ffffff' },
+  { id: 'egg-royal', name: 'Royal Egg', price: 1000000, desc: 'A legendary item, guaranteed.', weights: { legendary: 100 }, shell: ['#c084fc', '#5b21b6'], spots: '#F4C430' },
+  { id: 'egg-mythic', name: 'Mythic Egg', price: 4000000, desc: 'Legendary guaranteed, with a 1-in-4 shot at a Mythic.', weights: { legendary: 75, mythic: 25 }, shell: ['#ff7a1a', '#7c1d06'], spots: '#ffd84d' },
 ];
