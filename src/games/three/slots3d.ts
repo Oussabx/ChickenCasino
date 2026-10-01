@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Stage3D } from './stage';
-import { MAT, glowSprite, labelPlane, makeCoin, std, textTexture } from './models';
+import { MAT, box, glowSprite, labelPlane, makeChicken, makeCoin, std, textTexture } from './models';
 import { roundRect } from './cardArt';
 import { drawSymbol, loadSlotArt } from './slotArt';
 import { LINE_COLORS, PAYLINES, REELS, STRIPS, SYMBOLS, Sym } from '../../lib/slots';
@@ -56,6 +56,14 @@ export class SlotsScene extends Stage3D {
   private speed = 18;
   private pulseT = 0;
   private coinRain = 0;
+  private leds: THREE.Texture[] = [];
+  private ledMats: THREE.MeshBasicMaterial[] = [];
+  private rays: THREE.Mesh;
+  private topper: ReturnType<typeof makeChicken>;
+  private flashes: { s: THREE.Sprite; t0: number }[] = [];
+  private popCells = new Set<string>();
+  private winMode = 0; // >0 while a win is on show (drives sparkles + LED colour)
+  private dust: THREE.Points;
 
   constructor(host: HTMLElement) {
     super(host, { fov: 30, bg: 0x0b0709 });
@@ -66,9 +74,30 @@ export class SlotsScene extends Stage3D {
     loadSlotArt().then(() => document.fonts?.ready).then(() => this.refreshArt());
 
     // ---- room ----
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 40), std(0x140a0c, { roughness: 0.9 }));
+    // glossy casino floor with a patterned carpet runner
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 40), new THREE.MeshStandardMaterial({ color: 0x1a0c10, roughness: 0.22, metalness: 0.55 }));
     floor.rotation.x = -Math.PI / 2; floor.position.y = -6.2; floor.receiveShadow = true;
     this.scene.add(floor);
+    // neighbouring machines down the row, out of focus
+    for (const side of [-1, 1]) for (let k = 0; k < 2; k++) {
+      const x = side * (13.5 + k * 9), z = -5 - k * 4;
+      const cab = new THREE.Mesh(new THREE.BoxGeometry(8, 12, 4), std(k ? 0x2a0710 : 0x3a0912, { roughness: 0.4, metalness: 0.3 }));
+      cab.position.set(x, -0.2, z - 2); this.scene.add(cab);
+      const screen = new THREE.Mesh(new THREE.PlaneGeometry(6, 3.4), new THREE.MeshBasicMaterial({ color: [0xffb347, 0x7c3aed, 0x22d3ee, 0xe63946][(k * 2 + (side > 0 ? 1 : 0)) % 4], transparent: true, opacity: 0.35 }));
+      screen.position.set(x, 0.6, z + 0.01); this.scene.add(screen);
+      const g = glowSprite('rgba(255,190,90,1)', 9, 0.18); g.position.set(x, 5.2, z + 0.5); this.scene.add(g);
+    }
+    // light beams from the ceiling
+    for (const [x, c] of [[-7, 0xffd27a], [7, 0xff6b6b], [0, 0xfff1c0]] as [number, number][]) {
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(3.2, 16, 32, 1, true), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.05, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+      cone.position.set(x, 4, -3.5); this.scene.add(cone);
+    }
+    // drifting gold dust
+    const n = 260, pos = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { pos[i * 3] = (Math.random() - 0.5) * 30; pos[i * 3 + 1] = -5 + Math.random() * 14; pos[i * 3 + 2] = -6 + Math.random() * 9; }
+    const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    this.dust = new THREE.Points(dg, new THREE.PointsMaterial({ color: 0xffd27a, size: 0.06, transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending }));
+    this.scene.add(this.dust);
     for (let i = 0; i < 22; i++) {
       const s = glowSprite(Math.random() < 0.65 ? 'rgba(255,200,90,1)' : 'rgba(230,57,70,1)', 1 + Math.random() * 2.5, 0.12 + Math.random() * 0.18);
       s.position.set((Math.random() - 0.5) * 46, -3 + Math.random() * 14, -10 - Math.random() * 10);
@@ -175,6 +204,34 @@ export class SlotsScene extends Stage3D {
     this.lever.add(rod, knob); this.lever.position.set(OW / 2 + 0.5, -0.6, -0.4); this.lever.rotation.x = -0.15;
     this.scene.add(this.lever);
 
+    // ---- topper: a golden rooster crowing on the roof, light rays behind ----
+    this.rays = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), new THREE.MeshBasicMaterial({ map: raysTexture(), transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
+    this.rays.position.set(0, OT + 0.9, -0.6); this.scene.add(this.rays);
+    this.topper = makeChicken('#F4C430');
+    this.topper.skin.metalness = 0.75; this.topper.skin.roughness = 0.25; this.topper.skin.emissive.set(0x3a2600);
+    this.topper.root.scale.setScalar(0.85); this.topper.root.rotation.y = -Math.PI / 2; this.topper.root.position.set(0, OT + 0.05, 0.1);
+    const crown = new THREE.Group();
+    for (let i = -1; i <= 1; i++) crown.add(box(MAT.goldBright, [0.1, 0.22 + (i === 0 ? 0.1 : 0), 0.1], [0, 0.1, i * 0.16]));
+    crown.add(box(MAT.goldBright, [0.36, 0.08, 0.46], [0, -0.02, 0]));
+    crown.position.set(0.25, 1.98, 0); this.topper.body.add(crown);
+    this.scene.add(this.topper.root);
+    const plinth = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.3, 0.25, 32), MAT.gold); plinth.position.set(0, OT + 0.02, 0.1); this.scene.add(plinth);
+
+    // ---- LED light strips (bezel ring + cabinet sides), colour-cycling ----
+    const ring = new THREE.CurvePath<THREE.Vector3>();
+    const bw = HALF_W + 0.46, bhh = HALF_H + 0.44, zr = 0.9;
+    const pts = [[-bw, -bhh], [bw, -bhh], [bw, bhh], [-bw, bhh], [-bw, -bhh]];
+    for (let i = 0; i < 4; i++) ring.add(new THREE.LineCurve3(new THREE.Vector3(pts[i][0], pts[i][1], zr), new THREE.Vector3(pts[i + 1][0], pts[i + 1][1], zr)));
+    const sideL = new THREE.LineCurve3(new THREE.Vector3(-OW / 2 - 0.12, OB + 0.4, 0.4), new THREE.Vector3(-OW / 2 - 0.12, OT - 0.4, 0.4));
+    const sideR = new THREE.LineCurve3(new THREE.Vector3(OW / 2 + 0.12, OB + 0.4, 0.4), new THREE.Vector3(OW / 2 + 0.12, OT - 0.4, 0.4));
+    for (const [curve, rep, r] of [[ring, 6, 0.045], [sideL, 2, 0.07], [sideR, 2, 0.07]] as [THREE.Curve<THREE.Vector3>, number, number][]) {
+      const tex = ledTexture(); tex.repeat.set(rep, 1); this.leds.push(tex);
+      const core = new THREE.MeshBasicMaterial({ map: tex });
+      const glow = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.4, depthWrite: false, blending: THREE.AdditiveBlending });
+      this.ledMats.push(core, glow);
+      this.scene.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 120, r, 8), core), new THREE.Mesh(new THREE.TubeGeometry(curve, 120, r * 3.2, 8), glow));
+    }
+
     const spot = new THREE.SpotLight(0xffe2b0, 40, 30, 0.5, 0.6); spot.position.set(0, 8, 9); spot.target.position.set(0, 0, 0);
     this.scene.add(spot, spot.target);
     this.onResize();
@@ -239,6 +296,8 @@ export class SlotsScene extends Stage3D {
     this.dims.flat().forEach((d) => { (d.material as THREE.MeshBasicMaterial).opacity = 0; });
     this.tabs.forEach((t) => { (t.material as THREE.MeshBasicMaterial).opacity = 0.55; t.scale.setScalar(1); });
     this.tease.forEach((t) => { t.material.opacity = 0; });
+    this.popCells.clear(); this.winMode = 0;
+    this.reels.forEach((rl) => rl.faces.forEach((f) => f.scale.set(1, 1, 1)));
   }
 
   /** Highlight winning cells (frames), dim the rest, and draw the given paylines. */
@@ -252,6 +311,8 @@ export class SlotsScene extends Stage3D {
       const f = new THREE.Mesh(new THREE.PlaneGeometry(FACE_W * 1.08, SYM_H * 1.06), new THREE.MeshBasicMaterial({ map: frameTexture(), color: scatterCells.some(([a, b]) => a === r && b === row) ? 0xff5a67 : 0xffd84d, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
       placeOnCell(f, r, row, 0.05); f.userData.pulse = true; this.winGroup.add(f);
     }
+    this.popCells = win; this.winMode = performance.now();
+    this.reels.forEach((rl) => rl.faces.forEach((f) => f.scale.set(1, 1, 1)));
     lines.forEach((li) => {
       const col = new THREE.Color(LINE_COLORS[li]);
       const pts = PAYLINES[li].map((row, r) => cellPoint(r, row, 0.12));
@@ -279,7 +340,7 @@ export class SlotsScene extends Stage3D {
   protected onResize() {
     if (!this.reels?.length) return;
     const narrow = this.aspect < 1.05;
-    this.frame(new THREE.Vector3(0.3, narrow ? 0.2 : 0.25, 0), narrow ? 12.4 : 12.6, narrow ? 9 : 9.5, new THREE.Vector3(0, 0.04, 1), 1);
+    this.frame(new THREE.Vector3(0.3, 1.25, 0), narrow ? 12.4 : 12.6, narrow ? 10.9 : 11.3, new THREE.Vector3(0, 0.04, 1), 1);
   }
 
   protected update(dt: number, t: number) {
@@ -314,6 +375,9 @@ export class SlotsScene extends Stage3D {
           // keep numbers small
           const base = Math.floor(reel.p / L) * L; reel.p -= base; reel.shift = mod(reel.shift + base, L);
           const d = reel.done; reel.done = undefined; d?.();
+          // a quick light flash down the reel as it locks in
+          const fl = glowSprite('rgba(255,236,170,1)', 1, 0.9); fl.scale.set(2.4, 5.2, 1); fl.position.set(reelX(r), 0, 0.35);
+          this.scene.add(fl); this.flashes.push({ s: fl, t0: now });
         }
       }
       this.layoutReel(r);
@@ -336,6 +400,38 @@ export class SlotsScene extends Stage3D {
     this.winGroup.children.forEach((m) => { if (m.userData.pulse) { const s = 1 + Math.sin(this.pulseT * 7) * 0.025; m.scale.set(s, s, 1); ((m as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = 0.75 + Math.sin(this.pulseT * 7) * 0.25; } });
     this.tease.forEach((s) => { if (s.material.opacity > 0) s.material.opacity = 0.4 + Math.sin(t * 10) * 0.15; });
     (this.signGlow.material as THREE.SpriteMaterial).opacity = 0.28 + Math.sin(t * 2.2) * 0.06 + (this.free ? 0.15 : 0);
+
+    // flashes fade out
+    this.flashes = this.flashes.filter((f) => { const k = (now - f.t0) / 260; if (k >= 1) { this.scene.remove(f.s); return false; } f.s.material.opacity = 0.9 * (1 - k); return true; });
+    // LEDs: slow colour chase idle, fast while spinning, gold/red on wins and free spins
+    const speed = spinning ? 1.6 : this.winMode ? 1.1 : 0.18;
+    this.leds.forEach((tx) => { tx.offset.x = (tx.offset.x - dt * speed) % 1; });
+    const tint = this.free ? 0xff4d5e : this.winMode ? (Math.floor(t * 8) % 2 ? 0xffd84d : 0xffffff) : 0xffffff;
+    this.ledMats.forEach((m) => m.color.setHex(tint));
+    // topper: crows (bobs) and the rays turn
+    this.rays.rotation.z -= dt * (this.winMode || spinning ? 0.6 : 0.15);
+    (this.rays.material as THREE.MeshBasicMaterial).opacity = this.winMode ? 0.8 : 0.45;
+    this.topper.root.position.y = 4.65 + Math.abs(Math.sin(t * (this.winMode ? 6 : 1.2))) * (this.winMode ? 0.25 : 0.05);
+    this.topper.root.rotation.y = -Math.PI / 2 + Math.sin(t * 0.7) * 0.25;
+    // winning symbols pop + sparkle
+    if (this.popCells.size) {
+      const s = 1 + Math.abs(Math.sin(this.pulseT * 5)) * 0.1;
+      this.reels.forEach((rl, r) => rl.pivots.forEach((pv, j) => {
+        const row = Math.round(1 + pv.rotation.x / TH);
+        rl.faces[j].scale.set(this.popCells.has(`${r}:${row}`) && Math.abs(pv.rotation.x + (1 - row) * TH) < 0.05 ? s : 1, this.popCells.has(`${r}:${row}`) && Math.abs(pv.rotation.x + (1 - row) * TH) < 0.05 ? s : 1, 1);
+      }));
+      if (Math.random() < 0.35) {
+        const key = [...this.popCells][Math.floor(Math.random() * this.popCells.size)];
+        const [r, row] = key.split(':').map(Number);
+        const sp = glowSprite('rgba(255,244,200,1)', 0.35, 1);
+        sp.position.copy(cellPoint(r, row, 0.3)).add(new THREE.Vector3((Math.random() - 0.5) * 1.2, (Math.random() - 0.5) * 1.1, 0));
+        this.addParticle(sp, new THREE.Vector3((Math.random() - 0.5) * 0.6, 0.8 + Math.random(), 0.3), 0.8, 0.5);
+      }
+    }
+    // dust drifts upward
+    const dp = this.dust.geometry.attributes.position as THREE.BufferAttribute;
+    for (let i = 0; i < dp.count; i++) { let y = dp.getY(i) + dt * 0.25; if (y > 9) y = -5; dp.setY(i, y); }
+    dp.needsUpdate = true;
 
     // coin fountain
     if (now < this.coinRain && Math.random() < 0.9) {
@@ -420,3 +516,28 @@ function signTexture() {
 }
 
 export { SYMBOLS };
+
+function raysTexture() {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 512;
+  const g = cv.getContext('2d')!;
+  g.translate(256, 256);
+  for (let i = 0; i < 18; i++) {
+    g.rotate((Math.PI * 2) / 18);
+    const gr = g.createLinearGradient(0, 0, 0, -256); gr.addColorStop(0, 'rgba(255,220,120,.9)'); gr.addColorStop(1, 'rgba(255,220,120,0)');
+    g.fillStyle = gr; g.beginPath(); g.moveTo(0, 0); g.lineTo(-22, -256); g.lineTo(22, -256); g.closePath(); g.fill();
+  }
+  const r = g.createRadialGradient(0, 0, 0, 0, 0, 256); r.addColorStop(0, 'rgba(0,0,0,0)'); r.addColorStop(0.7, 'rgba(0,0,0,0)'); r.addColorStop(1, 'rgba(0,0,0,1)');
+  g.globalCompositeOperation = 'destination-out'; g.fillStyle = r; g.fillRect(-256, -256, 512, 512);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+function ledTexture() {
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 4;
+  const g = cv.getContext('2d')!;
+  const gr = g.createLinearGradient(0, 0, 256, 0);
+  ['#F4C430', '#ff7a1a', '#E63946', '#ff4fb0', '#F4C430'].forEach((c, i, a) => gr.addColorStop(i / (a.length - 1), c));
+  g.fillStyle = gr; g.fillRect(0, 0, 256, 4);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping;
+  return t;
+}
