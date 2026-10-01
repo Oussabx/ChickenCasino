@@ -9,7 +9,7 @@ import { LINE_COLORS, PAYLINES, REELS, STRIPS, SYMBOLS, Sym } from '../../lib/sl
  * The Golden Coop slot cabinet: five real spinning drums behind a gold bezel,
  * chasing marquee bulbs, a pull lever and payline markers on both sides.
  */
-const FACES = 10;
+const FACES = 14; // more faces = a flatter drum, so the top/bottom rows read at full size
 const TH = (Math.PI * 2) / FACES;
 const SYM_H = 1.42;
 const R = SYM_H / (2 * Math.sin(TH / 2));
@@ -67,7 +67,7 @@ export class SlotsScene extends Stage3D {
 
   constructor(host: HTMLElement) {
     super(host, { fov: 30, bg: 0x0b0709 });
-    this.parallax = 0.25;
+    this.parallax = 0.1;
     this.key.position.set(-3, 9, 12);
     this.key.intensity = 2;
 
@@ -340,7 +340,8 @@ export class SlotsScene extends Stage3D {
   protected onResize() {
     if (!this.reels?.length) return;
     const narrow = this.aspect < 1.05;
-    this.frame(new THREE.Vector3(0.3, 1.25, 0), narrow ? 12.4 : 12.6, narrow ? 10.9 : 11.3, new THREE.Vector3(0, 0.04, 1), 1);
+    // the whole machine — topper, lever and LED glow included — always fits
+    this.frame(new THREE.Vector3(0.25, 1.3, 0), narrow ? 13.2 : 13.6, narrow ? 11.6 : 11.9, new THREE.Vector3(0, 0.04, 1), 1);
   }
 
   protected update(dt: number, t: number) {
@@ -376,7 +377,7 @@ export class SlotsScene extends Stage3D {
           const base = Math.floor(reel.p / L) * L; reel.p -= base; reel.shift = mod(reel.shift + base, L);
           const d = reel.done; reel.done = undefined; d?.();
           // a quick light flash down the reel as it locks in
-          const fl = glowSprite('rgba(255,236,170,1)', 1, 0.9); fl.scale.set(2.4, 5.2, 1); fl.position.set(reelX(r), 0, 0.35);
+          const fl = glowSprite('rgba(255,214,120,1)', 1, 0.3); fl.scale.set(1.8, 4.6, 1); fl.position.set(reelX(r), 0, 0.35);
           this.scene.add(fl); this.flashes.push({ s: fl, t0: now });
         }
       }
@@ -402,7 +403,7 @@ export class SlotsScene extends Stage3D {
     (this.signGlow.material as THREE.SpriteMaterial).opacity = 0.28 + Math.sin(t * 2.2) * 0.06 + (this.free ? 0.15 : 0);
 
     // flashes fade out
-    this.flashes = this.flashes.filter((f) => { const k = (now - f.t0) / 260; if (k >= 1) { this.scene.remove(f.s); return false; } f.s.material.opacity = 0.9 * (1 - k); return true; });
+    this.flashes = this.flashes.filter((f) => { const k = (now - f.t0) / 260; if (k >= 1) { this.scene.remove(f.s); return false; } f.s.material.opacity = 0.3 * (1 - k); return true; });
     // LEDs: slow colour chase idle, fast while spinning, gold/red on wins and free spins
     const speed = spinning ? 1.6 : this.winMode ? 1.1 : 0.18;
     this.leds.forEach((tx) => { tx.offset.x = (tx.offset.x - dt * speed) % 1; });
@@ -453,7 +454,7 @@ function rr(s: THREE.Shape | THREE.Path, x: number, y: number, w: number, h: num
 
 /** A plane bent around the drum (its centre sits at z=0, edges curve back). */
 function bentPlane() {
-  const h = R * TH * 0.985;
+  const h = R * TH * 1.002; // faces meet edge to edge (no dark seams between rows)
   const g = new THREE.PlaneGeometry(FACE_W, h, 1, 8);
   const p = g.attributes.position;
   for (let i = 0; i < p.count; i++) { const a = p.getY(i) / R; p.setY(i, R * Math.sin(a)); p.setZ(i, R * Math.cos(a) - R); }
