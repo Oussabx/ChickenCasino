@@ -4,7 +4,7 @@ import GameShell, { GameAction } from '../components/GameShell';
 import BetControls, { MiniBet, Seg, confirmBet } from '../components/BetControls';
 import Modal from '../components/Modal';
 import { useCountUp } from '../components/TableUI';
-import { useStore, useUI } from '../store';
+import { useStore } from '../store';
 import { sfx } from '../lib/sound';
 import { fmt } from '../lib/format';
 import { FREE_SPINS, FREE_SPIN_MULT, LINES, LINE_COLORS, LINE_PAYS, PAYLINES, SCATTER_PAYS, SYMBOL_NAME, SpinResult, Sym, spin as rollSpin } from '../lib/slots';
@@ -24,7 +24,6 @@ export default function Slots() {
   const [autoLeft, setAutoLeft] = useState(0);
   const [free, setFree] = useState<{ left: number; total: number; won: number } | null>(null);
   const [shown, setShown] = useState<Shown>({ amount: 0, label: '20 lines · good luck!', tone: 'idle' });
-  const [big, setBig] = useState<{ level: 1 | 2 | 3; amount: number } | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
   const [payOpen, setPayOpen] = useState(false);
   const [last, setLast] = useState<SpinResult | null>(null);
@@ -73,22 +72,15 @@ export default function Slots() {
     return win;
   };
 
-  const celebrateWin = (win: number, totalBet: number) => {
-    const x = win / totalBet;
-    const level = x >= 100 ? 3 : x >= 40 ? 2 : x >= 15 ? 1 : 0;
-    if (level) {
-      if (useStore.getState().settings.bigWinCelebration) setBig({ level: level as 1 | 2 | 3, amount: win });
-      sfx.bigWin();
-    }
-    else if (win > 0) sfx.win();
-  };
+  // the win show itself is the shared WinFX; small wins just get the chime here
+  const celebrateWin = (win: number, totalBet: number) => { if (win > 0 && win / totalBet < 15) sfx.win(); };
 
   const play = useCallback(async () => {
     if (busyRef.current || !machine.current) return false;
     if (!(autoRef.current > 0) && !confirmBet(bet)) return false;
     if (bet < LINES * 0.01) return false;
     if (!useStore.getState().placeBet(bet)) return false;
-    busyRef.current = true; setBusy(true); setBig(null); setLast(null); setLit({ syms: [], coop: false });
+    busyRef.current = true; setBusy(true); setLast(null); setLit({ syms: [], coop: false });
     sfx.bet();
     setSess((x) => ({ ...x, spins: x.spins + 1, spent: x.spent + bet }));
     const lineBet = bet / LINES;
@@ -133,8 +125,6 @@ export default function Slots() {
     }
 
     useStore.getState().settle('slots', bet, total / bet, detail);
-    // the machine runs its own big-win show; skip the site-wide one so they don't stack
-    useUI.getState().setCelebrate(null);
     setSess((x) => ({ ...x, won: x.won + total, best: Math.max(x.best, total) }));
     celebrateWin(total, bet);
     setLast(res.freeSpins ? null : res);
@@ -249,7 +239,6 @@ export default function Slots() {
           </div>
         </div>
       )}
-      {big && !busy && <BigWin key={big.amount} level={big.level} amount={big.amount} onDone={() => setBig(null)} />}
       <Paytable open={payOpen} onClose={() => setPayOpen(false)} lineBet={bet / LINES} urls={urls} />
     </GameShell>
   );
@@ -272,30 +261,6 @@ function Meter({ shown }: { shown: Shown }) {
         {lit ? `WIN ${fmt(amt)}` : 'WIN 0.00'}
       </div>
       <div className="mt-0.5 max-w-[70vw] truncate text-[clamp(9px,1.3vw,12px)] font-semibold text-cream/70">{shown.label || '\u00a0'}</div>
-    </div>
-  );
-}
-
-function BigWin({ level, amount, onDone }: { level: 1 | 2 | 3; amount: number; onDone: () => void }) {
-  const shown = useCountUp(amount, 1800);
-  useEffect(() => { const t = setTimeout(onDone, 3600); return () => clearTimeout(t); }, [onDone]);
-  const coins = useMemo(() => Array.from({ length: 10 + level * 8 }, (_, i) => ({ x: Math.random() * 100, d: Math.random() * 1.2, t: 1.4 + Math.random() * 1.2, s: 14 + Math.random() * 14, k: i })), [level]);
-  return (
-    <div className="pointer-events-none absolute inset-0 z-30 grid place-items-center overflow-hidden bg-black/45">
-      {/* turning sunburst */}
-      <div className="absolute left-1/2 top-1/2 h-[160%] w-[160%] -translate-x-1/2 -translate-y-1/2 opacity-60"
-        style={{ background: 'repeating-conic-gradient(from 0deg, rgba(244,196,48,.35) 0deg 8deg, transparent 8deg 20deg)', animation: 'spin 9s linear infinite', maskImage: 'radial-gradient(circle, black 15%, transparent 60%)', WebkitMaskImage: 'radial-gradient(circle, black 15%, transparent 60%)' }} />
-      {/* raining coins */}
-      {coins.map((c) => (
-        <span key={c.k} className="absolute -top-8 rounded-full border-2 border-[#a86b00] bg-gradient-to-b from-[#fff1a8] to-[#d99a00] shadow-[0_0_8px_rgba(244,196,48,.8)]"
-          style={{ left: `${c.x}%`, width: c.s, height: c.s, animation: `coin-fall ${c.t}s ${c.d}s ease-in infinite` }} />
-      ))}
-      <div className="result-in relative overflow-hidden rounded-3xl border-[3px] border-gold bg-gradient-to-b from-black/90 via-[#3a0b10]/90 to-[#2a1d02]/95 px-8 py-5 text-center shadow-[0_0_100px_rgba(244,196,48,.6)] sm:px-14">
-        <span className="shine-sweep" />
-        <div className="font-display text-[10px] font-black uppercase tracking-[.5em] text-gold/80 sm:text-xs">Golden Coop</div>
-        <div className="h-display text-4xl text-gold-grad drop-shadow-[0_4px_0_rgba(0,0,0,.6)] sm:text-7xl">{['', 'BIG WIN', 'MEGA WIN', 'EPIC CLUCK'][level]}</div>
-        <div className="mt-1 font-display text-3xl font-black text-cream tabular sm:text-5xl">{fmt(shown)}</div>
-      </div>
     </div>
   );
 }

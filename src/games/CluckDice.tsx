@@ -5,7 +5,7 @@ import BetControls, { MiniBet, Seg, confirmBet } from '../components/BetControls
 import { useStore } from '../store';
 import { rand } from '../lib/rng';
 import { sfx } from '../lib/sound';
-import { fmt, fmtMult } from '../lib/format';
+import { fmt } from '../lib/format';
 import { DiceScene } from './three/dice3d';
 
 export default function CluckDice() {
@@ -144,7 +144,6 @@ export default function CluckDice() {
             {shown.toFixed(2)}
           </div>
           <div className="mt-1 h-6 font-display font-bold tracking-widest text-sm">
-            {won === true && <span className="text-emerald-400 animate-pop inline-block">WINNER · {fmtMult(mult)}</span>}
             {won === false && <span className="text-smoke animate-pop inline-block">SO CLOSE. CLUCK AGAIN?</span>}
           </div>
         </div>

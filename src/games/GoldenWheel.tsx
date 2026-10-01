@@ -5,7 +5,7 @@ import BetControls, { MiniBet, Seg, confirmBet } from '../components/BetControls
 import { useStore } from '../store';
 import { rand } from '../lib/rng';
 import { sfx } from '../lib/sound';
-import { fmt, fmtMult } from '../lib/format';
+import { fmtMult } from '../lib/format';
 
 type Risk = 'low' | 'medium' | 'high';
 const SEGMENTS = 30;
@@ -120,7 +120,7 @@ export default function GoldenWheel() {
         <div className="h-10 text-center">
           {hit !== null && !spinning && (
             <div className="animate-pop rounded-2xl bg-black/60 px-4 py-1.5 backdrop-blur font-display text-2xl font-black">
-              {segs[hit] > 0 ? <span className="text-gold-grad">{fmtMult(segs[hit])} · +{fmt(bet * segs[hit] - bet)}</span> : <span className="text-smoke">Empty slice — spin again!</span>}
+              {segs[hit] > 0 ? <span className="text-gold-grad">{fmtMult(segs[hit])}</span> : <span className="text-smoke">Empty slice — spin again!</span>}
             </div>
           )}
         </div>

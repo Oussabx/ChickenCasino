@@ -58,22 +58,21 @@ export function useCountUp(target: number, ms = 900) {
  * Round result: pops in over the middle of the table, then glides down and
  * shrinks to a ribbon so the cards stay visible.
  */
-export function ResultBanner({ tone, title, sub, amount, big, top }: { tone: 'win' | 'lose' | 'push'; title: ReactNode; sub?: ReactNode; amount?: number; big?: boolean; top?: boolean }) {
+export function ResultBanner({ tone, title, sub, amount, top }: { tone: 'win' | 'lose' | 'push'; title: ReactNode; sub?: ReactNode; amount?: number; big?: boolean; top?: boolean }) {
   // `top`: start docked at the top so the cards underneath stay visible (poker showdowns)
   const [docked, setDocked] = useState(!!top);
   useEffect(() => { const t = setTimeout(() => setDocked(true), 1700); return () => clearTimeout(t); }, []);
   const shown = useCountUp(amount ?? 0);
-  const ring = tone === 'win' ? 'border-gold/70' : tone === 'push' ? 'border-white/30' : 'border-blood/60';
+  // wins are shown by the shared WinFX animation (same in every game); this banner covers losses and pushes
+  if (tone === 'win') return null;
   return (
     <div className={`pointer-events-none absolute left-1/2 z-20 transition-all duration-700 ease-[cubic-bezier(.2,.8,.2,1)] ${docked ? 'top-2 -translate-x-1/2 translate-y-0 scale-[.7] origin-top' : 'top-1/2 -translate-x-1/2 -translate-y-1/2 scale-100'}`}>
-      <div className={`result-in relative overflow-hidden rounded-2xl border-2 px-5 py-2.5 sm:px-7 sm:py-3 text-center shadow-2xl backdrop-blur-md ${ring} ${tone === 'win' ? 'bg-gradient-to-b from-black/80 to-[#2a1d02]/85' : tone === 'lose' ? 'bg-gradient-to-b from-black/80 to-blood-900/85' : 'bg-black/75'}`}>
-        {tone === 'win' && <span className="shine-sweep" />}
-        {tone === 'win' && big && <div className="mb-0.5 font-display text-[10px] font-black uppercase tracking-[.35em] text-gold/80">Big win</div>}
-        <div className={`h-display whitespace-nowrap text-2xl sm:text-4xl ${tone === 'win' ? 'text-gold-grad' : tone === 'push' ? 'text-cream' : 'text-blood'}`}>{title}</div>
+      <div className={`result-in relative overflow-hidden rounded-2xl border-2 px-5 py-2.5 text-center shadow-2xl backdrop-blur-md sm:px-7 sm:py-3 ${tone === 'push' ? 'border-white/30 bg-black/75' : 'border-blood/60 bg-gradient-to-b from-black/80 to-blood-900/85'}`}>
+        <div className={`h-display whitespace-nowrap text-2xl sm:text-4xl ${tone === 'push' ? 'text-cream' : 'text-blood'}`}>{title}</div>
         {(sub || amount) && (
           <div className="mt-1 flex items-center justify-center gap-2 text-sm text-cream/85">
             {sub && <span>{sub}</span>}
-            {!!amount && <b className={`font-display tabular ${tone === 'win' ? 'text-gold' : 'text-cream'}`}>+{fmt(shown)}</b>}
+            {!!amount && <b className="font-display tabular text-cream">+{fmt(shown)}</b>}
           </div>
         )}
       </div>

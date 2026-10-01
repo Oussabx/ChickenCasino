@@ -7,6 +7,7 @@ import { GameId, gameById } from '../lib/data';
 import { toast, useStore } from '../store';
 import { fmt, fmtMult, timeAgo } from '../lib/format';
 import Modal from './Modal';
+import WinFX from './WinFX';
 import { useLiveFeed } from '../lib/useLiveFeed';
 import { Coin } from './Icons';
 
@@ -57,7 +58,7 @@ export default function GameShell({ id, controls, children, rules, tall }: { id:
             style={rotated
               ? { width: vh, height: vw, transform: 'rotate(90deg) translateY(-100%)', transformOrigin: 'top left' }
               : { width: '100vw', height: '100dvh' }}>
-            <section className="relative min-w-0 flex-1 felt grain">{children}</section>
+            <section className="relative min-w-0 flex-1 felt grain">{children}<WinFX /></section>
             <aside className="flex min-h-0 w-[clamp(250px,34%,330px)] shrink-0 flex-col overflow-hidden border-l border-white/[0.06] bg-ink-800">
               <div className="flex items-center gap-1.5 border-b border-white/[0.06] px-2 py-1.5" style={{ paddingTop: 'max(6px, env(safe-area-inset-top))' }}>
                 <Link to="/games" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-ink-700" aria-label="Back to games"><ChevronLeft size={16} /></Link>
@@ -97,7 +98,7 @@ export default function GameShell({ id, controls, children, rules, tall }: { id:
 
       <div className="card overflow-hidden grid lg:grid-cols-[340px_1fr]">
         <aside className="order-2 lg:order-1 border-t lg:border-t-0 lg:border-r border-white/[0.06] bg-ink-800 p-4 space-y-4">{controls}</aside>
-        <section className={`order-1 lg:order-2 relative ${tall ? 'min-h-[max(420px,calc(100svh-316px))]' : 'min-h-[max(380px,calc(100svh-400px))]'} sm:min-h-[500px] lg:min-h-[600px] felt grain`}>{children}</section>
+        <section className={`order-1 lg:order-2 relative ${tall ? 'min-h-[max(420px,calc(100svh-316px))]' : 'min-h-[max(380px,calc(100svh-400px))]'} sm:min-h-[500px] lg:min-h-[600px] felt grain`}>{children}<WinFX /></section>
       </div>
 
       <BelowGame id={id} />

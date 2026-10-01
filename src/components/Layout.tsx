@@ -5,7 +5,6 @@ import MobileNav from './MobileNav';
 import Footer from './Footer';
 import Toaster from './Toaster';
 import AuthModal from './AuthModal';
-import Celebration from './Celebration';
 import Ambient from './Ambient';
 import { toast, useStore, useUI } from '../store';
 import { migrateLegacyProfile } from '../lib/auth';
@@ -42,7 +41,6 @@ export default function Layout() {
       <MobileNav />
       <Toaster />
       <AuthModal />
-      <Celebration />
     </div>
   );
 }

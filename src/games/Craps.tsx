@@ -263,7 +263,7 @@ export default function Craps() {
         <div key={callout.id} className="pointer-events-none absolute left-1/2 top-[44%] z-20 -translate-x-1/2 -translate-y-1/2">
           <div className="result-in rounded-2xl border-2 border-gold/60 bg-black/75 px-5 py-2 text-center shadow-2xl backdrop-blur-md">
             <div className="h-display whitespace-nowrap text-xl text-gold-grad sm:text-3xl">{callout.text}</div>
-            {callout.net !== 0 && <div className={`font-display text-sm font-black tabular ${callout.net > 0 ? 'text-emerald-400' : 'text-blood'}`}>{callout.net > 0 ? '+' : '−'}{fmt(Math.abs(callout.net))}</div>}
+            {callout.net < 0 && <div className="font-display text-sm font-black tabular text-blood">−{fmt(Math.abs(callout.net))}</div>}
           </div>
         </div>
       )}
