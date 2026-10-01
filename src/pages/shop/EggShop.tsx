@@ -103,7 +103,7 @@ function Hatch({ egg, onClose }: { egg: EggDef | null; onClose: () => void }) {
       {egg && (
         <div className="relative grid min-h-[340px] place-items-center overflow-hidden rounded-3xl" style={{ background: `radial-gradient(circle at 50% 55%, ${phase === 'reveal' ? col : egg.shell[0]}38, transparent 60%), #0d0d11` }}>
           {(phase === 'burst' || phase === 'reveal') && (
-            <div className="pointer-events-none absolute left-1/2 top-1/2 h-[220%] w-[220%] -translate-x-1/2 -translate-y-1/2"
+            <div className="rays pointer-events-none absolute left-1/2 top-1/2 h-[220%] w-[220%] -translate-x-1/2 -translate-y-1/2"
               style={{ background: `repeating-conic-gradient(from 0deg, ${col}55 0deg 7deg, transparent 7deg 18deg)`, animation: 'winfx-spin 18s linear infinite', maskImage: 'radial-gradient(circle, black 8%, transparent 45%)', WebkitMaskImage: 'radial-gradient(circle, black 8%, transparent 45%)' }} />
           )}
           {phase === 'ready' && (
@@ -123,7 +123,7 @@ function Hatch({ egg, onClose }: { egg: EggDef | null; onClose: () => void }) {
           {phase === 'reveal' && it && (
             <div className="relative flex flex-col items-center gap-3 p-6 text-center">
               <UnlockBurst color={col} n={30} />
-              <div className="shop-unlock-pop"><ItemArt it={it} size={190} /></div>
+              <div className="cos-live shop-unlock-pop"><ItemArt it={it} size={190} /></div>
               <div className="font-display text-xs font-black uppercase tracking-[.3em]" style={{ color: col }}>{it.rarity}</div>
               <div className="h-display text-3xl text-gold-grad">{it.name}</div>
               <div className="flex gap-2">

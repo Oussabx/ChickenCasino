@@ -43,7 +43,7 @@ export default function Locker({ onShop }: { onShop: (kind: ItemKind) => void })
     <section className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
       {/* stage */}
       <div className="relative min-w-0 overflow-hidden rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_50%_35%,#3a0b10,#0d0d11_70%)] p-5">
-        <div className="pointer-events-none absolute left-1/2 top-[30%] h-[160%] w-[160%] -translate-x-1/2 -translate-y-1/2 opacity-30"
+        <div className="rays pointer-events-none absolute left-1/2 top-[30%] h-[160%] w-[160%] -translate-x-1/2 -translate-y-1/2 opacity-30"
           style={{ background: 'repeating-conic-gradient(from 0deg, rgba(244,196,48,.4) 0deg 6deg, transparent 6deg 20deg)', animation: 'winfx-spin 50s linear infinite', maskImage: 'radial-gradient(circle, black 10%, transparent 45%)', WebkitMaskImage: 'radial-gradient(circle, black 10%, transparent 45%)' }} />
         <div className="relative flex items-center gap-3">
           <Avatar size={46} />
@@ -52,7 +52,7 @@ export default function Locker({ onShop }: { onShop: (kind: ItemKind) => void })
             <div className="text-xs text-smoke">{itemById(eq.title)?.name} · {collected}/{collectible} collectibles</div>
           </div>
         </div>
-        <div key={`c${pulse}`} className="relative mx-auto mt-2 grid place-items-center shop-equip-pop">
+        <div key={`c${pulse}`} className="cos-live relative mx-auto mt-2 grid place-items-center shop-equip-pop">
           <div className="pointer-events-none absolute bottom-3 h-6 w-40 rounded-[50%] bg-black/60 blur-md" />
           <div className="w-[190px] sm:w-[230px] [&>svg]:h-auto [&>svg]:w-full"><ChickenArt skin={eq.chicken} hat={eq.hat} size={230} /></div>
         </div>

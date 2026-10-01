@@ -36,7 +36,7 @@ export default function Header() {
   const pct = Math.min(100, ((xp - xpForLevel(level)) / (xpForLevel(level + 1) - xpForLevel(level))) * 100);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-ink/80 backdrop-blur-xl">
+    <header className="glass-bar sticky top-0 z-50 border-b border-white/[0.06]">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 sm:gap-4 px-3 sm:px-4 lg:px-6">
         <Logo />
         <nav className="ml-6 hidden lg:flex items-center gap-1">

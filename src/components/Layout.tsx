@@ -8,17 +8,20 @@ import AuthModal from './AuthModal';
 import Ambient from './Ambient';
 import { toast, useStore, useUI } from '../store';
 import { migrateLegacyProfile } from '../lib/auth';
+import { useLite } from '../lib/perf';
 
 export default function Layout() {
   const { pathname } = useLocation();
   const reduce = useStore((s) => s.settings.reduceMotion);
   const reminder = useStore((s) => s.settings.sessionReminder);
+  const lite = useLite();
   const start = useRef(Date.now());
 
   useEffect(() => { migrateLegacyProfile(); }, []);
   // new page: back to the top, and close the account dialog if it was left open (e.g. browser back)
   useEffect(() => { window.scrollTo(0, 0); useUI.getState().openAuth(null); }, [pathname]);
   useEffect(() => { document.documentElement.classList.toggle('reduce-motion', reduce); }, [reduce]);
+  useEffect(() => { document.documentElement.classList.toggle('perf-lite', lite); }, [lite]);
   useEffect(() => {
     if (!reminder) return;
     const id = setInterval(() => {
@@ -30,7 +33,7 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Ambient />
+      {!lite && <Ambient />}
       <Header />
       <main key={pathname} className="relative flex-1 pb-24 lg:pb-0 page-in">
         <Suspense fallback={<div className="grid min-h-[60vh] place-items-center"><img src="./img/head.webp" alt="Loading" className="h-16 w-16 rounded-full animate-floaty" /></div>}>

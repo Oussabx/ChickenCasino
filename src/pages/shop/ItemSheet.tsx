@@ -65,10 +65,10 @@ function Sheet({ it, onClose, onOpenItem }: { it: ShopItem; onClose: () => void;
       {/* stage */}
       <div className="relative grid min-h-[260px] place-items-center overflow-hidden rounded-3xl border border-white/10"
         style={{ background: `radial-gradient(circle at 50% 70%, ${col}40, transparent 60%), linear-gradient(180deg,#1d1d25,#0e0e12)` }}>
-        <div className="pointer-events-none absolute left-1/2 top-1/2 h-[200%] w-[200%] -translate-x-1/2 -translate-y-1/2 opacity-30"
+        <div className="rays pointer-events-none absolute left-1/2 top-1/2 h-[200%] w-[200%] -translate-x-1/2 -translate-y-1/2 opacity-30"
           style={{ background: `repeating-conic-gradient(from 0deg, ${col}55 0deg 6deg, transparent 6deg 20deg)`, animation: 'winfx-spin 40s linear infinite', maskImage: 'radial-gradient(circle, black 10%, transparent 50%)', WebkitMaskImage: 'radial-gradient(circle, black 10%, transparent 50%)' }} />
         <div className="pointer-events-none absolute bottom-6 left-1/2 h-6 w-2/3 -translate-x-1/2 rounded-[50%] bg-black/50 blur-md" />
-        <div className={`relative ${justBought ? 'shop-unlock-pop' : 'shop-stage-in'}`}>
+        <div className={`cos-live relative ${justBought ? 'shop-unlock-pop' : 'shop-stage-in'}`}>
           {it.kind === 'chips' || it.kind === 'deck' ? (
             <div className="flex flex-col items-center gap-2">
               <ItemArt it={it} size={190} />

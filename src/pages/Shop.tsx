@@ -8,6 +8,7 @@ import { Coin, Egg } from '../components/Icons';
 import { EggArt } from '../components/CosmeticArt';
 import { EGGS } from '../lib/cosmetics';
 import { useCountUp } from '../components/TableUI';
+import { LazyMount } from '../lib/motion';
 import ItemCard from './shop/ItemCard';
 import ItemSheet from './shop/ItemSheet';
 import HotDrop from './shop/HotDrop';
@@ -42,11 +43,11 @@ export default function Shop() {
     <div className="mx-auto max-w-7xl space-y-5 px-4 pt-6 lg:px-6">
       <Header onLocker={() => setTab('locker')} />
       {/* sticky category bar */}
-      <nav className="sticky top-16 z-30 -mx-4 border-b border-white/[0.06] bg-ink/85 px-4 py-2 backdrop-blur-xl lg:-mx-6 lg:px-6" aria-label="Shop sections">
-        <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
+      <nav className="sticky top-16 z-30 -mx-4 glass-bar border-b border-white/[0.06] px-4 lg:-mx-6 lg:px-6" aria-label="Shop sections">
+        <div className="no-scrollbar -mx-2 flex gap-1.5 overflow-x-auto px-2 py-2.5">
           {TABS.map((t) => (
             <button key={t.k} type="button" onClick={() => setTab(t.k)} aria-current={tab === t.k}
-              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-bold transition ${tab === t.k ? 'border-gold bg-gold text-ink shadow-gold' : 'border-white/10 text-cream/80 hover:border-white/30 hover:text-cream'} ${t.k === 'locker' ? 'sm:ml-auto' : ''}`}>
+              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-bold transition ${tab === t.k ? 'border-gold bg-gold text-ink shadow-[0_2px_12px_-3px_rgba(244,196,48,.7)]' : 'border-white/10 text-cream/80 hover:border-white/30 hover:text-cream'} ${t.k === 'locker' ? 'sm:ml-auto' : ''}`}>
               {t.icon}{t.label}
             </button>
           ))}
@@ -103,13 +104,13 @@ function Featured({ onOpen, go }: { onOpen: (it: ShopItem) => void; go: (t: Tab)
       <HotDrop onOpen={onOpen} />
       <Shelf title="Best sellers" icon={<Star size={18} className="text-gold" />} items={best} onOpen={onOpen} />
       <Shelf title="New arrivals" icon={<Sparkles size={18} className="text-sky-300" />} items={fresh} onOpen={onOpen} />
-      <section>
+      <section className="own-layer cv-auto">
         <ShelfHead title="Bundles" icon={<Package size={18} className="text-gold" />} more={() => go('set')} />
-        <Grid items={SHOP.filter((i) => i.kind === 'set')} onOpen={onOpen} wide />
+        <LazyMount minHeight={600}><Grid items={SHOP.filter((i) => i.kind === 'set')} onOpen={onOpen} wide /></LazyMount>
       </section>
-      <section className="grid gap-5 lg:grid-cols-[1fr_1.4fr]">
-        <EggTeaser go={() => go('eggs')} />
-        <VipTrack onOpen={onOpen} compact />
+      <section className="own-layer cv-auto grid gap-5 lg:grid-cols-[1fr_1.4fr]">
+        <LazyMount minHeight={260}><EggTeaser go={() => go('eggs')} /></LazyMount>
+        <LazyMount minHeight={260}><VipTrack onOpen={onOpen} compact /></LazyMount>
       </section>
       <Shelf title="Legendary" icon={<Gem size={18} className="text-gold" />} items={legendary} onOpen={onOpen} />
       {almost.length > 0 && <Shelf title="Start your collection" icon={<Layers size={18} className="text-emerald-400" />} items={almost} onOpen={onOpen} />}
@@ -131,7 +132,7 @@ function Shelf({ title, icon, items, onOpen }: { title: string; icon: ReactNode;
   const ref = useRef<HTMLDivElement>(null);
   const scroll = (d: number) => ref.current?.scrollBy({ left: d * ref.current.clientWidth * 0.8, behavior: 'smooth' });
   return (
-    <section className="relative">
+    <section className="own-layer cv-auto relative">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="flex items-center gap-2 font-display text-xl font-extrabold sm:text-2xl">{icon}{title}</h2>
         <div className="hidden gap-1.5 sm:flex">
@@ -139,13 +140,15 @@ function Shelf({ title, icon, items, onOpen }: { title: string; icon: ReactNode;
           <button type="button" aria-label="Scroll right" onClick={() => scroll(1)} className="grid h-8 w-8 place-items-center rounded-full border border-white/10 hover:border-gold/50"><ChevronRight size={16} /></button>
         </div>
       </div>
-      <div ref={ref} className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pb-2 lg:-mx-1 lg:px-1">
-        {items.map((it, i) => (
-          <div key={it.id} className="shop-rise w-[46%] shrink-0 snap-start sm:w-[30%] md:w-[23%] lg:w-[18.5%]" style={{ animationDelay: `${i * 50}ms` }}>
-            <ItemCard it={it} onOpen={onOpen} compact />
-          </div>
-        ))}
-      </div>
+      <LazyMount minHeight={230}>
+        <div ref={ref} className="no-scrollbar isolate -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pb-2 lg:-mx-1 lg:px-1">
+          {items.map((it, i) => (
+            <div key={it.id} className="shop-rise w-[46%] shrink-0 snap-start sm:w-[30%] md:w-[23%] lg:w-[18.5%]" style={{ animationDelay: `${i * 50}ms` }}>
+              <ItemCard it={it} onOpen={onOpen} compact />
+            </div>
+          ))}
+        </div>
+      </LazyMount>
     </section>
   );
 }
