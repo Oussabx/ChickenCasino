@@ -187,7 +187,11 @@ export const GAMES: GameMeta[] = [
 export const gameById = (id: string) => GAMES.find((g) => g.id === id);
 
 /* ---------------- Shop ---------------- */
-export type ItemKind = 'avatar' | 'frame' | 'skin' | 'ball' | 'title' | 'bundle';
+/**
+ * 'bundle' = coin packs (golden eggs -> coins); 'set' = item bundles.
+ * chicken/hat/table/chips/deck are the main collectibles (see lib/cosmetics.ts for their looks).
+ */
+export type ItemKind = 'avatar' | 'frame' | 'ball' | 'title' | 'bundle' | 'chicken' | 'hat' | 'table' | 'chips' | 'deck' | 'set' | 'fx' | 'name';
 
 export interface ShopItem {
   id: string;
@@ -199,17 +203,102 @@ export interface ShopItem {
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
   img?: string;
   color?: string;
-  coins?: number; // for bundles
+  coins?: number; // coin packs, and the coins inside an item bundle
   minLevel?: number;
+  /** shop shelves */
+  best?: boolean;
+  fresh?: boolean;
+  /** only sold while it's the Hot Drop */
+  limited?: boolean;
+  /** unlocked free on the Rooster VIP ladder, never sold */
+  vip?: boolean;
+  /** item bundles: what's inside */
+  contains?: string[];
 }
 
+const C = (id: string, kind: ItemKind, name: string, desc: string, price: number, rarity: ShopItem['rarity'], extra: Partial<ShopItem> = {}): ShopItem =>
+  ({ id, kind, name, desc, price, currency: 'coins', rarity, ...extra });
+
 export const SHOP: ShopItem[] = [
-  // bundles (eggs -> coins)
+  // ---- chickens (main collectibles) ----
+  C('ch-classic', 'chicken', 'Classic Cluck', 'The original. Shades on, always.', 0, 'common'),
+  C('ch-golden', 'chicken', 'Golden Chicken', 'Literally made of money. Glows a little.', 20000, 'rare', { best: true }),
+  C('ch-cowboy', 'chicken', 'Cowboy Chicken', 'Vest, bandana, zero fear of the house.', 15000, 'rare'),
+  C('ch-tuxedo', 'chicken', 'Chicken in a Tuxedo', 'Dressed for the high-roller table.', 22000, 'rare'),
+  C('ch-skeleton', 'chicken', 'Skeleton Chicken', 'Bone dry. Still lucky.', 28000, 'rare'),
+  C('ch-mafia', 'chicken', 'Mafia Chicken', 'Pinstripes and a red tie. An offer you can’t refuse.', 40000, 'epic', { best: true }),
+  C('ch-astronaut', 'chicken', 'Astronaut Chicken', 'One small hop for a chicken.', 45000, 'epic'),
+  C('ch-samurai', 'chicken', 'Samurai Chicken', 'Red lacquer armour, steady nerves.', 55000, 'epic', { fresh: true }),
+  C('ch-cyber', 'chicken', 'Cyber Chicken', 'Neon circuits and a glowing visor.', 75, 'epic', { currency: 'eggs', fresh: true }),
+  C('ch-king', 'chicken', 'King Chicken', 'Royal robe with ermine trim. Bow.', 90000, 'legendary'),
+  C('ch-diamond', 'chicken', 'Diamond Chicken', 'Cut from a single diamond. Sparkles in the dark.', 150, 'legendary', { currency: 'eggs' }),
+  // limited (Hot Drop rotation)
+  C('ch-golden-mafia', 'chicken', 'Golden Mafia Chicken', 'Gold feathers, black suit. Limited edition.', 24500, 'legendary', { limited: true }),
+  C('ch-disco', 'chicken', 'Disco Rooster', 'Mirror-ball feathers and star shades. Limited edition.', 30000, 'epic', { limited: true }),
+  C('ch-zombie', 'chicken', 'Zombie Chicken', 'Stitched together, still hungry. Limited edition.', 26000, 'epic', { limited: true }),
+  C('ch-pirate', 'chicken', 'Pirate Chicken', 'Eyepatch, bandana, stolen chips. Limited edition.', 22000, 'epic', { limited: true }),
+  C('ch-lava', 'chicken', 'Lava Rooster', 'Glowing cracks of molten luck. Limited edition.', 35000, 'legendary', { limited: true }),
+  C('ch-frost', 'chicken', 'Frost Chicken', 'Ice-cold under pressure. Limited edition.', 28000, 'epic', { limited: true }),
+  C('ch-ninja', 'chicken', 'Ninja Rooster', 'Silent hops. Red headband. Limited edition.', 25000, 'epic', { limited: true }),
+  C('ch-vip', 'chicken', 'Platinum Rooster', 'Rooster VIP IV reward.', 0, 'legendary', { vip: true }),
+
+  // ---- hats ----
+  C('hat-none', 'hat', 'No Hat', 'Let the comb breathe.', 0, 'common'),
+  C('hat-chef', 'hat', 'Chef Hat', 'Cooking up wins, not nuggets.', 4000, 'common'),
+  C('hat-santa', 'hat', 'Santa Hat', 'Ho ho hold ’em.', 5000, 'common'),
+  C('hat-cowboy', 'hat', 'Cowboy Hat', 'Yeehaw at the high-limit table.', 6000, 'common'),
+  C('hat-grad', 'hat', 'Graduation Cap', 'Masters in card counting (not really).', 6500, 'common'),
+  C('hat-sombrero', 'hat', 'Sombrero', 'Shade for the hot streaks.', 7000, 'common'),
+  C('hat-top', 'hat', 'Top Hat', 'Classic casino class.', 8000, 'rare'),
+  C('hat-headphones', 'hat', 'Headphones', 'In the zone. Do not disturb.', 9000, 'rare', { fresh: true }),
+  C('hat-viking', 'hat', 'Viking Helmet', 'Raid the jackpot.', 12000, 'rare'),
+  C('hat-chain', 'hat', 'Gold Chain', 'Heavy. Shiny. Necessary.', 18000, 'epic'),
+  C('hat-crown', 'hat', 'Crown', 'King of the coop.', 30000, 'legendary', { best: true }),
+
+  // ---- tables ----
+  C('tb-classic', 'table', 'Classic Green', 'The felt you know.', 0, 'common'),
+  C('tb-red', 'table', 'Classic Red', 'Old-school casino red.', 10000, 'common'),
+  C('tb-farm', 'table', 'Chicken Farm', 'Hay-bale rail and chicken-print felt.', 15000, 'rare'),
+  C('tb-neon', 'table', 'Neon', 'Pink neon trim on midnight felt.', 25000, 'epic'),
+  C('tb-royal', 'table', 'Royal Gold', 'Burgundy damask felt, gold everything.', 30000, 'epic', { best: true }),
+  C('tb-blackgold', 'table', 'Black & Gold', 'All black, gold pinstripe.', 35000, 'epic'),
+  C('tb-cyber', 'table', 'Cyberpunk', 'Purple grid felt, cyan glow.', 40000, 'epic', { fresh: true }),
+  C('tb-diamond', 'table', 'Diamond', 'Ice-blue felt with a platinum rail.', 60000, 'legendary'),
+  C('tb-vip', 'table', 'VIP Platinum Table', 'Rooster VIP III reward.', 0, 'legendary', { vip: true }),
+
+  // ---- chips ----
+  C('cp-classic', 'chips', 'Classic Chips', 'Standard casino colours.', 0, 'common'),
+  C('cp-egg', 'chips', 'Egg Chips', 'Farm-fresh eggshell chips.', 8000, 'common'),
+  C('cp-money', 'chips', 'Money Chips', 'Greenback greens.', 12000, 'rare'),
+  C('cp-gold', 'chips', 'Gold Chicken Chips', 'Solid gold, every denomination.', 15000, 'rare', { best: true }),
+  C('cp-rainbow', 'chips', 'Rainbow Chips', 'Every colour, every bet.', 18000, 'rare', { fresh: true }),
+  C('cp-neon', 'chips', 'Neon Chips', 'They glow on the felt.', 20000, 'epic'),
+  C('cp-blackgold', 'chips', 'Black & Gold Chips', 'Black chips, gold inlay.', 22000, 'epic'),
+  C('cp-diamond', 'chips', 'Diamond Chips', 'Ice-blue and flawless.', 40000, 'legendary'),
+  C('cp-vip', 'chips', 'VIP Chips', 'Rooster VIP I reward.', 0, 'epic', { vip: true }),
+
+  // ---- card decks ----
+  C('dk-classic', 'deck', 'Classic Deck', 'Red back, gold lattice.', 0, 'common'),
+  C('dk-chicken', 'deck', 'Chicken Deck', 'Golden backs covered in chickens.', 10000, 'rare'),
+  C('dk-meme', 'deck', 'Meme Deck', 'Laughing all the way to the bank.', 12000, 'rare', { fresh: true }),
+  C('dk-mafia', 'deck', 'Mafia Deck', 'Pinstripe backs, fedora emblem.', 16000, 'epic'),
+  C('dk-neon', 'deck', 'Neon Deck', 'Dark cards with neon suits.', 18000, 'epic', { best: true }),
+  C('dk-royal', 'deck', 'Royal Deck', 'Purple and gold, fit for a king.', 25000, 'epic'),
+  C('dk-gold', 'deck', 'Gold Deck', 'Gold backs, gold-tinted faces.', 30000, 'legendary'),
+  C('dk-vip', 'deck', 'VIP Platinum Deck', 'Rooster VIP IV reward.', 0, 'legendary', { vip: true }),
+
+  // ---- item bundles (price is worked out from what you don't own yet) ----
+  C('set-rooster', 'set', 'Rooster Bundle', 'Go full gold.', 0, 'legendary', { contains: ['ch-golden', 'cp-gold', 'dk-gold', 'tb-royal'], coins: 50000 }),
+  C('set-mafia', 'set', 'Mafia Bundle', 'Chicken, hat, table and chips — family business.', 0, 'epic', { contains: ['ch-mafia', 'hat-top', 'tb-blackgold', 'cp-blackgold'] }),
+  C('set-royal', 'set', 'Royal Bundle', 'Long live the king.', 0, 'legendary', { contains: ['ch-king', 'hat-crown', 'tb-royal', 'dk-royal'] }),
+  C('set-cyber', 'set', 'Cyber Bundle', 'Plug in.', 0, 'epic', { contains: ['ch-cyber', 'cp-neon', 'tb-cyber', 'dk-neon'] }),
+
+  // ---- coin packs (eggs -> coins) ----
   { id: 'b-small', kind: 'bundle', name: 'Handful of Feed', desc: '5,000 coins', price: 5, currency: 'eggs', rarity: 'common', coins: 5000 },
   { id: 'b-med', kind: 'bundle', name: 'Sack of Grain', desc: '25,000 coins +10% bonus', price: 22, currency: 'eggs', rarity: 'rare', coins: 27500 },
   { id: 'b-large', kind: 'bundle', name: 'Barn Full of Gold', desc: '100,000 coins +25% bonus', price: 80, currency: 'eggs', rarity: 'epic', coins: 125000 },
   { id: 'b-mega', kind: 'bundle', name: 'Golden Coop Vault', desc: '500,000 coins +50% bonus', price: 350, currency: 'eggs', rarity: 'legendary', coins: 750000 },
-  // avatars
+  // ---- profile ----
   { id: 'av-classic', kind: 'avatar', name: 'The Classic', desc: 'Where it all started.', price: 0, currency: 'coins', rarity: 'common', img: 'head.webp' },
   { id: 'av-dealer', kind: 'avatar', name: 'Card Shark', desc: 'Never shows his hand.', price: 15000, currency: 'coins', rarity: 'rare', img: 'bonus-chicken.webp' },
   { id: 'av-boss', kind: 'avatar', name: 'The Boss', desc: 'Sunglasses indoors. Always.', price: 40000, currency: 'coins', rarity: 'epic', img: 'mood-face.webp' },
@@ -217,27 +306,32 @@ export const SHOP: ShopItem[] = [
   { id: 'av-don', kind: 'avatar', name: 'Don Cluckleone', desc: 'An offer you can’t refuse.', price: 150, currency: 'eggs', rarity: 'legendary', img: 'hero.webp', minLevel: 5 },
   { id: 'av-crown', kind: 'avatar', name: 'Neon Crown', desc: 'Royalty of the roost.', price: 25000, currency: 'coins', rarity: 'rare', img: 'mood-crown.webp' },
   { id: 'av-ace', kind: 'avatar', name: 'Ace of Spades', desc: 'The card that pays.', price: 10000, currency: 'coins', rarity: 'common', img: 'mood-ace.webp' },
-  // frames
   { id: 'fr-none', kind: 'frame', name: 'No Frame', desc: 'Clean and simple.', price: 0, currency: 'coins', rarity: 'common', color: 'ring-white/10' },
   { id: 'fr-gold', kind: 'frame', name: 'Gold Ring', desc: 'Shine on.', price: 20000, currency: 'coins', rarity: 'rare', color: 'ring-gold shadow-gold' },
   { id: 'fr-neon', kind: 'frame', name: 'Neon Red', desc: 'Straight off the Vegas strip.', price: 35000, currency: 'coins', rarity: 'epic', color: 'ring-blood shadow-red' },
   { id: 'fr-legend', kind: 'frame', name: 'Legend Aura', desc: 'Only the realest roosters.', price: 120, currency: 'eggs', rarity: 'legendary', color: 'ring-gold ring-offset-2 ring-offset-blood shadow-gold', minLevel: 8 },
-  // chicken skins (Chicken Cross)
-  { id: 'sk-classic', kind: 'skin', name: 'Classic Cluck', desc: 'Chicken Cross runner.', price: 0, currency: 'coins', rarity: 'common', color: '#F8F6EF' },
-  { id: 'sk-golden', kind: 'skin', name: 'Golden Goose', desc: 'Literally made of money.', price: 50000, currency: 'coins', rarity: 'epic', color: '#F4C430' },
-  { id: 'sk-ninja', kind: 'skin', name: 'Ninja Nugget', desc: 'Dodges cars silently.', price: 30000, currency: 'coins', rarity: 'rare', color: '#2A2A2A' },
-  { id: 'sk-fire', kind: 'skin', name: 'Hot Wings', desc: 'Spicy on the road.', price: 90, currency: 'eggs', rarity: 'legendary', color: '#E63946' },
-  // plinko balls
+  { id: 'fr-vip', kind: 'frame', name: 'VIP Platinum Frame', desc: 'Rooster VIP II reward.', price: 0, currency: 'coins', rarity: 'epic', color: 'ring-slate-200 ring-offset-2 ring-offset-gold shadow-[0_0_18px_rgba(226,232,240,.6)]', vip: true },
   { id: 'bl-gold', kind: 'ball', name: 'Golden Egg', desc: 'Default Plinko drop.', price: 0, currency: 'coins', rarity: 'common', color: '#F4C430' },
   { id: 'bl-red', kind: 'ball', name: 'Hot Chip', desc: 'A red poker chip drop.', price: 12000, currency: 'coins', rarity: 'rare', color: '#E63946' },
   { id: 'bl-cream', kind: 'ball', name: 'Farm Fresh', desc: 'Straight from the nest.', price: 8000, currency: 'coins', rarity: 'common', color: '#F8F6EF' },
   { id: 'bl-neon', kind: 'ball', name: 'Neon Pulse', desc: 'Glows as it falls.', price: 40, currency: 'eggs', rarity: 'epic', color: '#22D3EE' },
-  // titles
   { id: 'tt-none', kind: 'title', name: 'Rookie', desc: 'Everybody starts somewhere.', price: 0, currency: 'coins', rarity: 'common' },
   { id: 'tt-hunter', kind: 'title', name: 'Egg Hunter', desc: 'Show it off in the lobby.', price: 15000, currency: 'coins', rarity: 'rare' },
   { id: 'tt-roller', kind: 'title', name: 'High Roller', desc: 'Big bets only.', price: 75000, currency: 'coins', rarity: 'epic' },
   { id: 'tt-king', kind: 'title', name: 'King of the Coop', desc: 'Bow down.', price: 200, currency: 'eggs', rarity: 'legendary', minLevel: 10 },
+  { id: 'tt-elite', kind: 'title', name: 'Rooster Elite', desc: 'Rooster Elite reward.', price: 0, currency: 'coins', rarity: 'legendary', vip: true },
+  // ---- VIP perks ----
+  { id: 'fx-classic', kind: 'fx', name: 'Classic Gold Win', desc: 'The standard win show.', price: 0, currency: 'coins', rarity: 'common' },
+  { id: 'fx-royal', kind: 'fx', name: 'Royal Rooster Win', desc: 'Purple-and-gold win show with a crowned rooster. Rooster Elite reward.', price: 0, currency: 'coins', rarity: 'legendary', vip: true },
+  { id: 'nm-plain', kind: 'name', name: 'Standard Name', desc: 'Your name, plain and simple.', price: 0, currency: 'coins', rarity: 'common' },
+  { id: 'nm-gold', kind: 'name', name: 'Golden Name', desc: 'Your name in gold across the site. Rooster VIP II reward.', price: 0, currency: 'coins', rarity: 'epic', vip: true },
 ];
+
+/** Free starter cosmetics everyone owns. */
+export const DEFAULT_ITEMS = ['av-classic', 'fr-none', 'bl-gold', 'tt-none', 'ch-classic', 'hat-none', 'tb-classic', 'cp-classic', 'dk-classic', 'fx-classic', 'nm-plain'];
+
+/** Item prices in coins (golden eggs valued at 1,000 coins) — used to price bundles. */
+export const coinValue = (it: ShopItem) => (it.currency === 'eggs' ? it.price * 1000 : it.price);
 
 export const itemById = (id: string) => SHOP.find((i) => i.id === id);
 

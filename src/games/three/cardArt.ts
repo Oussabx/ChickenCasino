@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { Card, Suit, isRed, rankLabel } from '../../lib/cards';
+import { eqDeck, eqDeckId } from '../../lib/equipped';
+import { deckBackUrl } from '../../lib/deckSvg';
 
 /**
  * Canvas artwork for playing cards: vector suits, real pip layouts,
@@ -86,10 +88,11 @@ function head() {
   return headImg.complete && headImg.naturalWidth ? headImg : null;
 }
 
-function paper(g: CanvasRenderingContext2D) {
+function paper(g: CanvasRenderingContext2D, deckPaper = '#FFFEFA') {
   g.clearRect(0, 0, FACE_W, FACE_H);
   const grd = g.createLinearGradient(0, 0, FACE_W, FACE_H);
-  grd.addColorStop(0, '#FFFEFA'); grd.addColorStop(1, '#F3EFE3');
+  const custom = deckPaper.toUpperCase() !== '#FFFFFF' && deckPaper.toUpperCase() !== '#FFFEFA';
+  grd.addColorStop(0, custom ? deckPaper : '#FFFEFA'); grd.addColorStop(1, custom ? shade(deckPaper, -0.05) : '#F3EFE3');
   g.fillStyle = grd; roundRect(g, 0, 0, FACE_W, FACE_H, 34); g.fill();
   g.strokeStyle = 'rgba(0,0,0,.14)'; g.lineWidth = 3; roundRect(g, 1.5, 1.5, FACE_W - 3, FACE_H - 3, 33); g.stroke();
 }
@@ -190,8 +193,13 @@ function pips(g: CanvasRenderingContext2D, c: Card, col: string) {
 }
 
 const faceCache = new Map<string, THREE.CanvasTexture>();
+/** Lighten/darken a hex colour by `dl` lightness. */
+function shade(hex: string, dl: number) { return `#${new THREE.Color(hex).offsetHSL(0, 0, dl).getHexString()}`; }
+
+/** Card face in the equipped deck's colours. */
 export function faceTexture(c: Card) {
-  const key = `${c.r}${c.s}`;
+  const deckId = eqDeckId(), d = eqDeck();
+  const key = `${c.r}${c.s}|${deckId}`;
   const hit = faceCache.get(key);
   if (hit) return hit;
   const cv = document.createElement('canvas'); cv.width = FACE_W; cv.height = FACE_H;
@@ -199,8 +207,9 @@ export function faceTexture(c: Card) {
   tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
   const draw = () => {
     const g = cv.getContext('2d')!;
-    const col = isRed(c) ? RED : BLACK;
-    paper(g);
+    const col = isRed(c) ? (d.red ?? RED) : (d.black ?? BLACK);
+    paper(g, d.paper);
+    if (d.frame && deckId !== 'dk-classic') { g.strokeStyle = d.frame; g.lineWidth = 8; roundRect(g, 10, 10, FACE_W - 20, FACE_H - 20, 26); g.stroke(); }
     if (c.r === 14) ace(g, c, col);
     else if (c.r >= 11) court(g, c, col);
     else pips(g, c, col);
@@ -214,8 +223,21 @@ export function faceTexture(c: Card) {
   return tex;
 }
 
+const backCache = new Map<string, THREE.CanvasTexture>();
 let backTex: THREE.CanvasTexture | null = null;
+/** Card back in the equipped deck's design. */
 export function backTexture() {
+  const deckId = eqDeckId();
+  if (deckId !== 'dk-classic') {
+    const hit = backCache.get(deckId); if (hit) return hit;
+    const cv = document.createElement('canvas'); cv.width = FACE_W; cv.height = FACE_H;
+    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+    const img = new Image();
+    img.onload = () => { const g = cv.getContext('2d')!; g.clearRect(0, 0, FACE_W, FACE_H); g.drawImage(img, 0, 0, FACE_W, FACE_H); t.needsUpdate = true; };
+    img.src = deckBackUrl(deckId);
+    backCache.set(deckId, t);
+    return t;
+  }
   if (backTex) return backTex;
   const cv = document.createElement('canvas'); cv.width = FACE_W; cv.height = FACE_H;
   backTex = new THREE.CanvasTexture(cv);

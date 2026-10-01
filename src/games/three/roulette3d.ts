@@ -3,6 +3,7 @@ import { Stage3D } from './stage';
 import { MAT, box, glowSprite, labelPlane, std, textTexture } from './models';
 import { chipStack } from './table3d';
 import { roundRect } from './cardArt';
+import { eqTable, eqTableId } from '../../lib/equipped';
 
 export const WHEEL_ORDER = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
 export const REDS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
@@ -100,7 +101,7 @@ export class RouletteScene extends Stage3D {
     this.parallax = 0.3;
     this.key.position.set(-4, 14, 6);
 
-    // the table: green felt all round, the wheel sunk into it
+    // the table: felt all round (green, or the equipped table skin), the wheel sunk into it
     const felt = new THREE.Mesh(new THREE.PlaneGeometry(90, 90), new THREE.MeshStandardMaterial({ map: feltTexture(), roughness: 0.95 }));
     felt.rotation.x = -Math.PI / 2; felt.position.y = -0.02; felt.receiveShadow = true;
     this.scene.add(felt);
@@ -454,7 +455,10 @@ function feltTexture() {
   const cv = document.createElement('canvas'); cv.width = cv.height = 512;
   const g = cv.getContext('2d')!;
   const grd = g.createRadialGradient(256, 256, 20, 256, 256, 360);
-  grd.addColorStop(0, '#11583a'); grd.addColorStop(1, '#0a3a26');
+  // classic keeps the green baize; any other table skin dyes the felt
+  const th = eqTableId() === 'tb-classic' ? null : eqTable();
+  const c = th ? new THREE.Color(th.felt) : null;
+  grd.addColorStop(0, c ? `#${c.getHexString()}` : '#11583a'); grd.addColorStop(1, c ? `#${c.clone().lerp(new THREE.Color(th!.edge), 0.5).getHexString()}` : '#0a3a26');
   g.fillStyle = grd; g.fillRect(0, 0, 512, 512);
   const id = g.getImageData(0, 0, 512, 512);
   for (let i = 0; i < id.data.length; i += 4) { const v = (Math.random() - 0.5) * 14; id.data[i] += v; id.data[i + 1] += v; id.data[i + 2] += v; }
@@ -491,14 +495,21 @@ function cellGlowTexture() {
   return cellGlow;
 }
 
-const boardCache = new Map<boolean, THREE.CanvasTexture>();
+const boardCache = new Map<string, THREE.CanvasTexture>();
 /** The printed betting layout. `portrait` rotates the labels so they read upright on phones. */
 function boardTexture(portrait: boolean) {
-  const hit = boardCache.get(portrait); if (hit) return hit;
+  const cacheKey = `${portrait}|${eqTableId()}`;
+  const hit = boardCache.get(cacheKey); if (hit) return hit;
   const P = 110, W = BU * P, H = BV * P;
   const cv = document.createElement('canvas'); cv.width = W; cv.height = Math.round(H);
   const g = cv.getContext('2d')!;
   const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+  const th = eqTableId() === 'tb-classic' ? null : eqTable();
+  const c0 = th ? `#${new THREE.Color(th.felt).getHexString()}` : '#0f5c3a', c1 = th ? `#${new THREE.Color(th.felt).lerp(new THREE.Color(th.edge), 0.4).getHexString()}` : '#0b4a2f';
+  // line + label colours follow the table skin's trim / ink (gold on classic)
+  const tc = th ? new THREE.Color(th.trim) : new THREE.Color(0xf4c430);
+  const lineA = (a: number) => `#${tc.getHexString()}${Math.round(a * 255).toString(16).padStart(2, '0')}`;
+  const inkC = th ? th.ink : '#F4C430';
   const label = (text: string, cx: number, cy: number, size: number, color: string, weight = 900) => {
     g.save(); g.translate(cx, cy); if (portrait) g.rotate(-Math.PI / 2);
     g.fillStyle = color; g.font = `${weight} ${size}px Montserrat, system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -508,12 +519,12 @@ function boardTexture(portrait: boolean) {
     const r = cellRect(key)!;
     const x = r[0] * P, y = r[1] * P, w = (r[2] - r[0]) * P, h = (r[3] - r[1]) * P;
     if (fill) { g.fillStyle = fill; roundRect(g, x + 6, y + 6, w - 12, h - 12, 12); g.fill(); }
-    g.strokeStyle = 'rgba(244,196,48,.85)'; g.lineWidth = 3; g.strokeRect(x, y, w, h);
+    g.strokeStyle = lineA(.85); g.lineWidth = 3; g.strokeRect(x, y, w, h);
     return { cx: x + w / 2, cy: y + h / 2, w, h };
   };
   const draw = () => {
     g.clearRect(0, 0, W, H);
-    const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#0f5c3a'); bg.addColorStop(1, '#0b4a2f');
+    const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, c0); bg.addColorStop(1, c1);
     g.fillStyle = bg; roundRect(g, 0, 0, W, H, 26); g.fill();
     // zero
     { const c = cell('n:0', null); g.fillStyle = '#0e8f4a'; g.beginPath(); g.moveTo(c.cx - c.w / 2 + 10, c.cy); g.lineTo(c.cx + c.w / 2 - 8, 10); g.lineTo(c.cx + c.w / 2 - 8, c.h * 1 - 10); g.closePath(); g.fill(); label('0', c.cx + 8, c.cy, 62, '#fff'); }
@@ -521,21 +532,21 @@ function boardTexture(portrait: boolean) {
       const c = cell(`n:${n}`, REDS.has(n) ? '#c21a2a' : '#141414');
       label(String(n), c.cx, c.cy, portrait ? 50 : 56, '#F8F6EF');
     }
-    for (const k of ['c1', 'c2', 'c3']) { const c = cell(k, null); label('2 to 1', c.cx, c.cy, 26, '#F4C430', 800); }
-    (['d1', 'd2', 'd3'] as const).forEach((k, i) => { const c = cell(k, null); label(['1st 12', '2nd 12', '3rd 12'][i], c.cx, c.cy, 44, '#F4C430'); });
+    for (const k of ['c1', 'c2', 'c3']) { const c = cell(k, null); label('2 to 1', c.cx, c.cy, 26, inkC, 800); }
+    (['d1', 'd2', 'd3'] as const).forEach((k, i) => { const c = cell(k, null); label(['1st 12', '2nd 12', '3rd 12'][i], c.cx, c.cy, 44, inkC); });
     OUTSIDE.forEach((k) => {
       const c = cell(k, null);
       if (k === 'red' || k === 'black') {
         g.save(); g.translate(c.cx, c.cy); g.fillStyle = k === 'red' ? '#d62839' : '#0b0b0b';
         g.beginPath(); g.moveTo(0, -36); g.lineTo(62, 0); g.lineTo(0, 36); g.lineTo(-62, 0); g.closePath(); g.fill();
-        g.strokeStyle = 'rgba(244,196,48,.8)'; g.lineWidth = 3; g.stroke(); g.restore();
-      } else label({ low: '1–18', even: 'EVEN', odd: 'ODD', high: '19–36' }[k]!, c.cx, c.cy, 40, '#F4C430');
+        g.strokeStyle = lineA(.8); g.lineWidth = 3; g.stroke(); g.restore();
+      } else label({ low: '1–18', even: 'EVEN', odd: 'ODD', high: '19–36' }[k]!, c.cx, c.cy, 40, inkC);
     });
-    g.strokeStyle = '#F4C430'; g.lineWidth = 6; roundRect(g, 3, 3, W - 6, H - 6, 24); g.stroke();
+    g.strokeStyle = inkC; g.lineWidth = 6; roundRect(g, 3, 3, W - 6, H - 6, 24); g.stroke();
     tex.needsUpdate = true;
   };
   draw();
   document.fonts?.ready.then(draw);
-  boardCache.set(portrait, tex);
+  boardCache.set(cacheKey, tex);
   return tex;
 }

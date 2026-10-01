@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { buildChickenLook, chickenBodyColor, chickenGlow } from './three/models';
 
 /**
  * Voxel-style 3D scene for Chicken Cross.
@@ -269,9 +270,14 @@ export class CrossScene {
     this.camX = 0;
   }
 
-  setSkin(color: string) {
-    const c = new THREE.Color(color);
-    this.skinMats.forEach((m) => m.color.copy(c));
+  private look: THREE.Group | null = null;
+  /** Wear an equipped skin + hat. */
+  setLook(skinId: string, hatId: string) {
+    const c = chickenBodyColor(skinId), e = chickenGlow(skinId);
+    this.skinMats.forEach((m) => { m.color.copy(c); m.emissive.copy(e); });
+    if (this.look) this.chickenBody.remove(this.look);
+    this.look = buildChickenLook(skinId, hatId);
+    this.chickenBody.add(this.look);
   }
 
   setTurbo(t: boolean) { this.turbo = t; }

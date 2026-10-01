@@ -1,141 +1,215 @@
-import { useState } from 'react';
-import { Check, Lock } from 'lucide-react';
-import PageHeader from '../components/PageHeader';
-import { toast, useLevel, useStore } from '../store';
-import { ItemKind, RARITY_STYLE, SHOP, ShopItem } from '../lib/data';
+import { ReactNode, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { ArrowRight, ChevronLeft, ChevronRight, Crown, Egg as EggIcon, Flame, Gem, Layers, Package, Shirt, Sparkles, Star } from 'lucide-react';
+import { useStore } from '../store';
+import { ItemKind, SHOP, ShopItem } from '../lib/data';
 import { fmt } from '../lib/format';
-import { ChickenSprite, Coin, Egg } from '../components/Icons';
-import Avatar from '../components/Avatar';
-import Modal from '../components/Modal';
-import { sfx } from '../lib/sound';
-import { Reveal, Tilt } from '../lib/motion';
+import { Coin, Egg } from '../components/Icons';
+import { EggArt } from '../components/CosmeticArt';
+import { EGGS } from '../lib/cosmetics';
+import { useCountUp } from '../components/TableUI';
+import ItemCard from './shop/ItemCard';
+import ItemSheet from './shop/ItemSheet';
+import HotDrop from './shop/HotDrop';
+import EggShop from './shop/EggShop';
+import VipTrack from './shop/VipTrack';
+import Locker from './shop/Locker';
 
-const TABS: { k: ItemKind; label: string }[] = [
-  { k: 'bundle', label: 'Coin bundles' },
-  { k: 'avatar', label: 'Avatars' },
-  { k: 'frame', label: 'Frames' },
-  { k: 'skin', label: 'Chicken skins' },
-  { k: 'ball', label: 'Plinko eggs' },
-  { k: 'title', label: 'Titles' },
+type Tab = 'featured' | 'chicken' | 'hat' | 'table' | 'chips' | 'deck' | 'set' | 'eggs' | 'vip' | 'locker' | 'more';
+const TABS: { k: Tab; label: string; icon?: ReactNode }[] = [
+  { k: 'featured', label: 'Featured', icon: <Flame size={14} /> },
+  { k: 'chicken', label: 'Chickens' },
+  { k: 'hat', label: 'Hats' },
+  { k: 'table', label: 'Tables' },
+  { k: 'chips', label: 'Chips' },
+  { k: 'deck', label: 'Cards' },
+  { k: 'set', label: 'Bundles', icon: <Package size={14} /> },
+  { k: 'eggs', label: 'Egg Shop', icon: <EggIcon size={14} /> },
+  { k: 'vip', label: 'VIP', icon: <Crown size={14} /> },
+  { k: 'locker', label: 'My Locker', icon: <Shirt size={14} /> },
+  { k: 'more', label: 'More' },
 ];
+const ORDER: Record<ShopItem['rarity'], number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
 
 export default function Shop() {
-  const [tab, setTab] = useState<ItemKind>('bundle');
-  const [confirm, setConfirm] = useState<ShopItem | null>(null);
-  const eggs = useStore((s) => s.eggs);
-  const balance = useStore((s) => s.balance);
-  const items = SHOP.filter((i) => i.kind === tab);
+  const [params, setParams] = useSearchParams();
+  const tab = (TABS.find((t) => t.k === params.get('tab'))?.k ?? 'featured') as Tab;
+  const setTab = (k: Tab) => { setParams(k === 'featured' ? {} : { tab: k }, { replace: true }); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const [open, setOpen] = useState<ShopItem | null>(null);
+  const toShop = (k: ItemKind) => setTab(k === 'fx' || k === 'name' ? 'vip' : (['chicken', 'hat', 'table', 'chips', 'deck'].includes(k) ? k : 'more') as Tab);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 lg:px-6 pt-6 space-y-6">
-      <PageHeader kicker="The Coop Store" title={<>Shop <span className="text-gold-grad">& flex</span></>} sub="Spend coins and golden eggs on cosmetics that show up in your games and profile."
-        img="strip-chips.webp"
-        right={
-          <div className="flex gap-2">
-            <div className="rounded-2xl bg-ink/70 border border-white/10 px-4 py-2.5 backdrop-blur"><div className="label !text-[10px]">Coins</div><div className="flex items-center gap-1.5 font-display font-black tabular"><Coin className="h-4 w-4" />{fmt(balance)}</div></div>
-            <div className="rounded-2xl bg-ink/70 border border-gold/30 px-4 py-2.5 backdrop-blur"><div className="label !text-[10px]">Golden eggs</div><div className="flex items-center gap-1.5 font-display font-black tabular"><Egg className="h-4 w-4" />{eggs}</div></div>
-          </div>
-        } />
+    <div className="mx-auto max-w-7xl space-y-5 px-4 pt-6 lg:px-6">
+      <Header onLocker={() => setTab('locker')} />
+      {/* sticky category bar */}
+      <nav className="sticky top-16 z-30 -mx-4 border-b border-white/[0.06] bg-ink/85 px-4 py-2 backdrop-blur-xl lg:-mx-6 lg:px-6" aria-label="Shop sections">
+        <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
+          {TABS.map((t) => (
+            <button key={t.k} type="button" onClick={() => setTab(t.k)} aria-current={tab === t.k}
+              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-bold transition ${tab === t.k ? 'border-gold bg-gold text-ink shadow-gold' : 'border-white/10 text-cream/80 hover:border-white/30 hover:text-cream'} ${t.k === 'locker' ? 'sm:ml-auto' : ''}`}>
+              {t.icon}{t.label}
+            </button>
+          ))}
+        </div>
+      </nav>
 
-      <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4">
-        {TABS.map((t) => (
-          <button key={t.k} onClick={() => setTab(t.k)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold border transition ${tab === t.k ? 'bg-gold text-ink border-gold' : 'border-white/10 text-cream/80 hover:border-white/30'}`}>{t.label}</button>
-        ))}
+      <div key={tab} className="shop-tab-in space-y-8 pb-6">
+        {tab === 'featured' && <Featured onOpen={setOpen} go={setTab} />}
+        {(['chicken', 'hat', 'table', 'chips', 'deck'] as Tab[]).includes(tab) && <Category kind={tab as ItemKind} onOpen={setOpen} />}
+        {tab === 'set' && <Grid items={SHOP.filter((i) => i.kind === 'set')} onOpen={setOpen} wide />}
+        {tab === 'eggs' && <EggShop onOpen={setOpen} />}
+        {tab === 'vip' && <VipTrack onOpen={setOpen} />}
+        {tab === 'locker' && <Locker onShop={toShop} />}
+        {tab === 'more' && <More onOpen={setOpen} />}
       </div>
 
-      {tab === 'bundle' && <p className="text-sm text-smoke -mt-2">Golden eggs are earned from level-ups, daily streaks, missions and promo codes — trade them here for coins.</p>}
-
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {items.map((it, i) => <Reveal key={it.id} variant="zoom" delay={(i % 4) * 80} className="h-full"><Item it={it} onBuy={() => setConfirm(it)} /></Reveal>)}
-      </div>
-
-      <Modal open={!!confirm} onClose={() => setConfirm(null)} title="Confirm purchase">
-        {confirm && (
-          <div>
-            <div className="rounded-2xl bg-ink-900 p-5 flex items-center gap-4">
-              <Preview it={confirm} small />
-              <div>
-                <div className="font-display font-bold text-lg">{confirm.name}</div>
-                <div className={`text-xs font-bold uppercase ${RARITY_STYLE[confirm.rarity].split(' ')[0]}`}>{confirm.rarity}</div>
-                <div className="mt-1 flex items-center gap-1 font-display font-black">{confirm.currency === 'coins' ? <Coin className="h-4 w-4" /> : <Egg className="h-4 w-4" />}{fmt(confirm.price, 0)}</div>
-              </div>
-            </div>
-            <div className="mt-5 grid grid-cols-2 gap-2">
-              <button className="btn-ghost py-3" onClick={() => setConfirm(null)}>Cancel</button>
-              <button className="btn-gold py-3" onClick={() => {
-                const err = useStore.getState().buy(confirm.id);
-                if (err) { toast({ title: err, tone: 'red' }); }
-                else {
-                  sfx.cashout();
-                  if (confirm.kind !== 'bundle') useStore.getState().equip(confirm.id);
-                  toast({ title: confirm.kind === 'bundle' ? `+${fmt(confirm.coins!, 0)} coins` : `${confirm.name} unlocked & equipped!`, tone: 'gold' });
-                }
-                setConfirm(null);
-              }}>Buy now</button>
-            </div>
-          </div>
-        )}
-      </Modal>
+      <ItemSheet it={open} onClose={() => setOpen(null)} onOpenItem={setOpen} />
     </div>
   );
 }
 
-function Item({ it, onBuy }: { it: ShopItem; onBuy: () => void }) {
-  const owned = useStore((s) => s.inventory.includes(it.id));
-  const equippedMap = useStore((s) => s.equipped);
-  const equip = useStore((s) => s.equip);
-  const { level } = useLevel();
-  const equipped = Object.values(equippedMap).includes(it.id);
-  const locked = !!it.minLevel && level < it.minLevel;
-  const isBundle = it.kind === 'bundle';
+function Header({ onLocker }: { onLocker: () => void }) {
+  const balance = useStore((s) => s.balance);
+  const eggs = useStore((s) => s.eggs);
+  const shown = useCountUp(balance, 600);
   return (
-    <Tilt max={12} className={`card overflow-hidden border ${RARITY_STYLE[it.rarity].split(' ')[1]} flex flex-col h-full`}>
-      <div className={`relative aspect-square grid place-items-center overflow-hidden ${it.rarity === 'legendary' ? 'bg-[radial-gradient(circle,rgba(244,196,48,.18),transparent_70%)]' : 'bg-[radial-gradient(circle,rgba(255,255,255,.05),transparent_70%)]'}`}>
-        <div className="bob grid h-full w-full place-items-center" style={{ ['--dur' as string]: '5s', ['--r1' as string]: '0deg' }}><Preview it={it} /></div>
-        <span className={`chip absolute left-2 top-2 bg-ink/80 uppercase !text-[10px] ${RARITY_STYLE[it.rarity].split(' ')[0]}`}>{it.rarity}</span>
-        {equipped && <span className="chip absolute right-2 top-2 bg-gold text-ink !text-[10px]"><Check size={10} />EQUIPPED</span>}
-      </div>
-      <div className="p-3 flex-1 flex flex-col">
-        <div className="font-display font-bold leading-tight">{it.name}</div>
-        <div className="text-xs text-smoke mt-0.5 flex-1">{it.desc}</div>
-        <div className="mt-3">
-          {owned && !isBundle ? (
-            <button className={`w-full py-2 text-sm ${equipped ? 'btn-dark' : 'btn-ghost'}`} disabled={equipped} onClick={() => { equip(it.id); sfx.click(); }}>{equipped ? 'Equipped' : 'Equip'}</button>
-          ) : locked ? (
-            <button className="btn-dark w-full py-2 text-sm" disabled><Lock size={12} />Level {it.minLevel}</button>
-          ) : (
-            <button className="btn-gold w-full py-2 text-sm" onClick={onBuy}>
-              {it.price === 0 ? 'Free' : <>{it.currency === 'coins' ? <Coin className="h-4 w-4" /> : <Egg className="h-4 w-4" />}{fmt(it.price, 0)}</>}
-            </button>
-          )}
+    <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-ink-900 p-5 sm:p-7 grain">
+      <img src="./img/strip-chips.webp" alt="" className="absolute inset-y-0 right-0 h-full w-2/3 object-cover opacity-40 [mask-image:linear-gradient(to_right,transparent,black_60%)]" />
+      <div className="relative flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div className="label text-gold">The Coop Store</div>
+          <h1 className="h-display mt-1 text-4xl sm:text-5xl">Dress your <span className="text-gold-grad">chicken</span></h1>
+          <p className="mt-1 max-w-lg text-sm text-cream/70">Chickens, hats, tables, chips and card decks — collect them, mix and match, and they show up in your games.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <div className="rounded-2xl border border-white/10 bg-ink/70 px-4 py-2 backdrop-blur"><div className="label !text-[10px]">Coins</div><div className="flex items-center gap-1.5 font-display font-black tabular"><Coin className="h-4 w-4" />{fmt(shown || balance)}</div></div>
+          <div className="rounded-2xl border border-gold/30 bg-ink/70 px-4 py-2 backdrop-blur"><div className="label !text-[10px]">Golden eggs</div><div className="flex items-center gap-1.5 font-display font-black tabular"><Egg className="h-4 w-4" />{eggs}</div></div>
+          <button type="button" onClick={onLocker} className="btn-gold px-4 py-2.5"><Shirt size={16} />My Locker</button>
         </div>
       </div>
-    </Tilt>
+    </div>
   );
 }
 
-function Preview({ it, small }: { it: ShopItem; small?: boolean }) {
-  const sz = small ? 'h-16 w-16' : 'h-3/5 w-3/5';
-  switch (it.kind) {
-    case 'bundle':
-      return (
-        <div className={`relative ${small ? 'h-16 w-16' : 'h-1/2 w-1/2'}`}>
-          {Array.from({ length: Math.min(6, 2 + SHOP.filter((s) => s.kind === 'bundle').indexOf(it) * 2) }).map((_, i) => (
-            <Coin key={i} className="absolute h-1/2 w-1/2" style={{ left: `${(i % 3) * 25}%`, top: `${40 - Math.floor(i / 3) * 30 + (i % 2) * 6}%` }} />
-          ))}
-          {!small && <div className="absolute -bottom-6 inset-x-0 text-center font-display font-black text-gold text-sm">{fmt(it.coins!, 0)}</div>}
+function Featured({ onOpen, go }: { onOpen: (it: ShopItem) => void; go: (t: Tab) => void }) {
+  const inv = useStore((s) => s.inventory);
+  const sellable = (i: ShopItem) => !i.limited && !i.vip && i.price > 0;
+  const best = SHOP.filter((i) => i.best);
+  const fresh = SHOP.filter((i) => i.fresh);
+  const legendary = SHOP.filter((i) => i.rarity === 'legendary' && sellable(i) && ['chicken', 'hat', 'table', 'chips', 'deck'].includes(i.kind));
+  const almost = SHOP.filter((i) => sellable(i) && !inv.includes(i.id) && ['chicken', 'hat', 'table', 'chips', 'deck'].includes(i.kind)).sort((a, b) => a.price - b.price).slice(0, 8);
+  return (
+    <>
+      <HotDrop onOpen={onOpen} />
+      <Shelf title="Best sellers" icon={<Star size={18} className="text-gold" />} items={best} onOpen={onOpen} />
+      <Shelf title="New arrivals" icon={<Sparkles size={18} className="text-sky-300" />} items={fresh} onOpen={onOpen} />
+      <section>
+        <ShelfHead title="Bundles" icon={<Package size={18} className="text-gold" />} more={() => go('set')} />
+        <Grid items={SHOP.filter((i) => i.kind === 'set')} onOpen={onOpen} wide />
+      </section>
+      <section className="grid gap-5 lg:grid-cols-[1fr_1.4fr]">
+        <EggTeaser go={() => go('eggs')} />
+        <VipTrack onOpen={onOpen} compact />
+      </section>
+      <Shelf title="Legendary" icon={<Gem size={18} className="text-gold" />} items={legendary} onOpen={onOpen} />
+      {almost.length > 0 && <Shelf title="Start your collection" icon={<Layers size={18} className="text-emerald-400" />} items={almost} onOpen={onOpen} />}
+    </>
+  );
+}
+
+function ShelfHead({ title, icon, more }: { title: string; icon: ReactNode; more?: () => void }) {
+  return (
+    <div className="mb-3 flex items-center justify-between">
+      <h2 className="flex items-center gap-2 font-display text-xl font-extrabold sm:text-2xl">{icon}{title}</h2>
+      {more && <button type="button" onClick={more} className="flex items-center gap-1 py-2 text-xs font-bold text-gold hover:underline">See all <ArrowRight size={13} /></button>}
+    </div>
+  );
+}
+
+/** Horizontal, snap-scrolling shelf with arrow buttons on desktop. */
+function Shelf({ title, icon, items, onOpen }: { title: string; icon: ReactNode; items: ShopItem[]; onOpen: (it: ShopItem) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const scroll = (d: number) => ref.current?.scrollBy({ left: d * ref.current.clientWidth * 0.8, behavior: 'smooth' });
+  return (
+    <section className="relative">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="flex items-center gap-2 font-display text-xl font-extrabold sm:text-2xl">{icon}{title}</h2>
+        <div className="hidden gap-1.5 sm:flex">
+          <button type="button" aria-label="Scroll left" onClick={() => scroll(-1)} className="grid h-8 w-8 place-items-center rounded-full border border-white/10 hover:border-gold/50"><ChevronLeft size={16} /></button>
+          <button type="button" aria-label="Scroll right" onClick={() => scroll(1)} className="grid h-8 w-8 place-items-center rounded-full border border-white/10 hover:border-gold/50"><ChevronRight size={16} /></button>
         </div>
-      );
-    case 'avatar':
-      return <img src={`./img/${it.img}`} alt="" className={`${sz} rounded-full object-cover ring-2 ring-white/10`} />;
-    case 'frame':
-      return <Avatar avatar="av-classic" frame={it.id} size={small ? 64 : 110} />;
-    case 'skin':
-      return <ChickenSprite body={it.color} className={sz} />;
-    case 'ball':
-      return <div className={`${small ? 'h-12 w-10' : 'h-20 w-16'} rounded-[50%]`} style={{ background: `radial-gradient(circle at 35% 30%, #fff, ${it.color} 40%, #000a)`, boxShadow: `0 0 30px ${it.color}` }} />;
-    case 'title':
-      return <div className={`rounded-xl border px-3 py-2 font-display font-black uppercase tracking-wider ${small ? 'text-xs' : 'text-sm'} ${RARITY_STYLE[it.rarity]}`}>{it.name}</div>;
-  }
+      </div>
+      <div ref={ref} className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pb-2 lg:-mx-1 lg:px-1">
+        {items.map((it, i) => (
+          <div key={it.id} className="shop-rise w-[46%] shrink-0 snap-start sm:w-[30%] md:w-[23%] lg:w-[18.5%]" style={{ animationDelay: `${i * 50}ms` }}>
+            <ItemCard it={it} onOpen={onOpen} compact />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Grid({ items, onOpen, wide }: { items: ShopItem[]; onOpen: (it: ShopItem) => void; wide?: boolean }) {
+  return (
+    <div className={`grid gap-3 sm:gap-4 ${wide ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'}`}>
+      {items.map((it, i) => <div key={it.id} className="shop-rise" style={{ animationDelay: `${(i % 10) * 45}ms` }}><ItemCard it={it} onOpen={onOpen} /></div>)}
+    </div>
+  );
+}
+
+const FILTERS = ['All', 'Not owned', 'Owned'] as const;
+function Category({ kind, onOpen }: { kind: ItemKind; onOpen: (it: ShopItem) => void }) {
+  const inv = useStore((s) => s.inventory);
+  const [f, setF] = useState<(typeof FILTERS)[number]>('All');
+  const items = useMemo(() => SHOP.filter((i) => i.kind === kind && (!i.limited || inv.includes(i.id)))
+    .filter((i) => (f === 'Owned' ? inv.includes(i.id) : f === 'Not owned' ? !inv.includes(i.id) : true))
+    .sort((a, b) => Number(!!a.vip) - Number(!!b.vip) || ORDER[a.rarity] - ORDER[b.rarity] || a.price - b.price), [kind, inv, f]);
+  const have = SHOP.filter((i) => i.kind === kind && inv.includes(i.id)).length;
+  const all = SHOP.filter((i) => i.kind === kind && (!i.limited || inv.includes(i.id))).length;
+  return (
+    <section>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="h-2 w-40 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-gold-600 to-gold-300 transition-all duration-700" style={{ width: `${(have / all) * 100}%` }} /></div>
+          <span className="text-xs font-bold text-smoke">{have}/{all} collected</span>
+        </div>
+        <div className="seg">{FILTERS.map((x) => <button key={x} type="button" data-active={f === x} onClick={() => setF(x)} className="!px-3">{x}</button>)}</div>
+      </div>
+      {items.length ? <Grid items={items} onOpen={onOpen} /> : <div className="py-16 text-center text-smoke">Nothing here yet.</div>}
+    </section>
+  );
+}
+
+function EggTeaser({ go }: { go: () => void }) {
+  return (
+    <button type="button" onClick={go} className="group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#1e1a0e] to-black p-5 text-left">
+      <div className="flex items-center gap-2 font-display text-[11px] font-black uppercase tracking-[.3em] text-gold/80"><EggIcon size={14} />Egg Shop</div>
+      <h3 className="h-display mt-1 text-3xl text-gold-grad">Hatch a surprise</h3>
+      <p className="mt-1 text-sm text-cream/70">Cosmetics only, never a duplicate, odds shown up front.</p>
+      <div className="mt-4 flex items-end justify-between">
+        {EGGS.map((e, i) => <div key={e.id} className="shop-egg-idle transition group-hover:-translate-y-1" style={{ animationDelay: `${i * 0.3}s` }}><EggArt egg={e.id} size={56 + i * 8} /></div>)}
+      </div>
+      <span className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-gold">Open the Egg Shop <ArrowRight size={14} className="transition group-hover:translate-x-1" /></span>
+    </button>
+  );
+}
+
+function More({ onOpen }: { onOpen: (it: ShopItem) => void }) {
+  const groups: [ItemKind, string, string?][] = [
+    ['bundle', 'Coin packs', 'Trade golden eggs — earned from level-ups, streaks, missions and promo codes — for coins.'],
+    ['avatar', 'Avatars'], ['frame', 'Avatar frames'], ['title', 'Titles'], ['ball', 'Plinko eggs'],
+  ];
+  return (
+    <>
+      {groups.map(([k, title, sub]) => (
+        <section key={k}>
+          <h2 className="mb-1 font-display text-xl font-extrabold">{title}</h2>
+          {sub && <p className="mb-3 text-sm text-smoke">{sub}</p>}
+          <Grid items={SHOP.filter((i) => i.kind === k)} onOpen={k === 'bundle' ? (it) => onOpen(it) : onOpen} />
+        </section>
+      ))}
+    </>
+  );
 }
 

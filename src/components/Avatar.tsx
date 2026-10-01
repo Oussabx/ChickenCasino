@@ -14,3 +14,9 @@ export default function Avatar({ size = 40, avatar, frame, className = '' }: { s
     </div>
   );
 }
+
+/** The player's name, in gold if they've equipped the Golden Name (Rooster VIP II). */
+export function PlayerName({ name, className = '' }: { name: string; className?: string }) {
+  const gold = useStore((s) => s.equipped.name === 'nm-gold');
+  return <span className={`${gold ? 'text-gold-grad drop-shadow-[0_0_8px_rgba(244,196,48,.35)]' : ''} ${className}`}>{name}</span>;
+}

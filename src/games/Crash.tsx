@@ -8,7 +8,6 @@ import { BOT_NAMES } from '../lib/data';
 import { fmt, fmtMult } from '../lib/format';
 import { Coin } from '../components/Icons';
 import { Users } from 'lucide-react';
-import { itemById } from '../lib/data';
 import { CrashScene } from './three/crash3d';
 
 type Phase = 'waiting' | 'running' | 'crashed';
@@ -38,14 +37,14 @@ export default function Crash() {
 
   const wrap = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<CrashScene | null>(null);
-  const skin = useStore((s2) => itemById(s2.equipped.skin)?.color ?? '#F8F6EF');
+  const look = useStore((s2) => `${s2.equipped.chicken}|${s2.equipped.hat}`);
   const turbo = useStore((s2) => s2.settings.turbo);
   const st = useRef({ phase: 'waiting' as Phase, start: performance.now(), crash: genCrash(), crashAt: 0, mult: 1 });
   const myRef = useRef(my); myRef.current = my;
   const autoRef = useRef({ autoOn, auto }); autoRef.current = { autoOn, auto };
   const queuedRef = useRef(queued); queuedRef.current = queued;
 
-  useEffect(() => { sceneRef.current?.setSkin(skin); }, [skin]);
+  useEffect(() => { const [c, h] = look.split('|'); sceneRef.current?.setLook(c, h); }, [look]);
   useEffect(() => { sceneRef.current?.setTurbo(turbo); }, [turbo]);
 
   const spawnBots = () =>
@@ -75,7 +74,7 @@ export default function Crash() {
   // game loop
   useEffect(() => {
     const scene = new CrashScene(wrap.current!);
-    scene.setSkin(useStore.getState().equipped.skin ? (itemById(useStore.getState().equipped.skin)?.color ?? '#F8F6EF') : '#F8F6EF');
+    { const eq = useStore.getState().equipped; scene.setLook(eq.chicken, eq.hat); }
     sceneRef.current = scene;
     let raf = 0, lastTick = 0;
     setPlayers(spawnBots());

@@ -164,20 +164,25 @@ function Stamp({ s, leaving }: { s: Show; leaving: boolean }) {
 // BIG / MEGA / EPIC — the full show
 function Jackpot({ s, leaving, onSkip }: { s: Show; leaving: boolean; onSkip: () => void }) {
   const reduced = useStore((st) => st.settings.reduceMotion);
+  // Rooster Elite's Royal Rooster win show: purple-and-gold rays and a crowned mascot
+  const royal = useStore((st) => st.equipped.fx === 'fx-royal');
   const title = TITLE[s.tier];
   const rain = s.tier === 'epic' ? 46 : s.tier === 'mega' ? 34 : 24;
   return (
     <div onClick={onSkip} role="presentation"
       className={`absolute inset-0 z-[46] grid cursor-pointer place-items-center overflow-hidden transition-opacity duration-300 ${leaving ? 'opacity-0' : 'opacity-100 winfx-fade-in'}`}>
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(58,11,16,.82),rgba(0,0,0,.92)_70%)]" />
+      <div className={`absolute inset-0 ${royal ? 'bg-[radial-gradient(ellipse_at_center,rgba(76,29,149,.85),rgba(0,0,0,.92)_70%)]' : 'bg-[radial-gradient(ellipse_at_center,rgba(58,11,16,.82),rgba(0,0,0,.92)_70%)]'}`} />
       {!reduced && (
         <div className="absolute left-1/2 top-1/2 h-[220%] w-[220%] -translate-x-1/2 -translate-y-1/2"
-          style={{ background: `repeating-conic-gradient(from 0deg, rgba(244,196,48,${s.tier === 'epic' ? 0.42 : 0.3}) 0deg 7deg, transparent 7deg 18deg)`, animation: 'winfx-spin 14s linear infinite', maskImage: 'radial-gradient(circle, black 8%, transparent 46%)', WebkitMaskImage: 'radial-gradient(circle, black 8%, transparent 46%)' }} />
+          style={{ background: royal ? `repeating-conic-gradient(from 0deg, rgba(192,132,252,.4) 0deg 7deg, rgba(244,196,48,.25) 7deg 10deg, transparent 10deg 18deg)` : `repeating-conic-gradient(from 0deg, rgba(244,196,48,${s.tier === 'epic' ? 0.42 : 0.3}) 0deg 7deg, transparent 7deg 18deg)`, animation: 'winfx-spin 14s linear infinite', maskImage: 'radial-gradient(circle, black 8%, transparent 46%)', WebkitMaskImage: 'radial-gradient(circle, black 8%, transparent 46%)' }} />
       )}
       {!reduced && <Rain n={rain} />}
       <div key={s.key} className="relative flex flex-col items-center text-center">
         <Burst n={36} spread={300} reduced={reduced} />
-        <img src="./img/head.webp" alt="" className="winfx-mascot mb-2 h-16 w-16 rounded-full object-cover shadow-[0_0_0_4px_#F4C430,0_0_40px_rgba(244,196,48,.8)] sm:h-24 sm:w-24" />
+        <div className="relative">
+          {royal && <svg viewBox="0 0 60 30" className="winfx-mascot absolute -top-5 left-1/2 z-10 w-12 -translate-x-1/2 sm:-top-7 sm:w-16"><path d="M4 28 L2 6 L16 16 L30 2 L44 16 L58 6 L56 28Z" fill="#F4C430" stroke="#7a4f00" strokeWidth="2" strokeLinejoin="round" /><circle cx="30" cy="20" r="3.5" fill="#c084fc" /></svg>}
+          <img src="./img/head.webp" alt="" className={`winfx-mascot mb-2 h-16 w-16 rounded-full object-cover sm:h-24 sm:w-24 ${royal ? 'shadow-[0_0_0_4px_#c084fc,0_0_40px_rgba(192,132,252,.9)]' : 'shadow-[0_0_0_4px_#F4C430,0_0_40px_rgba(244,196,48,.8)]'}`} />
+        </div>
         <div className="h-display flex text-5xl leading-none drop-shadow-[0_5px_0_rgba(0,0,0,.75)] sm:text-8xl" aria-label={title}>
           {title.split('').map((ch, i) => (
             <span key={i} className="winfx-letter text-gold-grad" style={{ animationDelay: `${120 + i * 55}ms` }}>{ch === ' ' ? ' ' : ch}</span>

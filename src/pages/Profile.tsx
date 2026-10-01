@@ -3,7 +3,8 @@ import { Award, Settings, ShoppingBag, Lock } from 'lucide-react';
 import { useLevel, useStore, useUI } from '../store';
 import { GAMES, itemById, xpForLevel } from '../lib/data';
 import { fmt, fmtMult } from '../lib/format';
-import Avatar from '../components/Avatar';
+import Avatar, { PlayerName } from '../components/Avatar';
+import { ChickenArt } from '../components/CosmeticArt';
 import GameArt from '../components/GameArt';
 import { Coin, Egg } from '../components/Icons';
 
@@ -49,13 +50,17 @@ export default function Profile() {
           <Avatar size={112} />
           <div className="flex-1 min-w-0">
             <div className="chip bg-white/5 border border-white/10 uppercase tracking-wider !text-[10px] text-gold">{title?.name}</div>
-            <h1 className="h-display text-4xl sm:text-5xl mt-2 truncate normal-case">{s.user.name}</h1>
+            <h1 className="h-display text-4xl sm:text-5xl mt-2 truncate normal-case"><PlayerName name={s.user.name} /></h1>
             <div className="mt-1 text-sm"><span className="font-bold" style={{ color: tier.color }}>{tier.name}</span> <span className="text-smoke">· Level {level} · Member since {new Date(s.user.joinedAt).toLocaleDateString()}</span></div>
             <div className="mt-3 max-w-md"><div className="h-2 rounded-full bg-ink-500 overflow-hidden"><div className="h-full bg-gradient-to-r from-gold-600 to-gold" style={{ width: `${pct}%` }} /></div>
               <div className="mt-1 text-[11px] text-smoke">{fmt(xp, 0)} / {fmt(xpForLevel(level + 1), 0)} XP</div></div>
           </div>
+          <Link to="/shop?tab=locker" className="group relative hidden shrink-0 sm:block" aria-label="Open My Locker">
+            <div className="absolute inset-x-4 bottom-1 h-4 rounded-[50%] bg-black/60 blur-md" />
+            <div className="transition group-hover:-translate-y-1"><ChickenArt skin={s.equipped.chicken} hat={s.equipped.hat} size={130} /></div>
+          </Link>
           <div className="flex gap-2">
-            <Link to="/shop" className="btn-ghost px-4 py-2.5 text-sm"><ShoppingBag size={15} />Customize</Link>
+            <Link to="/shop?tab=locker" className="btn-ghost px-4 py-2.5 text-sm"><ShoppingBag size={15} />My Locker</Link>
             <Link to="/settings" className="btn-dark px-3 py-2.5" aria-label="Settings"><Settings size={16} /></Link>
           </div>
         </div>

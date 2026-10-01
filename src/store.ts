@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import {
-  DAILY_REWARDS, GameId, PROMO_CODES, itemById, levelFromXp, tierForLevel,
+  DAILY_REWARDS, DEFAULT_ITEMS, GameId, PROMO_CODES, itemById, levelFromXp, tierForLevel,
 } from './lib/data';
+import { eggById, eggPool, onSale, setPrice, vipTierOf } from './lib/shopLogic';
+import { rand } from './lib/rng';
 import { uid } from './lib/format';
 
 export interface Round {
@@ -35,7 +37,29 @@ export interface Settings {
 interface GameStat { rounds: number; wagered: number; profit: number; best: number }
 interface Stats { wagered: number; won: number; rounds: number; biggestWin: number; biggestMult: number; perGame: Partial<Record<GameId, GameStat>> }
 
-export interface Equipped { avatar: string; frame: string; skin: string; ball: string; title: string }
+export interface Equipped {
+  avatar: string; frame: string; ball: string; title: string;
+  chicken: string; hat: string; table: string; chips: string; deck: string; fx: string; name: string;
+}
+export const DEFAULT_EQUIPPED: Equipped = {
+  avatar: 'av-classic', frame: 'fr-none', ball: 'bl-gold', title: 'tt-none',
+  chicken: 'ch-classic', hat: 'hat-none', table: 'tb-classic', chips: 'cp-classic', deck: 'dk-classic', fx: 'fx-classic', name: 'nm-plain',
+};
+/** Which equip slot each item kind goes in. */
+const SLOT: Partial<Record<string, keyof Equipped>> = {
+  avatar: 'avatar', frame: 'frame', ball: 'ball', title: 'title', chicken: 'chicken', hat: 'hat', table: 'table', chips: 'chips', deck: 'deck', fx: 'fx', name: 'name',
+};
+// chicken skins from before the collectibles update
+const LEGACY: Record<string, string> = { 'sk-classic': 'ch-classic', 'sk-golden': 'ch-golden', 'sk-ninja': 'ch-ninja', 'sk-fire': 'ch-lava' };
+/** Bring saved data up to date: new equip slots, starter items, renamed skins. */
+export function normalizeGame<T extends { inventory?: string[]; equipped?: Partial<Equipped> & { skin?: string } }>(d: T): T {
+  const inv = new Set([...(d.inventory ?? []).map((id) => LEGACY[id] ?? id), ...DEFAULT_ITEMS]);
+  const old = d.equipped ?? {};
+  const eq = { ...DEFAULT_EQUIPPED, ...old } as Equipped & { skin?: string };
+  if (old.skin) eq.chicken = LEGACY[old.skin] ?? eq.chicken;
+  delete eq.skin;
+  return { ...d, inventory: [...inv], equipped: eq };
+}
 
 export const today = () => new Date().toISOString().slice(0, 10);
 
@@ -129,6 +153,9 @@ interface State {
   grant: (kind: TxKind, label: string, coins: number, eggs?: number) => void;
   buy: (id: string) => string | null;
   equip: (id: string) => void;
+  claimVip: (id: string) => string | null;
+  /** Hatch an egg: returns the item id won, or an error message. */
+  openEgg: (eggId: string) => { item?: string; error?: string };
   claimDaily: () => boolean;
   claimMission: (id: string) => boolean;
   redeem: (code: string) => string;
@@ -152,8 +179,8 @@ const GAME_DEFAULTS = {
   xp: 0,
   rounds: [] as Round[],
   txs: [] as Tx[],
-  inventory: ['av-classic', 'fr-none', 'sk-classic', 'bl-gold', 'tt-none'],
-  equipped: { avatar: 'av-classic', frame: 'fr-none', skin: 'sk-classic', ball: 'bl-gold', title: 'tt-none' },
+  inventory: [...DEFAULT_ITEMS],
+  equipped: { ...DEFAULT_EQUIPPED } as Equipped,
   daily: { last: null as string | null, streak: 0 },
   missions: { date: today(), claimed: [] as string[] },
   promoUsed: [] as string[],
@@ -177,7 +204,7 @@ export const useStore = create<State>()(
       ...structuredClone(initial),
       settings: DEFAULT_SETTINGS,
 
-      loadData: (d) => set({ ...structuredClone(GAME_DEFAULTS), missions: { date: today(), claimed: [] }, ...(d ?? {}) }),
+      loadData: (d) => set(normalizeGame({ ...structuredClone(GAME_DEFAULTS), missions: { date: today(), claimed: [] }, ...(d ?? {}) })),
       exportData: () => {
         const s = get();
         return Object.fromEntries(GAME_KEYS.map((k) => [k, s[k]])) as GameData;
@@ -256,8 +283,18 @@ export const useStore = create<State>()(
         const s = get();
         if (!item) return 'Unknown item';
         if (!s.user) { useUI.getState().openAuth('signup'); return 'Sign up first'; }
-        if (item.kind !== 'bundle' && s.inventory.includes(id)) return 'Already owned';
+        if (item.vip) return 'Unlocked on the Rooster VIP ladder';
+        if (item.kind !== 'bundle' && item.kind !== 'set' && s.inventory.includes(id)) return 'Already owned';
+        if (!onSale(item)) return 'This drop has ended';
         if (item.minLevel && levelFromXp(s.xp) < item.minLevel) return `Requires level ${item.minLevel}`;
+        if (item.kind === 'set') {
+          const sp = setPrice(item, s.inventory);
+          if (sp.complete) return 'You already own everything in this bundle';
+          if (s.balance < sp.price) return 'Not enough coins';
+          get().grant('shop', item.name, -sp.price + (item.coins ?? 0), 0);
+          set((st) => ({ inventory: [...st.inventory, ...sp.missing.map((i) => i.id)] }));
+          return null;
+        }
         const have = item.currency === 'coins' ? s.balance : s.eggs;
         if (have < item.price) return `Not enough ${item.currency === 'coins' ? 'coins' : 'golden eggs'}`;
         const coins = (item.currency === 'coins' ? -item.price : 0) + (item.coins ?? 0);
@@ -269,9 +306,38 @@ export const useStore = create<State>()(
 
       equip: (id) => {
         const item = itemById(id);
-        if (!item || item.kind === 'bundle') return;
-        const map = { avatar: 'avatar', frame: 'frame', skin: 'skin', ball: 'ball', title: 'title' } as const;
-        set((s) => ({ equipped: { ...s.equipped, [map[item.kind as keyof typeof map]]: id } }));
+        const slot = item && SLOT[item.kind];
+        if (!slot || !get().inventory.includes(id)) return;
+        set((s) => ({ equipped: { ...s.equipped, [slot]: id } }));
+      },
+
+      claimVip: (id) => {
+        const s = get();
+        if (!s.user) { useUI.getState().openAuth('signup'); return 'Sign up first'; }
+        const tier = vipTierOf(id);
+        if (!tier) return 'Not a VIP reward';
+        if (levelFromXp(s.xp) < tier.level) return `Reach level ${tier.level} for ${tier.name}`;
+        if (s.inventory.includes(id)) return 'Already claimed';
+        set((st) => ({ inventory: [...st.inventory, id] }));
+        return null;
+      },
+
+      openEgg: (eggId) => {
+        const s = get();
+        const egg = eggById(eggId);
+        if (!egg) return { error: 'Unknown egg' };
+        if (!s.user) { useUI.getState().openAuth('signup'); return { error: 'Sign up first' }; }
+        const { byRarity, odds, empty } = eggPool(egg, s.inventory);
+        if (empty) return { error: 'You already own everything this egg can hatch' };
+        if (s.balance < egg.price) return { error: 'Not enough coins' };
+        // pick a rarity by the shown odds, then any item of it you don't own yet
+        let r = rand(), rarity = Object.keys(odds)[0] as keyof typeof odds;
+        for (const [k, p] of Object.entries(odds)) { if ((r -= p!) <= 0) { rarity = k as keyof typeof odds; break; } }
+        const list = byRarity[rarity]!;
+        const item = list[Math.floor(rand() * list.length)];
+        get().grant('shop', `${egg.name}: ${item.name}`, -egg.price, 0);
+        set((st) => ({ inventory: [...st.inventory, item.id] }));
+        return { item: item.id };
       },
 
       claimDaily: () => {
@@ -338,7 +404,7 @@ export const useStore = create<State>()(
       version: 1,
       merge: (persisted, current) => {
         const p = persisted as Partial<State>;
-        return { ...current, ...p, settings: { ...DEFAULT_SETTINGS, ...(p?.settings ?? {}) } };
+        return normalizeGame({ ...current, ...p, settings: { ...DEFAULT_SETTINGS, ...(p?.settings ?? {}) } });
       },
     },
   ),

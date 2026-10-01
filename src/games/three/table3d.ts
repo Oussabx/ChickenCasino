@@ -3,6 +3,8 @@ import { Stage3D } from './stage';
 import { MAT, box, glowSprite, makeChicken, makeChip, std, textTexture } from './models';
 import { Card } from '../../lib/cards';
 import { backTexture, faceTexture, roundRect } from './cardArt';
+import { chipColor, eqTable, eqTableId } from '../../lib/equipped';
+import type { TableTheme } from '../../lib/cosmetics';
 
 /**
  * A 3D casino table used by the card games: a printed felt layout (card boxes,
@@ -64,6 +66,9 @@ type Anim = { t0: number; dur: number; step: (k: number) => void; done: () => vo
 interface Glow { mesh: THREE.Mesh; base: number; pulse: boolean; fade?: number }
 
 export class TableScene extends Stage3D {
+  private theme!: TableTheme;
+  private railMat!: THREE.MeshStandardMaterial;
+  private trimMat!: THREE.MeshStandardMaterial;
   private cards: Card3D[] = [];
   private anims: Anim[] = [];
   private chips = new Map<string, THREE.Group>();
@@ -88,7 +93,11 @@ export class TableScene extends Stage3D {
     this.parallax = 0.3;
     this.key.position.set(-3, 13, 6);
     this.key.intensity = 1.9;
-    const felt = opts.felt ?? 0x0e5a3a;
+    // the player's equipped table skin (Classic Green keeps each game's own felt colour)
+    this.theme = eqTable();
+    const felt = eqTableId() === 'tb-classic' ? (opts.felt ?? this.theme.felt) : this.theme.felt;
+    this.railMat = std(this.theme.rail, { roughness: 0.36 });
+    this.trimMat = new THREE.MeshStandardMaterial({ color: this.theme.trim, metalness: 0.75, roughness: 0.28, emissive: this.theme.glow ?? 0x3a2800, emissiveIntensity: this.theme.glow ? 0.9 : 0.25 });
 
     // room: dark floor, warm back glow, bokeh lights for depth
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), std(0x100809, { roughness: 0.95 }));
@@ -136,10 +145,11 @@ export class TableScene extends Stage3D {
     // padded leather rail + brass trim + wooden apron
     const railCurve = new THREE.EllipseCurve(0, -D, W + 0.12, W + 0.12, 0, Math.PI, false, 0);
     const pts = railCurve.getPoints(90).map((p) => new THREE.Vector3(p.x, 0.14, p.y));
-    const rail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 160, 0.3, 16, false), std(0x2a1209, { roughness: 0.38 }));
+    const rail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 160, 0.3, 16, false), this.railMat);
     rail.castShadow = true; rail.receiveShadow = true; this.scene.add(rail);
     const inner = new THREE.EllipseCurve(0, -D, W - 0.16, W - 0.16, 0, Math.PI, false, 0).getPoints(90).map((p) => new THREE.Vector3(p.x, FELT_Y + 0.02, p.y));
-    this.scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(inner), 160, 0.035, 8, false), MAT.gold));
+    this.scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(inner), 160, 0.035, 8, false), this.trimMat));
+    if (this.theme.glow) this.scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(inner), 160, 0.1, 8, false), new THREE.MeshBasicMaterial({ color: this.theme.glow, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending })));
     const apron = new THREE.Mesh(new THREE.CylinderGeometry(W + 0.35, W + 0.2, 1.1, 96, 1, true, Math.PI / 2, Math.PI), std(0x1c0c06, { roughness: 0.5, side: THREE.DoubleSide }));
     apron.position.set(0, -0.5, -D); this.scene.add(apron);
     this.scene.add(box(std(0x2b160b), [2 * W + 0.7, 0.45, 0.4], [0, 0.02, -D - 0.12]));
@@ -168,8 +178,7 @@ export class TableScene extends Stage3D {
     const tray = new THREE.Group();
     tray.add(box(std(0x151517, { roughness: 0.35, metalness: 0.3 }), [3.8, 0.16, 0.86], [0, 0, 0]));
     tray.add(box(MAT.gold, [3.84, 0.04, 0.05], [0, 0.09, 0.43]));
-    const cols = [0xf8f6ef, 0xe63946, 0x10b981, 0xf4c430, 0x1e1e1e, 0x7c3aed];
-    cols.forEach((c, i) => { for (let k = 0; k < 6; k++) { const ch = makeChip(c, 0.23); ch.rotation.x = Math.PI / 2; ch.position.set(-1.55 + i * 0.62, 0.2, -0.28 + k * 0.1); tray.add(ch); } });
+    [1, 5, 25, 100, 500, 1000].forEach((v, i) => { for (let k = 0; k < 6; k++) { const c = chipColor(v, k); const ch = makeChip(c.color, 0.23, c.stripe, c.glow); ch.rotation.x = Math.PI / 2; ch.position.set(-1.55 + i * 0.62, 0.2, -0.28 + k * 0.1); tray.add(ch); } });
     tray.position.set(0, 0.16, this.trayPos.z); this.scene.add(tray);
   }
 
@@ -220,10 +229,11 @@ export class TableScene extends Stage3D {
     this.scene.add(topMesh);
     // rail, brass trim and a dark wood skirt
     const railPts = Array.from({ length: 240 }, (_, i) => this.edge(i / 240, 0.14).p.setY(0.14));
-    const rail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(railPts, true), 360, 0.32, 16, true), std(0x2a1209, { roughness: 0.36 }));
+    const rail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(railPts, true), 360, 0.32, 16, true), this.railMat);
     rail.castShadow = true; rail.receiveShadow = true; this.scene.add(rail);
     const trimPts = Array.from({ length: 240 }, (_, i) => this.edge(i / 240, -0.22).p.setY(FELT_Y + 0.02));
-    this.scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(trimPts, true), 360, 0.035, 8, true), MAT.gold));
+    this.scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(trimPts, true), 360, 0.035, 8, true), this.trimMat));
+    if (this.theme.glow) this.scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(trimPts, true), 360, 0.1, 8, true), new THREE.MeshBasicMaterial({ color: this.theme.glow, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending })));
     const skirt = new THREE.Mesh(new THREE.ExtrudeGeometry(new THREE.Shape(Array.from({ length: 200 }, (_, i) => { const e = this.edge(i / 200, 0.3); return new THREE.Vector2(e.p.x, -e.p.z); })), { depth: 1.2, bevelEnabled: false }), std(0x1c0c06, { roughness: 0.5 }));
     skirt.rotateX(-Math.PI / 2); skirt.position.y = -1.35; this.scene.add(skirt);
 
@@ -275,9 +285,10 @@ export class TableScene extends Stage3D {
       const id = g.getImageData(0, 0, W2, H2);
       for (let i = 0; i < id.data.length; i += 4) { const v = (Math.random() - 0.5) * 10; id.data[i] += v; id.data[i + 1] += v; id.data[i + 2] += v; }
       g.putImageData(id, 0, 0);
+      feltPattern(g, this.theme, W2, H2);
       // double pinstripe following the table edge
       for (const [inset, w] of [[0.55, 4], [0.7, 1.5]] as const) {
-        g.strokeStyle = 'rgba(244,196,48,.6)'; g.lineWidth = w; g.beginPath();
+        g.strokeStyle = inkA(this.theme, 0.6); g.lineWidth = w; g.beginPath();
         for (let i = 0; i <= 200; i++) { const p = this.edge(i / 200, -inset).p; const [cx, cy] = toC(p.x, p.z); if (i) g.lineTo(cx, cy); else g.moveTo(cx, cy); }
         g.stroke();
       }
@@ -288,7 +299,7 @@ export class TableScene extends Stage3D {
       const [cx, cy] = toC(0, 0);
       // title printed above the board, logo faintly under the pot
       if (logo.complete && logo.naturalWidth) { g.save(); g.globalAlpha = 0.07; g.filter = 'grayscale(1) brightness(2)'; g.drawImage(logo, cx - 110, cy - 1.45 * S - 110, 220, 220); g.restore(); }
-      g.fillStyle = 'rgba(244,196,48,.8)'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = inkA(this.theme, 0.8); g.textAlign = 'center'; g.textBaseline = 'middle';
       g.font = `900 ${0.26 * S}px Montserrat, system-ui, sans-serif`; g.fillText('TEXAS HOLD\'EM · NO LIMIT', cx, cy - 0.98 * S);
       tex.needsUpdate = true;
     };
@@ -328,8 +339,9 @@ export class TableScene extends Stage3D {
         const s = 300, lz = this.opts.logoZ ?? 0.6;
         g.drawImage(logo, 1024 - s / 2, (lz + D) * PX - s / 2, s, s); g.restore();
       }
-      // gold pinstripe inside the rail
-      g.strokeStyle = 'rgba(244,196,48,.55)'; g.lineWidth = 4;
+      feltPattern(g, this.theme, 2048, 1024);
+      // pinstripe inside the rail (in the table skin's ink colour)
+      g.strokeStyle = inkA(this.theme, 0.55); g.lineWidth = 4;
       g.beginPath(); g.arc(1024, 0, (W - 0.5) * PX, 0.02, Math.PI - 0.02); g.stroke();
       g.lineWidth = 1.5; g.beginPath(); g.arc(1024, 0, (W - 0.62) * PX, 0.02, Math.PI - 0.02); g.stroke();
       for (const z of this.zones) this.drawZone(g, z);
@@ -802,10 +814,10 @@ export function chipStack(amount: number, r = 0.3) {
   const g = new THREE.Group();
   const h = r * 0.227;
   let left = amount, n = 0;
-  for (const [v, col] of DENOMS) {
-    while (left >= v - 1e-9 && n < 14) { const ch = makeChip(col, r); ch.position.set((Math.random() - 0.5) * 0.02, r / 3 + n * h, (Math.random() - 0.5) * 0.02); ch.rotation.y = n * 0.7; g.add(ch); left -= v; n++; }
+  for (const [v] of DENOMS) {
+    while (left >= v - 1e-9 && n < 14) { const c = chipColor(v, n); const ch = makeChip(c.color, r, c.stripe, c.glow); ch.position.set((Math.random() - 0.5) * 0.02, r / 3 + n * h, (Math.random() - 0.5) * 0.02); ch.rotation.y = n * 0.7; g.add(ch); left -= v; n++; }
   }
-  if (n === 0) { const ch = makeChip(0xf8f6ef, r); ch.position.y = r / 3; g.add(ch); n = 1; }
+  if (n === 0) { const c = chipColor(1); const ch = makeChip(c.color, r, c.stripe, c.glow); ch.position.y = r / 3; g.add(ch); n = 1; }
   const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: textTexture(fmtChip(amount), { w: 192, h: 80, size: 46, color: '#F4C430', bg: 'rgba(11,11,11,.82)', radius: 40 }), depthTest: false, transparent: true }));
   label.scale.set(r * 1.83, r * 0.77, 1); label.position.y = r * 0.67 + n * h + r * 1.5; label.renderOrder = 10;
   g.add(label);
@@ -850,4 +862,26 @@ function glowCircleTexture() {
   g.shadowBlur = 0; g.globalAlpha = 0.16; g.fillStyle = '#fff'; g.beginPath(); g.arc(128, 128, 84, 0, 7); g.fill();
   circleGlow = new THREE.CanvasTexture(cv);
   return circleGlow;
+}
+
+/** Table-skin ink as rgba. */
+function inkA(t: TableTheme, a: number) {
+  const c = new THREE.Color(t.ink);
+  return `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},${a})`;
+}
+/** Faint printed pattern for themed felts (grid, damask, chickens, sparkles). */
+function feltPattern(g: CanvasRenderingContext2D, t: TableTheme, W: number, H: number) {
+  if (!t.pattern) return;
+  g.save();
+  g.strokeStyle = inkA(t, 0.1); g.fillStyle = inkA(t, 0.1); g.lineWidth = 2;
+  const step = t.pattern === 'grid' ? 64 : 90;
+  for (let x = 0; x < W + step; x += step) for (let y = 0; y < H + step; y += step) {
+    const ox = ((y / step) % 2) * (step / 2);
+    if (t.pattern === 'grid') { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); if (x === 0) { for (let yy = 0; yy < H; yy += step) { g.beginPath(); g.moveTo(0, yy); g.lineTo(W, yy); g.stroke(); } } continue; }
+    const cx = x + ox, cy = y;
+    if (t.pattern === 'damask') { g.beginPath(); g.moveTo(cx, cy - 18); g.lineTo(cx + 12, cy); g.lineTo(cx, cy + 18); g.lineTo(cx - 12, cy); g.closePath(); g.stroke(); }
+    else if (t.pattern === 'chicken') { g.beginPath(); g.ellipse(cx, cy, 14, 16, 0, 0, 7); g.fill(); g.beginPath(); g.arc(cx + 10, cy - 16, 8, 0, 7); g.fill(); }
+    else { g.beginPath(); g.moveTo(cx, cy - 10); g.lineTo(cx + 3, cy - 3); g.lineTo(cx + 10, cy); g.lineTo(cx + 3, cy + 3); g.lineTo(cx, cy + 10); g.lineTo(cx - 3, cy + 3); g.lineTo(cx - 10, cy); g.lineTo(cx - 3, cy - 3); g.closePath(); g.fill(); }
+  }
+  g.restore();
 }
