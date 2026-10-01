@@ -94,18 +94,35 @@ function Burst({ n, spread, reduced }: { n: number; spread: number; reduced: boo
 }
 
 /** Coins raining down the whole game area. */
-function Rain({ n }: { n: number }) {
+function Rain({ n, kind = 'coin' }: { n: number; kind?: Particle }) {
   const parts = useMemo(() => Array.from({ length: n }, (_, i) => ({ i, x: Math.random() * 100, s: 14 + Math.random() * 18, d: Math.random() * 2.2, t: 1.4 + Math.random() * 1.1, r: Math.random() < 0.5 ? -1 : 1 })), [n]);
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
       {parts.map((p) => (
         <span key={p.i} className="absolute -top-10" style={{ left: `${p.x}%`, animation: `winfx-rain ${p.t}s ${p.d}s ease-in infinite`, '--r': `${p.r * 540}deg` } as CSSProperties}>
-          <Coin size={p.s} spin={false} />
+          {kind === 'coin' ? <Coin size={p.s} spin={false} /> : <Glyph kind={kind} s={p.s} />}
         </span>
       ))}
     </div>
   );
 }
+
+type Particle = 'coin' | 'ember' | 'star' | 'diamond';
+function Glyph({ kind, s }: { kind: Particle; s: number }) {
+  if (kind === 'ember') return <span className="block rounded-full" style={{ width: s * 0.55, height: s * 0.55, background: 'radial-gradient(circle,#fff7c2,#ffb347 45%,#ff3d00 75%,transparent)', boxShadow: '0 0 12px #ff5a1f' }} />;
+  if (kind === 'star') return <svg width={s} height={s} viewBox="0 0 20 20"><path d="M10 0 L12 8 L20 10 L12 12 L10 20 L8 12 L0 10 L8 8Z" fill="#fff" /></svg>;
+  return <svg width={s * 0.8} height={s} viewBox="0 0 16 20"><path d="M8 0 L16 8 L8 20 L0 8Z" fill="#a5f3fc" stroke="#e0f2fe" strokeWidth="1" /></svg>;
+}
+
+/** Big-win show themes (shop "Win FX" items). */
+interface FxTheme { bg: string; rays: string; ring: string; letters?: string; rain: Particle; mixCoins: boolean; crown?: string }
+const FX: Record<string, FxTheme> = {
+  'fx-classic': { bg: 'radial-gradient(ellipse at center, rgba(58,11,16,.82), rgba(0,0,0,.92) 70%)', rays: 'repeating-conic-gradient(from 0deg, rgba(244,196,48,.34) 0deg 7deg, transparent 7deg 18deg)', ring: '0 0 0 4px #F4C430, 0 0 40px rgba(244,196,48,.8)', rain: 'coin', mixCoins: false },
+  'fx-royal': { bg: 'radial-gradient(ellipse at center, rgba(76,29,149,.85), rgba(0,0,0,.92) 70%)', rays: 'repeating-conic-gradient(from 0deg, rgba(192,132,252,.4) 0deg 7deg, rgba(244,196,48,.25) 7deg 10deg, transparent 10deg 18deg)', ring: '0 0 0 4px #c084fc, 0 0 40px rgba(192,132,252,.9)', rain: 'coin', mixCoins: false, crown: '#F4C430' },
+  'fx-inferno': { bg: 'radial-gradient(ellipse at center, rgba(160,32,6,.9), rgba(20,2,0,.95) 72%)', rays: 'repeating-conic-gradient(from 0deg, rgba(255,140,40,.45) 0deg 6deg, rgba(255,230,120,.25) 6deg 9deg, transparent 9deg 16deg)', ring: '0 0 0 4px #ff7a1a, 0 0 50px rgba(255,90,31,1)', letters: 'linear-gradient(180deg,#fff7c2 10%,#ffb347 45%,#ff3d00 90%)', rain: 'ember', mixCoins: true },
+  'fx-galaxy': { bg: 'radial-gradient(ellipse at center, rgba(76,29,149,.9), rgba(3,2,15,.96) 72%)', rays: 'repeating-conic-gradient(from 0deg, rgba(56,189,248,.28) 0deg 6deg, rgba(244,114,182,.25) 6deg 10deg, transparent 10deg 18deg)', ring: '0 0 0 4px #a78bfa, 0 0 46px rgba(167,139,250,1)', letters: 'linear-gradient(180deg,#ffffff 15%,#c4b5fd 55%,#f472b6)', rain: 'star', mixCoins: true },
+  'fx-diamond': { bg: 'radial-gradient(ellipse at center, rgba(14,116,144,.85), rgba(2,10,16,.95) 72%)', rays: 'repeating-conic-gradient(from 0deg, rgba(224,242,254,.4) 0deg 6deg, transparent 6deg 16deg)', ring: '0 0 0 4px #7dd3fc, 0 0 46px rgba(125,211,252,1)', letters: 'linear-gradient(180deg,#ffffff 15%,#a5f3fc 55%,#38bdf8)', rain: 'diamond', mixCoins: true },
+};
 
 function Amount({ value, ms, className = '' }: { value: number; ms: number; className?: string }) {
   const v = useCountUp(value, ms);
@@ -164,28 +181,29 @@ function Stamp({ s, leaving }: { s: Show; leaving: boolean }) {
 // BIG / MEGA / EPIC — the full show
 function Jackpot({ s, leaving, onSkip }: { s: Show; leaving: boolean; onSkip: () => void }) {
   const reduced = useStore((st) => st.settings.reduceMotion);
-  // Rooster Elite's Royal Rooster win show: purple-and-gold rays and a crowned mascot
-  const royal = useStore((st) => st.equipped.fx === 'fx-royal');
+  // the equipped win show (Classic, Royal Rooster, Inferno, Cosmic, Diamond…)
+  const fx = useStore((st) => FX[st.equipped.fx] ?? FX['fx-classic']);
   const title = TITLE[s.tier];
   const rain = s.tier === 'epic' ? 46 : s.tier === 'mega' ? 34 : 24;
   return (
     <div onClick={onSkip} role="presentation"
       className={`absolute inset-0 z-[46] grid cursor-pointer place-items-center overflow-hidden transition-opacity duration-300 ${leaving ? 'opacity-0' : 'opacity-100 winfx-fade-in'}`}>
-      <div className={`absolute inset-0 ${royal ? 'bg-[radial-gradient(ellipse_at_center,rgba(76,29,149,.85),rgba(0,0,0,.92)_70%)]' : 'bg-[radial-gradient(ellipse_at_center,rgba(58,11,16,.82),rgba(0,0,0,.92)_70%)]'}`} />
+      <div className="absolute inset-0" style={{ background: fx.bg }} />
       {!reduced && (
         <div className="absolute left-1/2 top-1/2 h-[220%] w-[220%] -translate-x-1/2 -translate-y-1/2"
-          style={{ background: royal ? `repeating-conic-gradient(from 0deg, rgba(192,132,252,.4) 0deg 7deg, rgba(244,196,48,.25) 7deg 10deg, transparent 10deg 18deg)` : `repeating-conic-gradient(from 0deg, rgba(244,196,48,${s.tier === 'epic' ? 0.42 : 0.3}) 0deg 7deg, transparent 7deg 18deg)`, animation: 'winfx-spin 14s linear infinite', maskImage: 'radial-gradient(circle, black 8%, transparent 46%)', WebkitMaskImage: 'radial-gradient(circle, black 8%, transparent 46%)' }} />
+          style={{ background: fx.rays, animation: 'winfx-spin 14s linear infinite', willChange: 'transform', maskImage: 'radial-gradient(circle, black 8%, transparent 46%)', WebkitMaskImage: 'radial-gradient(circle, black 8%, transparent 46%)' }} />
       )}
-      {!reduced && <Rain n={rain} />}
+      {!reduced && <Rain n={fx.mixCoins ? Math.round(rain * 0.6) : rain} kind={fx.rain} />}
+      {!reduced && fx.mixCoins && <Rain n={Math.round(rain * 0.4)} />}
       <div key={s.key} className="relative flex flex-col items-center text-center">
         <Burst n={36} spread={300} reduced={reduced} />
         <div className="relative">
-          {royal && <svg viewBox="0 0 60 30" className="winfx-mascot absolute -top-5 left-1/2 z-10 w-12 -translate-x-1/2 sm:-top-7 sm:w-16"><path d="M4 28 L2 6 L16 16 L30 2 L44 16 L58 6 L56 28Z" fill="#F4C430" stroke="#7a4f00" strokeWidth="2" strokeLinejoin="round" /><circle cx="30" cy="20" r="3.5" fill="#c084fc" /></svg>}
-          <img src="./img/head.webp" alt="" className={`winfx-mascot mb-2 h-16 w-16 rounded-full object-cover sm:h-24 sm:w-24 ${royal ? 'shadow-[0_0_0_4px_#c084fc,0_0_40px_rgba(192,132,252,.9)]' : 'shadow-[0_0_0_4px_#F4C430,0_0_40px_rgba(244,196,48,.8)]'}`} />
+          {fx.crown && <svg viewBox="0 0 60 30" className="winfx-mascot absolute -top-5 left-1/2 z-10 w-12 -translate-x-1/2 sm:-top-7 sm:w-16"><path d="M4 28 L2 6 L16 16 L30 2 L44 16 L58 6 L56 28Z" fill={fx.crown} stroke="#7a4f00" strokeWidth="2" strokeLinejoin="round" /><circle cx="30" cy="20" r="3.5" fill="#c084fc" /></svg>}
+          <img src="./img/head.webp" alt="" className="winfx-mascot mb-2 h-16 w-16 rounded-full object-cover sm:h-24 sm:w-24" style={{ boxShadow: fx.ring }} />
         </div>
         <div className="h-display flex text-5xl leading-none drop-shadow-[0_5px_0_rgba(0,0,0,.75)] sm:text-8xl" aria-label={title}>
           {title.split('').map((ch, i) => (
-            <span key={i} className="winfx-letter text-gold-grad" style={{ animationDelay: `${120 + i * 55}ms` }}>{ch === ' ' ? ' ' : ch}</span>
+            <span key={i} className={`winfx-letter ${fx.letters ? '' : 'text-gold-grad'}`} style={{ animationDelay: `${120 + i * 55}ms`, ...(fx.letters ? { backgroundImage: fx.letters, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' } : null) }}>{ch === ' ' ? ' ' : ch}</span>
           ))}
         </div>
         <div className="winfx-rise mt-3 flex items-center gap-3" style={{ animationDelay: '600ms' }}>

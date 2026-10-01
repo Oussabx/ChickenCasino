@@ -23,7 +23,7 @@ export default function EggShop({ onOpen }: { onOpen: (it: ShopItem) => void }) 
         <Info size={15} className="mt-0.5 shrink-0 text-gold" />
         <span>Eggs only hatch <b>cosmetics</b> — never coins, never anything that changes a game. You can’t hatch something you already own, and the odds below are worked out for your collection.</span>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {EGGS.map((e) => <EggCard key={e.id} egg={e} onHatch={() => setHatching(e)} onOpen={onOpen} />)}
       </div>
       <Hatch egg={hatching} onClose={() => setHatching(null)} />
@@ -43,7 +43,7 @@ function EggCard({ egg, onHatch, onOpen }: { egg: EggDef; onHatch: () => void; o
         <div className="shop-egg-idle"><EggArt egg={egg.id} size={104} /></div>
       </div>
       <div className="flex flex-1 flex-col p-4">
-        <div className="flex items-baseline justify-between gap-2">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-2">
           <div className="font-display text-lg font-black">{egg.name}</div>
           <div className="flex items-center gap-1 font-display font-black text-gold"><Coin className="h-4 w-4" />{fmt(egg.price, 0)}</div>
         </div>

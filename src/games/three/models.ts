@@ -254,8 +254,18 @@ export function buildChickenLook(skinId: string, hatId: string) {
     case 'lava': for (const [x, y, z] of [[0.1, 0.6, 0.41], [-0.2, 0.8, 0.41], [0.15, 0.85, -0.41], [-0.1, 0.55, -0.41]]) add(new THREE.MeshBasicMaterial({ color: a }), [0.32, 0.04, 0.02], [x, y, z], [0, 0, 0.5]); break;
     case 'frost': for (const x of [-0.25, 0.05, 0.3]) add(m('#e0f2fe', { emissive: 0x335566 }), [0.07, 0.18, 0.07], [x, 0.27, 0.2]); break;
     case 'disco': for (let i = 0; i < 10; i++) add(new THREE.MeshBasicMaterial({ color: i % 2 ? '#f0abfc' : '#ffffff' }), [0.12, 0.12, 0.02], [-0.3 + (i % 5) * 0.16, 0.55 + Math.floor(i / 5) * 0.2, 0.41]); break;
+    case 'phoenix': {
+      // flame plumes off the tail, glowing
+      const fire = (c: string) => new THREE.MeshBasicMaterial({ color: c });
+      for (const [x, y, h, c] of [[-0.62, 0.95, 0.5, '#ff3d00'], [-0.72, 1.05, 0.7, '#ff7a1a'], [-0.6, 1.2, 0.5, '#ffd84d'], [-0.5, 1.0, 0.36, '#ff7a1a']] as [number, number, number, string][])
+        add(fire(c), [0.16, h, 0.3], [x, y, 0], [0, 0, 0.5]);
+      for (const z of [0.44, -0.44]) add(fire('#ffb347'), [0.5, 0.08, 0.04], [-0.1, 0.9, z], [0, 0, 0.35]);
+      break;
+    }
     default: break;
   }
+  if (st.skin === 'galaxy') for (let i = 0; i < 14; i++) add(new THREE.MeshBasicMaterial({ color: i % 3 ? '#ffffff' : '#f472b6' }), [0.04, 0.04, 0.02], [-0.35 + ((i * 37) % 70) / 100, 0.45 + ((i * 53) % 55) / 100, i % 2 ? 0.42 : -0.42]);
+  if (st.eyes === 'glow') for (const z of [0.2, -0.2]) add(new THREE.MeshBasicMaterial({ color: st.outfit === 'phoenix' ? '#fff1a8' : '#ff1f3d' }), [0.04, 0.06, 0.12], [0.6, 1.42, z]);
   if (st.eyes === 'patch') add(m('#111'), [0.06, 0.2, 0.2], [0.6, 1.43, 0.19]);
 
   const hat = HATS[hatId] ?? 'none';
@@ -277,6 +287,29 @@ export function buildChickenLook(skinId: string, hatId: string) {
     case 'headphones': add(black, [0.12, 0.08, 0.74], [0.24, 1.72, 0]); for (const z of [0.36, -0.36]) { add(black, [0.26, 0.3, 0.12], [0.24, 1.4, z]); add(m('#ff2bd6', { emissive: 0x550044 }), [0.18, 0.2, 0.02], [0.24, 1.4, z * 1.2]); } break;
     case 'sombrero': add(m('#e8c47a'), [1.3, 0.05, 1.3], [0.28, 1.68, 0]); add(m('#f2d48f'), [0.46, 0.36, 0.46], [0.28, 1.9, 0]); add(m('#e63946'), [0.48, 0.08, 0.48], [0.28, 1.76, 0]); break;
     case 'gradcap': add(black, [0.52, 0.16, 0.52], [0.28, 1.74, 0]); add(black, [0.84, 0.04, 0.84], [0.28, 1.84, 0], [0, Math.PI / 4, 0]); add(gold, [0.04, 0.26, 0.04], [0.6, 1.72, 0.3]); break;
+    case 'halo': {
+      const glow = new THREE.MeshBasicMaterial({ color: '#ffe27a' });
+      for (let i = 0; i < 12; i++) { const t = (i / 12) * Math.PI * 2; add(glow, [0.1, 0.05, 0.1], [0.28 + Math.cos(t) * 0.32, 2.05, Math.sin(t) * 0.32]); }
+      break;
+    }
+    case 'horns': for (const z of [0.22, -0.22]) { add(m('#dc2626'), [0.12, 0.22, 0.12], [0.24, 1.76, z], [z > 0 ? 0.3 : -0.3, 0, 0]); add(m('#dc2626'), [0.08, 0.16, 0.08], [0.24, 1.94, z * 1.35], [z > 0 ? 0.6 : -0.6, 0, 0]); } break;
+    case 'diamondcrown': {
+      const ice = m('#e0f2fe', { metalness: 0.5, roughness: 0.1, emissive: 0x1b4b66 });
+      for (const [x, z, w, d] of [[0.28, 0.27, 0.6, 0.06], [0.28, -0.27, 0.6, 0.06], [0.01, 0, 0.06, 0.6], [0.55, 0, 0.06, 0.6]]) add(ice, [w, 0.18, d], [x, 1.76, z]);
+      for (const [x, z] of [[0.02, 0.27], [0.02, -0.27], [0.54, 0.27], [0.54, -0.27], [0.56, 0]]) add(ice, [0.09, 0.22, 0.09], [x, 1.94, z]);
+      add(new THREE.MeshBasicMaterial({ color: '#a855f7' }), [0.04, 0.1, 0.12], [0.59, 1.76, 0]); break;
+    }
+    case 'wizard': {
+      const v = m('#6d28d9');
+      add(m('#3b0764'), [0.9, 0.05, 0.9], [0.28, 1.68, 0]);
+      [[0.56, 0.18, 1.78], [0.42, 0.18, 1.94], [0.28, 0.18, 2.1], [0.16, 0.16, 2.24]].forEach(([s, h, y], i) => add(v, [s, h, s], [0.28 - i * 0.06, y, 0]));
+      add(m('#f4c430', { emissive: 0x3a2800 }), [0.58, 0.06, 0.58], [0.28, 1.74, 0]); break;
+    }
+    case 'pharaoh': {
+      add(gold, [0.62, 0.22, 0.66], [0.26, 1.72, 0]);
+      for (const z of [0.36, -0.36]) for (const y of [1.2, 1.36, 1.52]) add(y === 1.36 ? m('#1d4ed8') : gold, [0.3, 0.16, 0.06], [0.16, y, z]);
+      add(m('#16a34a'), [0.08, 0.14, 0.08], [0.56, 1.86, 0]); break;
+    }
     case 'chain': for (let i = 0; i < 9; i++) { const t = (i / 8) * Math.PI; add(gold, [0.08, 0.08, 0.08], [0.32 + Math.sin(t) * 0.18, 1.06 - Math.sin(t) * 0.12, Math.cos(t) * 0.34]); } add(gold, [0.04, 0.16, 0.16], [0.52, 0.92, 0]); break;
     default: break;
   }

@@ -15,8 +15,16 @@ export default function Avatar({ size = 40, avatar, frame, className = '' }: { s
   );
 }
 
-/** The player's name, in gold if they've equipped the Golden Name (Rooster VIP II). */
+/** CSS class for each name style (shop "name" items). */
+export const NAME_CLASS: Record<string, string> = {
+  'nm-gold': 'text-gold-grad drop-shadow-[0_0_8px_rgba(244,196,48,.35)]',
+  'nm-fire': 'name-fire',
+  'nm-rainbow': 'name-rainbow',
+  'nm-ice': 'name-ice',
+};
+
+/** The player's name in their equipped name style (gold, fire, rainbow, ice…). */
 export function PlayerName({ name, className = '' }: { name: string; className?: string }) {
-  const gold = useStore((s) => s.equipped.name === 'nm-gold');
-  return <span className={`${gold ? 'text-gold-grad drop-shadow-[0_0_8px_rgba(244,196,48,.35)]' : ''} ${className}`}>{name}</span>;
+  const style = useStore((s) => NAME_CLASS[s.equipped.name] ?? '');
+  return <span className={`${style} ${className}`}>{name}</span>;
 }

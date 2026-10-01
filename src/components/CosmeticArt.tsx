@@ -3,6 +3,16 @@ import { CHICKENS, CHIPSETS, ChickenStyle, DECKS, EGGS, HATS, HatKind, TABLES } 
 import { deckBackUrl } from '../lib/deckSvg';
 import { ShopItem, itemById } from '../lib/data';
 import { useStore } from '../store';
+import { NAME_CLASS } from './Avatar';
+
+/** Thumbnail colours for each win show. */
+const FX_THUMB: Record<string, { bg: string; ray: string; text: string; glow: string }> = {
+  'fx-classic': { bg: 'radial-gradient(circle,#7a4f00,#1a1205)', ray: 'rgba(244,196,48,.35)', text: 'linear-gradient(180deg,#fff1a8,#f4c430,#c98a00)', glow: 'rgba(244,196,48,.25)' },
+  'fx-royal': { bg: 'radial-gradient(circle,#7c3aed,#1e0b3a)', ray: 'rgba(244,196,48,.3)', text: 'linear-gradient(180deg,#fff1a8,#f4c430)', glow: 'rgba(192,132,252,.45)' },
+  'fx-inferno': { bg: 'radial-gradient(circle,#ff5a1f,#3a0703 70%)', ray: 'rgba(255,214,90,.4)', text: 'linear-gradient(180deg,#fff7c2,#ffb347,#ff3d00)', glow: 'rgba(255,90,31,.6)' },
+  'fx-galaxy': { bg: 'radial-gradient(circle,#6d28d9,#05031a 70%)', ray: 'rgba(56,189,248,.3)', text: 'linear-gradient(180deg,#ffffff,#c4b5fd,#f472b6)', glow: 'rgba(167,139,250,.55)' },
+  'fx-diamond': { bg: 'radial-gradient(circle,#0e7490,#041821 70%)', ray: 'rgba(224,242,254,.35)', text: 'linear-gradient(180deg,#ffffff,#a5f3fc,#38bdf8)', glow: 'rgba(125,211,252,.55)' },
+};
 
 /**
  * Vector art for every collectible. Crisp at any size, animated with CSS
@@ -21,7 +31,14 @@ export function ChickenArt({ skin = 'ch-classic', hat = 'hat-none', size = 160, 
     <svg viewBox="0 0 200 200" width={size} height={size} className={`overflow-visible ${className}`}
       style={st.glow ? { filter: `drop-shadow(0 0 ${size * 0.06}px ${st.glow})` } : undefined} aria-hidden="true">
       <defs>
-        <radialGradient id={g('body')} cx="38%" cy="30%" r="80%"><stop offset="0" stopColor={st.body[0]} /><stop offset="1" stopColor={st.body[1]} /></radialGradient>
+        {st.skin === 'holo' ? (
+          <linearGradient id={g('body')} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#a5f3fc" /><stop offset=".3" stopColor="#c7d2fe" /><stop offset=".55" stopColor="#f0abfc" /><stop offset=".8" stopColor="#fde68a" /><stop offset="1" stopColor="#bbf7d0" /></linearGradient>
+        ) : st.skin === 'chrome' ? (
+          <linearGradient id={g('body')} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff6c8" /><stop offset=".28" stopColor="#ffd84d" /><stop offset=".5" stopColor="#8a5a00" /><stop offset=".6" stopColor="#ffe9a0" /><stop offset=".85" stopColor="#b8860b" /><stop offset="1" stopColor="#5c3b00" /></linearGradient>
+        ) : (
+          <radialGradient id={g('body')} cx="38%" cy="30%" r="80%"><stop offset="0" stopColor={st.body[0]} /><stop offset="1" stopColor={st.body[1]} /></radialGradient>
+        )}
+        {st.outfit === 'phoenix' && <linearGradient id={g('fire')} x1="0" y1="1" x2="0" y2="0"><stop offset="0" stopColor="#d61f00" /><stop offset=".45" stopColor="#ff7a1a" /><stop offset="1" stopColor="#ffe07a" /></linearGradient>}
         <clipPath id={g('clip')}><ellipse cx="100" cy="128" rx="56" ry="46" /><circle cx="126" cy="74" r="32" /><ellipse cx="118" cy="100" rx="26" ry="22" /></clipPath>
         <clipPath id={g('torso')}><ellipse cx="100" cy="128" rx="56" ry="46" /></clipPath>
         <filter id={g('glow')} x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.4" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
@@ -33,6 +50,7 @@ export function ChickenArt({ skin = 'ch-classic', hat = 'hat-none', size = 160, 
           <path d="M88 164 V182 M80 186 L88 182 L96 186 M88 182 V188" />
           <path d="M114 164 V182 M106 186 L114 182 L122 186 M114 182 V188" />
         </g>
+        {st.outfit === 'phoenix' && <PhoenixFlames fire={`url(#${g('fire')})`} animate={animate} />}
         {/* tail */}
         <g className={animate ? 'cos-wag' : ''} style={{ transformOrigin: '62px 122px' }}>
           <path d="M66 118 Q30 96 40 66 Q58 84 74 106Z" fill={st.wing} />
@@ -45,13 +63,14 @@ export function ChickenArt({ skin = 'ch-classic', hat = 'hat-none', size = 160, 
         <ellipse cx="114" cy="142" rx="34" ry="26" fill={st.belly} opacity=".85" />
         <Outfit st={st} g={g} part="body" />
         {/* wing */}
-        <path d="M60 118 Q84 98 110 116 Q104 152 74 148 Q56 140 60 118Z" fill={st.wing} stroke="rgba(0,0,0,.12)" strokeWidth="1.5" />
+        <path d="M60 118 Q84 98 110 116 Q104 152 74 148 Q56 140 60 118Z" fill={st.outfit === 'phoenix' ? `url(#${g('fire')})` : st.wing} stroke="rgba(0,0,0,.12)" strokeWidth="1.5" />
         <path d="M70 128 Q84 124 96 130 M72 138 Q84 134 94 140" stroke="rgba(0,0,0,.14)" strokeWidth="2" fill="none" strokeLinecap="round" />
         {h === 'chain' && <Hat h={h} />}
         {/* comb (under most hats) */}
         <g fill={st.comb}><circle cx="113" cy="46" r="9" /><circle cx="126" cy="40" r="11" /><circle cx="139" cy="46" r="9" /></g>
         <circle cx="126" cy="74" r="32" fill={`url(#${g('body')})`} />
         {st.facets && <Facets clip={g('clip')} />}
+        {st.skin && <SkinFinish skin={st.skin} clip={g('clip')} animate={animate} />}
         <Outfit st={st} g={g} part="head" />
         {/* beak + wattle */}
         <path d="M154 70 L177 78 L154 87Z" fill={st.beak} stroke="rgba(0,0,0,.25)" strokeWidth="1.5" strokeLinejoin="round" />
@@ -109,6 +128,15 @@ function EyesArt({ st, g, animate }: { st: ChickenStyle; g: (n: string) => strin
           <path d="M132 69 Q140 64 150 69" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" fill="none" />
         </g>
       );
+    case 'glow': {
+      const c = st.accent && st.outfit !== 'phoenix' ? st.accent : st.outfit === 'phoenix' ? '#fff1a8' : '#ff1f3d';
+      return (
+        <g filter={`url(#${g('glow')})`} fill={c}>
+          <path d="M126 64 L146 68 L144 75 L127 72Z" />
+          <path d="M150 66 L164 64 L163 72 L150 74Z" opacity=".9" />
+        </g>
+      );
+    }
     case 'stars':
       return (
         <g fill="#f472b6" stroke="#831843" strokeWidth="1.5" strokeLinejoin="round">
@@ -262,6 +290,48 @@ function Outfit({ st, g, part }: { st: ChickenStyle; g: (n: string) => string; p
 
 function Hat({ h }: { h: HatKind }) {
   switch (h) {
+    case 'halo':
+      return (
+        <g style={{ filter: 'drop-shadow(0 0 6px rgba(255,226,122,.95))' }}>
+          <ellipse cx="126" cy="20" rx="30" ry="8" fill="none" stroke="#fff1a8" strokeWidth="6" />
+          <ellipse cx="126" cy="20" rx="30" ry="8" fill="none" stroke="#f4c430" strokeWidth="2.5" />
+        </g>
+      );
+    case 'horns':
+      return (
+        <g stroke="#4c0519" strokeWidth="2" strokeLinejoin="round">
+          <path d="M102 48 Q86 30 96 6 Q102 26 116 40Z" fill="#dc2626" />
+          <path d="M150 48 Q166 30 156 6 Q150 26 136 40Z" fill="#dc2626" />
+          <path d="M98 30 Q96 18 98 12 M154 30 Q156 18 154 12" stroke="#fca5a5" strokeWidth="2.5" fill="none" />
+        </g>
+      );
+    case 'diamondcrown':
+      return (
+        <g stroke="#1e3a8a" strokeWidth="2" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 5px rgba(125,211,252,.9))' }}>
+          <path d="M98 50 L94 12 L112 30 L126 2 L140 30 L158 12 L154 50Z" fill="#e0f2fe" />
+          <path d="M94 12 L112 30 L126 50 M126 2 L126 50 M158 12 L140 30 L126 50" stroke="#7dd3fc" strokeWidth="1.5" fill="none" />
+          <rect x="97" y="42" width="58" height="9" rx="2" fill="#bae6fd" />
+          <path d="M120 40 L126 32 L132 40 L126 50Z" fill="#a855f7" /><circle cx="108" cy="46" r="3" fill="#f472b6" stroke="none" /><circle cx="144" cy="46" r="3" fill="#f472b6" stroke="none" />
+          <circle cx="94" cy="12" r="3" fill="#fff" /><circle cx="126" cy="2" r="3.5" fill="#fff" /><circle cx="158" cy="12" r="3" fill="#fff" />
+        </g>
+      );
+    case 'wizard':
+      return (
+        <g>
+          <ellipse cx="126" cy="46" rx="36" ry="8" fill="#3b0764" />
+          <path d="M100 46 Q118 30 120 2 Q130 -4 158 18 Q140 14 138 22 Q148 34 152 46Z" fill="#6d28d9" />
+          <path d="M100 44 Q126 52 152 44 L152 38 Q126 46 100 38Z" fill="#f4c430" />
+          {[[118, 22, 3], [134, 30, 2.4], [126, 12, 2]].map(([x, y, r], i) => <path key={i} d={`M${x} ${y - r * 2} L${x + r * 0.6} ${y - r * 0.6} L${x + r * 2} ${y} L${x + r * 0.6} ${y + r * 0.6} L${x} ${y + r * 2} L${x - r * 0.6} ${y + r * 0.6} L${x - r * 2} ${y} L${x - r * 0.6} ${y - r * 0.6}Z`} fill="#fde68a" />)}
+        </g>
+      );
+    case 'pharaoh':
+      return (
+        <g stroke="#3a2600" strokeWidth="1.5" strokeLinejoin="round">
+          <path d="M94 76 L98 30 Q126 12 154 30 L158 76 L150 96 L146 58 Q126 50 106 58 L102 96Z" fill="#f4c430" />
+          {[38, 48, 58, 68, 80].map((y) => <path key={y} d={`M${97 + (y - 30) * 0.05} ${y} Q126 ${y - 14} ${155 - (y - 30) * 0.05} ${y}`} stroke="#1d4ed8" strokeWidth="4" fill="none" />)}
+          <path d="M120 30 Q126 18 132 30 L130 40 L122 40Z" fill="#16a34a" />
+        </g>
+      );
     case 'tophat':
       return (
         <g>
@@ -355,6 +425,51 @@ function Hat({ h }: { h: HatKind }) {
     default:
       return null;
   }
+}
+
+/** Mythic body finishes, clipped to the silhouette. */
+function SkinFinish({ skin, clip, animate }: { skin: 'galaxy' | 'holo' | 'chrome'; clip: string; animate: boolean }) {
+  if (skin === 'galaxy') {
+    return (
+      <g clipPath={`url(#${clip})`}>
+        <ellipse cx="82" cy="118" rx="40" ry="24" fill="#f472b6" opacity=".28" />
+        <ellipse cx="128" cy="150" rx="36" ry="18" fill="#38bdf8" opacity=".25" />
+        <ellipse cx="132" cy="70" rx="22" ry="14" fill="#c084fc" opacity=".3" />
+        {GALAXY_STARS.map(([x, y, r], i) => <circle key={i} cx={x} cy={y} r={r} fill="#fff" opacity={0.55 + (i % 4) * 0.12} />)}
+      </g>
+    );
+  }
+  if (skin === 'holo') {
+    return (
+      <g clipPath={`url(#${clip})`}>
+        <path d="M40 60 L60 60 L170 190 L150 190Z M90 40 L100 40 L200 160 L190 160Z" fill="#fff" opacity=".35" />
+        <rect className={animate ? 'cos-sheen' : ''} x="-40" y="20" width="34" height="200" fill="#fff" opacity=".55" transform="skewX(-20)" />
+      </g>
+    );
+  }
+  return (
+    <g clipPath={`url(#${clip})`} fill="none" stroke="#fffbe6" strokeLinecap="round">
+      <path d="M62 110 Q90 92 128 102" strokeWidth="5" opacity=".75" />
+      <path d="M70 150 Q100 166 138 156" strokeWidth="3" opacity=".45" />
+      <path d="M108 56 Q122 46 140 50" strokeWidth="4" opacity=".8" />
+      <rect className={animate ? 'cos-sheen' : ''} x="-40" y="20" width="22" height="200" fill="#fff" stroke="none" opacity=".5" transform="skewX(-20)" />
+    </g>
+  );
+}
+const GALAXY_STARS: [number, number, number][] = (() => {
+  let s = 5; const r = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+  return Array.from({ length: 34 }, () => [40 + r() * 130, 40 + r() * 135, 0.6 + r() * 1.6] as [number, number, number]);
+})();
+
+/** Phoenix fire: plumes behind the body that flicker on live stages. */
+function PhoenixFlames({ fire, animate }: { fire: string; animate: boolean }) {
+  return (
+    <g className={animate ? 'cos-flicker' : ''} style={{ transformOrigin: '80px 150px' }}>
+      <path d="M78 140 Q20 120 14 60 Q34 84 44 80 Q30 40 48 10 Q58 52 70 58 Q66 30 84 12 Q86 60 96 96Z" fill={fire} opacity=".95" />
+      <path d="M70 150 Q24 150 6 118 Q30 126 40 120 Q26 104 28 86 Q48 112 74 122Z" fill={fire} opacity=".85" />
+      <path d="M80 124 Q54 96 60 64 Q70 84 80 88 Q78 66 90 52 Q92 86 98 104Z" fill="#fff1a8" opacity=".7" />
+    </g>
+  );
 }
 
 function Sparkles({ color }: { color: string }) {
@@ -514,8 +629,16 @@ export function ItemArt({ it, size = 140, tryOn = true }: { it: ShopItem; size?:
     case 'frame': return <div className={`rounded-full ring-4 ${it.color}`} style={{ width: size * 0.62, height: size * 0.62 }}><img src="./img/head.webp" alt="" className="h-full w-full rounded-full object-cover" /></div>;
     case 'ball': return <div className="rounded-[50%]" style={{ width: size * 0.42, height: size * 0.52, background: `radial-gradient(circle at 35% 30%, #fff, ${it.color} 40%, #000a)`, boxShadow: `0 0 30px ${it.color}` }} />;
     case 'title': return <div className="max-w-full rounded-lg border border-gold/40 bg-gold/5 px-1.5 py-1 text-center font-display font-black uppercase leading-tight tracking-wide text-gold" style={{ width: size * 0.95, fontSize: Math.max(8, size * 0.11) }}>{it.name}</div>;
-    case 'fx': return <div className="grid place-items-center overflow-hidden rounded-xl font-display font-black leading-none" style={{ background: it.id === 'fx-royal' ? 'radial-gradient(circle,#7c3aed,#1e0b3a)' : 'radial-gradient(circle,#7a4f00,#1a1205)', width: size * 0.95, height: size * 0.65 }}><span className="text-gold-grad text-center" style={{ fontSize: Math.max(9, size * 0.16) }}>BIG<br />WIN</span></div>;
-    case 'name': return <div className={`text-center font-display font-black leading-none ${it.id === 'nm-gold' ? 'text-gold-grad' : 'text-cream'}`} style={{ fontSize: Math.max(9, size * 0.15) }}>Your<br />Name</div>;
+    case 'fx': {
+      const th = FX_THUMB[it.id] ?? FX_THUMB['fx-classic'];
+      return (
+        <div className="relative grid place-items-center overflow-hidden rounded-xl font-display font-black leading-none" style={{ background: th.bg, width: size * 0.95, height: size * 0.65, boxShadow: `0 0 ${size * 0.12}px ${th.glow}` }}>
+          <div className="absolute inset-0 opacity-60" style={{ background: `repeating-conic-gradient(from 0deg at 50% 60%, ${th.ray} 0deg 8deg, transparent 8deg 20deg)` }} />
+          <span className="relative text-center" style={{ fontSize: Math.max(9, size * 0.16), backgroundImage: th.text, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>BIG<br />WIN</span>
+        </div>
+      );
+    }
+    case 'name': return <div className={`text-center font-display font-black leading-none ${NAME_CLASS[it.id] ?? 'text-cream'}`} style={{ fontSize: Math.max(9, size * 0.15) }}>Your<br />Name</div>;
     case 'bundle': return <div className="flex -space-x-3">{[0, 1, 2].map((i) => <ChipArt key={i} set="cp-gold" denom={3} size={size * 0.3} label="$" />)}</div>;
     default: return null;
   }

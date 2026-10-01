@@ -4,7 +4,7 @@ import { ChickenArt, ItemArt, TableArt } from '../../components/CosmeticArt';
 import { ItemKind, SHOP, ShopItem, itemById } from '../../lib/data';
 import { sfx } from '../../lib/sound';
 import { Equipped, useStore } from '../../store';
-import Avatar from '../../components/Avatar';
+import Avatar, { PlayerName } from '../../components/Avatar';
 import { RARITY_COLOR } from './common';
 
 const SLOTS: { slot: keyof Equipped; kind: ItemKind; label: string }[] = [
@@ -32,7 +32,6 @@ export default function Locker({ onShop }: { onShop: (kind: ItemKind) => void })
   const total = SHOP.filter((i) => i.kind === slot.kind && !i.limited).length + SHOP.filter((i) => i.kind === slot.kind && i.limited && inv.includes(i.id)).length;
   const collected = SHOP.filter((i) => ['chicken', 'hat', 'table', 'chips', 'deck'].includes(i.kind) && inv.includes(i.id)).length;
   const collectible = SHOP.filter((i) => ['chicken', 'hat', 'table', 'chips', 'deck'].includes(i.kind)).length;
-  const golden = eq.name === 'nm-gold';
 
   const wear = (it: ShopItem) => {
     if (eq[slot.slot] === it.id) return;
@@ -48,7 +47,7 @@ export default function Locker({ onShop }: { onShop: (kind: ItemKind) => void })
         <div className="relative flex items-center gap-3">
           <Avatar size={46} />
           <div className="min-w-0">
-            <div className={`truncate font-display text-xl font-black ${golden ? 'text-gold-grad' : ''}`}>{user?.name ?? 'Guest'}</div>
+            <div className="truncate font-display text-xl font-black"><PlayerName name={user?.name ?? 'Guest'} /></div>
             <div className="text-xs text-smoke">{itemById(eq.title)?.name} · {collected}/{collectible} collectibles</div>
           </div>
         </div>

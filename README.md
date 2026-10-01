@@ -53,7 +53,9 @@ Game card thumbnails are rendered from these same scenes: `npm run build`, `npx 
   - **Chickens** (Golden, Diamond, Mafia, Cowboy, Astronaut, King, Tuxedo, Samurai, Cyber, Skeleton…) and **hats** that mix and match – worn in Chicken Cross and Rocket Rooster.
   - **Table skins** (felt, rail and trim in Blackjack, Baccarat, Poker, Craps and Roulette), **chip skins** and **card decks** (looks only, never gameplay).
   - **🔥 Hot Drop** – a limited chicken that rotates daily at 00:00 UTC, with a countdown.
-  - **Egg Shop** – Basic / Golden / Diamond / Royal eggs with odds shown up front; cosmetics only and never a duplicate.
+  - **Mythic Vault** – the top tier: 24K Solid Gold Rooster, Phoenix Rooster, Galaxy, Shadow and Holo chickens, Diamond Crown and Golden Halo, Billionaire / Inferno / Galaxy tables, Holo chips, 24K and Galaxy decks, plus Phoenix, Galaxy and Billionaire bundles.
+  - **Win FX & Names** – big-win shows (Inferno, Cosmic, Diamond) and name styles (Fire, Rainbow, Ice).
+  - **Egg Shop** – Basic / Golden / Diamond / Royal / Mythic eggs with odds shown up front; cosmetics only and never a duplicate.
   - **Bundles** – priced from what you don't own yet, plus bonus coins.
   - **Rooster VIP** – free rewards at levels 2 / 4 / 6 / 9 / 12 (VIP chips, frame, golden name, table, chicken, deck, royal win show, Rooster Elite title).
   - **My Locker** – equip by slot. Golden eggs still buy coin packs, avatars, frames and titles under *More*.
