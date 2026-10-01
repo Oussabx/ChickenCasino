@@ -1,5 +1,6 @@
 export type GameId = 'plinko' | 'crash' | 'chicken-cross' | 'egg-hunt' | 'cluck-dice' | 'golden-wheel'
-  | 'blackjack' | 'roulette' | 'baccarat' | 'punto-banco' | 'poker' | 'video-poker';
+  | 'blackjack' | 'roulette' | 'baccarat' | 'punto-banco' | 'poker' | 'video-poker'
+  | 'craps' | 'slots' | 'keno';
 
 export interface GameMeta {
   id: GameId;
@@ -9,8 +10,10 @@ export interface GameMeta {
   maxWin: string;
   accent: string; // tailwind gradient classes
   tags: string[];
-  /** 'original' = Chicken Casino originals; 'table' = classic casino table games */
-  category?: 'original' | 'table';
+  /** 'original' = Chicken Casino originals; 'table' = classic casino table games; 'slots' = slots & keno */
+  category?: 'original' | 'table' | 'slots';
+  /** Theoretical return to player, shown in the rules. */
+  rtp?: string;
   hot?: boolean;
   isNew?: boolean;
 }
@@ -142,6 +145,42 @@ export const GAMES: GameMeta[] = [
     accent: '',
     tags: ['Poker', 'Draw'],
     category: 'table',
+  },
+  {
+    id: 'craps',
+    name: 'Craps',
+    tagline: 'Roll the bones in the coop',
+    description: 'Las Vegas craps on a 3D table, with a rooster stickman calling the dice. Bet the Pass Line or Don’t Pass, take free odds at true payouts, press Come and Place bets, or go for the hardways and one-roll props.',
+    maxWin: '31×',
+    accent: '',
+    tags: ['Dice', 'Classic'],
+    category: 'table',
+    rtp: '98.6% on the Pass Line · 100% on odds',
+    isNew: true,
+  },
+  {
+    id: 'slots',
+    name: 'Golden Coop Slots',
+    tagline: '5 reels, 20 lines, one golden rooster',
+    description: 'A five-reel video slot with real spinning drums. The Golden Rooster is wild, three Coops trigger free spins with every win tripled, and five wild roosters pay 3,000× the line bet.',
+    maxWin: '9,000×',
+    accent: '',
+    tags: ['Slots', 'Free spins'],
+    category: 'slots',
+    rtp: '95.2%',
+    hot: true,
+  },
+  {
+    id: 'keno',
+    name: 'Coop Keno',
+    tagline: 'Pick your nests, watch the eggs drop',
+    description: 'Classic 80-number keno. Pick 1 to 10 nests, then the hen lays 20 numbered eggs. The more you catch, the more you win — ten out of ten pays 100,000×.',
+    maxWin: '100,000×',
+    accent: '',
+    tags: ['Keno', 'Lottery'],
+    category: 'slots',
+    rtp: '≈ 95%',
+    isNew: true,
   },
 ];
 

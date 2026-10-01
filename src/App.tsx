@@ -25,6 +25,9 @@ const Roulette = lazy(() => import('./games/Roulette'));
 const Baccarat = lazy(() => import('./games/Baccarat'));
 const Poker = lazy(() => import('./games/Poker'));
 const VideoPoker = lazy(() => import('./games/VideoPoker'));
+const Slots = lazy(() => import('./games/Slots'));
+const Craps = lazy(() => import('./games/Craps'));
+const Keno = lazy(() => import('./games/Keno'));
 
 export default function App() {
   return (
@@ -46,6 +49,9 @@ export default function App() {
             <Route path="games/punto-banco" element={<Baccarat key="punto" variant="punto" />} />
             <Route path="games/poker" element={<Poker />} />
             <Route path="games/video-poker" element={<VideoPoker />} />
+            <Route path="games/slots" element={<Slots />} />
+            <Route path="games/craps" element={<Craps />} />
+            <Route path="games/keno" element={<Keno />} />
             <Route path="promotions" element={<Promotions />} />
             <Route path="tournaments" element={<Tournaments />} />
             <Route path="vip" element={<VIP />} />
