@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import GameShell, { GameAction } from '../components/GameShell';
-import { ChipPicker, ChipRow } from '../components/ChipBets';
+import { ALL_IN, BIG_CHIPS, ChipPicker, ChipRow } from '../components/ChipBets';
 import { confirmBet } from '../components/BetControls';
 import { toast, useStore } from '../store';
 import { sfx } from '../lib/sound';
@@ -10,10 +10,10 @@ import { REDS, RouletteScene, colorOf, covers, returns } from './three/roulette3
 
 type Bets = Record<string, number>;
 
-const QUICK: [string, string][] = [['red', 'Red'], ['black', 'Black'], ['odd', 'Odd'], ['even', 'Even'], ['low', '1–18'], ['high', '19–36'], ['d1', '1st 12'], ['d2', '2nd 12'], ['d3', '3rd 12']];
+export const QUICK: [string, string][] = [['red', 'Red'], ['black', 'Black'], ['odd', 'Odd'], ['even', 'Even'], ['low', '1–18'], ['high', '19–36'], ['d1', '1st 12'], ['d2', '2nd 12'], ['d3', '3rd 12']];
 
 export default function Roulette() {
-  const [chip, setChip] = useState(5);
+  const [chip, setChip] = useState(100);
   const [bets, setBets] = useState<Bets>({});
   const [order, setOrder] = useState<string[]>([]);
   const [last, setLast] = useState<Bets | null>(null);
@@ -47,21 +47,25 @@ export default function Roulette() {
   const place = (key: string) => {
     if (spinning) return;
     if (result) setResult(null);
-    if (total + chip > useStore.getState().balance) { toast({ title: 'Insufficient balance', tone: 'red' }); return; }
+    const left = Math.floor(useStore.getState().balance - total);
+    // All-in: everything not already on the layout
+    const amount = chip === ALL_IN ? left : chip;
+    if (amount <= 0 || amount > left) { toast({ title: amount <= 0 ? 'Nothing left to bet' : 'Insufficient balance', tone: 'red' }); return; }
     sfx.bet();
-    setBets((b) => ({ ...b, [key]: (b[key] ?? 0) + chip }));
-    setOrder((o) => [...o, key]);
+    setBets((b) => ({ ...b, [key]: (b[key] ?? 0) + amount }));
+    setOrder((o) => [...o, `${key}|${amount}`]);
   };
   placeRef.current = place;
   // keep the 3D chips in step with the bets
   useEffect(() => { if (!spinning && !result) sceneRef.current?.setBets(bets); }, [bets, spinning, result]);
   const undo = () => {
-    const k = order[order.length - 1]; if (!k || spinning) return;
-    setBets((b) => { const v = Math.max(0, (b[k] ?? 0) - chip); const n = { ...b }; if (v) n[k] = v; else delete n[k]; return n; });
+    const last1 = order[order.length - 1]; if (!last1 || spinning) return;
+    const [k, amt] = last1.split('|');
+    setBets((b) => { const v = Math.max(0, (b[k] ?? 0) - +amt); const n = { ...b }; if (v) n[k] = v; else delete n[k]; return n; });
     setOrder((o) => o.slice(0, -1));
   };
   const clear = () => { if (!spinning) { setBets({}); setOrder([]); setResult(null); } };
-  const rebet = () => { if (last && !spinning) { setBets(last); setOrder(Object.keys(last)); setResult(null); } };
+  const rebet = () => { if (last && !spinning) { setBets(last); setOrder(Object.entries(last).map(([k, v]) => `${k}|${v}`)); setResult(null); } };
 
   const spin = async () => {
     const sc = sceneRef.current;
@@ -87,7 +91,7 @@ export default function Roulette() {
 
   const controls = (
     <>
-      <div className="hidden lg:block"><ChipPicker chip={chip} setChip={setChip} total={total} onClear={clear} onUndo={undo} onRebet={last ? rebet : undefined} disabled={spinning} /></div>
+      <div className="hidden lg:block"><ChipPicker chip={chip} setChip={setChip} total={total} onClear={clear} onUndo={undo} onRebet={last ? rebet : undefined} disabled={spinning} values={BIG_CHIPS} allIn /></div>
       <div className={spinning ? 'pointer-events-none opacity-50' : ''}>
         <div className="label mb-1.5">Quick bets <span className="normal-case tracking-normal text-smoke/70">· or tap the table</span></div>
         <div className="grid grid-cols-3 gap-1.5">
@@ -95,12 +99,12 @@ export default function Roulette() {
             <button key={k} type="button" aria-label={`Bet ${k}`} onClick={() => place(k)}
               className={`relative rounded-lg border px-2 py-2 font-display text-xs font-black transition active:scale-95 ${k === 'red' ? 'border-blood/50 bg-blood/20 text-white' : k === 'black' ? 'border-white/20 bg-black text-white' : 'border-gold/25 bg-[#0b4a2e]/60 text-gold'}`}>
               {l}
-              {bets[k] ? <span className="absolute -right-1.5 -top-1.5 animate-pop rounded-full bg-gold px-1.5 text-[10px] leading-4 text-ink tabular">{bets[k]}</span> : null}
+              {bets[k] ? <span className="absolute -right-1.5 -top-1.5 animate-pop rounded-full bg-gold px-1.5 text-[10px] leading-4 text-ink tabular">{bets[k] >= 1000 ? `${Math.round(bets[k] / 100) / 10}k` : bets[k]}</span> : null}
             </button>
           ))}
         </div>
       </div>
-      <GameAction extra={<ChipRow chip={chip} setChip={setChip} onUndo={undo} onClear={clear} disabled={spinning} />}>
+      <GameAction extra={<ChipRow chip={chip} setChip={setChip} onUndo={undo} onClear={clear} disabled={spinning} values={BIG_CHIPS} allIn />}>
         <button className="btn-gold w-full py-4 text-base" disabled={spinning} onClick={spin}>{spinning ? 'No more bets…' : total > 0 ? `Spin · ${fmt(total, 0)}` : 'Spin'}</button>
       </GameAction>
       <div className="rounded-xl bg-ink-900 p-3 text-xs text-smoke space-y-1">
@@ -113,7 +117,7 @@ export default function Roulette() {
   );
 
   return (
-    <GameShell id="roulette" tall controls={controls} rules={[
+    <GameShell id="roulette" tall controls={controls} title="Roulette practice" subtitle="Just you and the wheel · offline" back="/games/roulette" rules={[
       'Pick a chip value and tap the board to place bets — tap again to stack more.',
       'Press Spin. The ball is launched against the wheel and drops into one of 37 pockets (0–36).',
       'Single numbers pay 35:1, dozens and columns 2:1, and red/black, odd/even, 1-18/19-36 pay 1:1. Zero loses all outside bets.',
@@ -139,7 +143,7 @@ export default function Roulette() {
 }
 
 /** The winning number as a glowing pocket disc (the win itself is shown by WinFX). */
-function WinDisc({ n, payout, total, side }: { n: number; payout: number; total: number; side: boolean }) {
+export function WinDisc({ n, payout, total, side }: { n: number; payout: number; total: number; side: boolean }) {
   const [docked, setDocked] = useState(false);
   useEffect(() => { const t = setTimeout(() => setDocked(true), 1800); return () => clearTimeout(t); }, []);
   const col = n === 0 ? 'from-[#15b863] to-[#0a6b39]' : REDS.has(n) ? 'from-[#e8313f] to-[#8e1320]' : 'from-[#3a3a3a] to-[#080808]';
@@ -152,7 +156,7 @@ function WinDisc({ n, payout, total, side }: { n: number; payout: number; total:
           <span className="font-display text-5xl font-black text-white drop-shadow-lg sm:text-6xl">{n}</span>
         </div>
         <div className={`mt-2 rounded-full border px-3 py-1 text-sm font-black backdrop-blur-md ${win ? 'border-gold/60 bg-black/70 text-gold' : payout > 0 ? 'border-white/20 bg-black/70 text-cream' : 'border-white/10 bg-black/60 text-smoke'}`}>
-          {payout > 0 ? <span className="font-display tabular">{payout > total ? 'Winner!' : 'Bet back'}</span> : 'No win'}
+          {payout > 0 ? <span className="font-display tabular">{payout > total ? 'Winner!' : payout === total ? 'Bet back' : `${fmt(payout, 0)} back`}</span> : 'No win'}
         </div>
       </div>
     </div>

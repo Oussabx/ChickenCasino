@@ -13,7 +13,7 @@ import { useLiveTable } from '../../lib/net/live';
 import { BJ_BET_MS, BJ_TURN_MS, BSeat, BState, BlackjackEngine } from '../../lib/net/bjEngine';
 import { dec, decList } from '../../lib/net/cardsCodec';
 import BuyIn from '../../components/live/BuyIn';
-import { ConnBadge, EmoteButton, SeatPod, useSeatSession } from '../../components/live/LiveBits';
+import { BetClock, ConnBadge, EmoteButton, SeatPod, useSeatSession } from '../../components/live/LiveBits';
 import { Coin } from '../../components/Icons';
 
 /* Live blackjack: up to five players, each against the chicken dealer. */
@@ -383,18 +383,3 @@ function WalletAmt() {
   return <>{fmtCompact(b)}</>;
 }
 
-/** "Place your bets" with the seconds left. */
-function BetClock({ deadline }: { deadline: number }) {
-  const [left, setLeft] = useState(() => Math.ceil(Math.max(0, deadline - Date.now()) / 1000));
-  useEffect(() => {
-    const id = setInterval(() => setLeft(Math.ceil(Math.max(0, deadline - Date.now()) / 1000)), 250);
-    return () => clearInterval(id);
-  }, [deadline]);
-  return (
-    <div className="pointer-events-none absolute inset-x-0 top-3 z-10 flex justify-center">
-      <div className="flex items-center gap-2 rounded-full border border-gold/40 bg-black/75 px-4 py-1.5 text-xs font-black uppercase tracking-widest text-gold shadow-lg backdrop-blur">
-        Place your bets <span className="grid h-6 min-w-[24px] place-items-center rounded-full bg-gold px-1 font-display text-sm text-ink tabular">{left}</span>
-      </div>
-    </div>
-  );
-}

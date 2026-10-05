@@ -3,7 +3,7 @@ import { TABLES, TableTheme } from '../cosmetics';
 /** One live table. Buy-ins are 10–100 big blinds (poker) or minimum bets (blackjack). */
 export interface LiveTable {
   id: string;
-  game: 'poker' | 'blackjack';
+  game: 'poker' | 'blackjack' | 'roulette';
   name: string;
   tagline: string;
   themeId: string;
@@ -53,7 +53,25 @@ export const BJ_TABLES: LiveTable[] = BLACKJACK.map(([name, themeId, tagline], i
   lo: STAKE[i], hi: STAKE[i] * 10, buyMin: STAKE[i] * 10, buyMax: STAKE[i] * 100, seats: 5, tier: i,
 }));
 
-export const liveTable = (id: string) => [...POKER_TABLES, ...BJ_TABLES].find((t) => t.id === id);
+const ROULETTE: [string, string, string][] = [
+  ['Lucky Zero', 'tb-classic', 'Where the ball always finds a home'],
+  ['Red Comb Room', 'tb-red', 'Red or black? Ask the rooster'],
+  ['Barnyard Wheel', 'tb-farm', 'Spins straight from the farm'],
+  ['Velvet Roost', 'tb-royal', 'A royal wheel'],
+  ['Neon Spin', 'tb-neon', 'Electric nights'],
+  ['Cyber Wheel', 'tb-cyber', 'Numbers at light speed'],
+  ['Diamond Drop', 'tb-diamond', 'Ice-cold landings'],
+  ['Inferno Wheel', 'tb-inferno', 'Hot numbers only'],
+  ['Galaxy Spin', 'tb-galaxy', 'Out of this world'],
+  ['Billionaire Wheel', 'tb-billionaire', 'Where millions ride on one spin'],
+];
+/** Roulette: every table has the same chips (100 → 1M) and no buy-in; up to 25 players bet together. */
+export const ROULETTE_TABLES: LiveTable[] = ROULETTE.map(([name, themeId, tagline], i) => ({
+  id: `r${i + 1}`, game: 'roulette', name, tagline, themeId, theme: TABLES[themeId],
+  lo: 100, hi: 1_000_000, buyMin: 0, buyMax: 0, seats: 25, tier: i,
+}));
+
+export const liveTable = (id: string) => [...POKER_TABLES, ...BJ_TABLES, ...ROULETTE_TABLES].find((t) => t.id === id);
 /** Room name for a table (platform grammar: lowercase, digits, . _ -). */
 export const roomName = (t: LiveTable) => `cc-${t.game}-${t.id}`;
 /** Hex colour for CSS from a theme number. */

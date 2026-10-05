@@ -4,6 +4,7 @@ import { MAT, box, glowSprite, labelPlane, std, textTexture } from './models';
 import { chipStack } from './table3d';
 import { roundRect } from './cardArt';
 import { eqTable, eqTableId } from '../../lib/equipped';
+import type { TableTheme } from '../../lib/cosmetics';
 
 export const WHEEL_ORDER = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
 export const REDS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
@@ -96,13 +97,17 @@ export class RouletteScene extends Stage3D {
   private winGlows: THREE.Mesh[] = [];
   private hoverKey: string | null = null;
 
-  constructor(host: HTMLElement) {
+  /** A fixed look (each live table has its own); otherwise the player's table skin. */
+  private theme: TableTheme | null;
+
+  constructor(host: HTMLElement, opts: { theme?: TableTheme } = {}) {
     super(host, { fov: 34, bg: 0x0a0708 });
+    this.theme = opts.theme ?? (eqTableId() === 'tb-classic' ? null : eqTable());
     this.parallax = 0.3;
     this.key.position.set(-4, 14, 6);
 
     // the table: felt all round (green, or the equipped table skin), the wheel sunk into it
-    const felt = new THREE.Mesh(new THREE.PlaneGeometry(90, 90), new THREE.MeshStandardMaterial({ map: feltTexture(), roughness: 0.95 }));
+    const felt = new THREE.Mesh(new THREE.PlaneGeometry(90, 90), new THREE.MeshStandardMaterial({ map: feltTexture(this.theme), roughness: 0.95 }));
     felt.rotation.x = -Math.PI / 2; felt.position.y = -0.02; felt.receiveShadow = true;
     this.scene.add(felt);
     const well = new THREE.Mesh(new THREE.CylinderGeometry(R_TRACK + 1.15, R_TRACK + 1.25, 0.14, 96), std(0x2a1209, { roughness: 0.4 }));
@@ -194,7 +199,7 @@ export class RouletteScene extends Stage3D {
       this.scene.add(s);
     }
     // printed betting layout
-    this.boardTex = boardTexture(false);
+    this.boardTex = boardTexture(false, this.theme);
     this.board = new THREE.Mesh(new THREE.PlaneGeometry(BU * BS, BV * BS), new THREE.MeshStandardMaterial({ map: this.boardTex, roughness: 0.9 }));
     this.board.rotation.x = -Math.PI / 2; this.board.receiveShadow = true;
     this.board.add(this.hl);
@@ -207,7 +212,7 @@ export class RouletteScene extends Stage3D {
   // ---------- board geometry ----------
   private placeBoard() {
     const portrait = this.layout === 'top';
-    this.boardTex = boardTexture(portrait);
+    this.boardTex = boardTexture(portrait, this.theme);
     (this.board.material as THREE.MeshStandardMaterial).map = this.boardTex;
     (this.board.material as THREE.MeshStandardMaterial).needsUpdate = true;
     const gap = R_TRACK + 1.55;
@@ -271,7 +276,7 @@ export class RouletteScene extends Stage3D {
       if (old?.userData.amount === amt) continue;
       const prevN = old?.userData.n ?? 0;
       if (old) this.scene.remove(old);
-      const g = chipStack(amt, 0.3);
+      const g = chipStack(amt, 0.3, 2.3);
       g.userData.amount = amt;
       g.position.copy(this.keyWorld(k));
       this.scene.add(g); this.stacks.set(k, g);
@@ -307,7 +312,7 @@ export class RouletteScene extends Stage3D {
       const from = g.position.clone();
       if (covers(k, n)) {
         const amt = g.userData.amount as number;
-        const pay = chipStack(amt * (returns(k) - 1), 0.3);
+        const pay = chipStack(amt * (returns(k) - 1), 0.3, 2.3);
         pay.position.set(0, 0.3, 0); this.scene.add(pay);
         const to = from.clone().add(new THREE.Vector3(0.28, 0, -0.18));
         this.anim(700, (t) => { const e = 1 - Math.pow(1 - t, 3); pay.position.lerpVectors(new THREE.Vector3(0, 0.6, 0), to, e); pay.position.y += Math.sin(Math.PI * t) * 1.5; }, () => {});
@@ -451,12 +456,11 @@ const easeBounce = (x: number) => {
   return n1 * (x -= 2.625 / d1) * x + 0.984375;
 };
 
-function feltTexture() {
+function feltTexture(th: TableTheme | null) {
   const cv = document.createElement('canvas'); cv.width = cv.height = 512;
   const g = cv.getContext('2d')!;
   const grd = g.createRadialGradient(256, 256, 20, 256, 256, 360);
   // classic keeps the green baize; any other table skin dyes the felt
-  const th = eqTableId() === 'tb-classic' ? null : eqTable();
   const c = th ? new THREE.Color(th.felt) : null;
   grd.addColorStop(0, c ? `#${c.getHexString()}` : '#11583a'); grd.addColorStop(1, c ? `#${c.clone().lerp(new THREE.Color(th!.edge), 0.5).getHexString()}` : '#0a3a26');
   g.fillStyle = grd; g.fillRect(0, 0, 512, 512);
@@ -497,14 +501,13 @@ function cellGlowTexture() {
 
 const boardCache = new Map<string, THREE.CanvasTexture>();
 /** The printed betting layout. `portrait` rotates the labels so they read upright on phones. */
-function boardTexture(portrait: boolean) {
-  const cacheKey = `${portrait}|${eqTableId()}`;
+function boardTexture(portrait: boolean, th: TableTheme | null) {
+  const cacheKey = `${portrait}|${th ? `${th.felt}-${th.trim}-${th.ink}` : 'classic'}`;
   const hit = boardCache.get(cacheKey); if (hit) return hit;
   const P = 110, W = BU * P, H = BV * P;
   const cv = document.createElement('canvas'); cv.width = W; cv.height = Math.round(H);
   const g = cv.getContext('2d')!;
   const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
-  const th = eqTableId() === 'tb-classic' ? null : eqTable();
   const c0 = th ? `#${new THREE.Color(th.felt).getHexString()}` : '#0f5c3a', c1 = th ? `#${new THREE.Color(th.felt).lerp(new THREE.Color(th.edge), 0.4).getHexString()}` : '#0b4a2f';
   // line + label colours follow the table skin's trim / ink (gold on classic)
   const tc = th ? new THREE.Color(th.trim) : new THREE.Color(0xf4c430);
@@ -530,17 +533,17 @@ function boardTexture(portrait: boolean) {
     { const c = cell('n:0', null); g.fillStyle = '#0e8f4a'; g.beginPath(); g.moveTo(c.cx - c.w / 2 + 10, c.cy); g.lineTo(c.cx + c.w / 2 - 8, 10); g.lineTo(c.cx + c.w / 2 - 8, c.h * 1 - 10); g.closePath(); g.fill(); label('0', c.cx + 8, c.cy, 62, '#fff'); }
     for (let n = 1; n <= 36; n++) {
       const c = cell(`n:${n}`, REDS.has(n) ? '#c21a2a' : '#141414');
-      label(String(n), c.cx, c.cy, portrait ? 50 : 56, '#F8F6EF');
+      label(String(n), c.cx, c.cy, portrait ? 60 : 66, '#F8F6EF');
     }
-    for (const k of ['c1', 'c2', 'c3']) { const c = cell(k, null); label('2 to 1', c.cx, c.cy, 26, inkC, 800); }
-    (['d1', 'd2', 'd3'] as const).forEach((k, i) => { const c = cell(k, null); label(['1st 12', '2nd 12', '3rd 12'][i], c.cx, c.cy, 44, inkC); });
+    for (const k of ['c1', 'c2', 'c3']) { const c = cell(k, null); label('2 to 1', c.cx, c.cy, 36, inkC, 900); }
+    (['d1', 'd2', 'd3'] as const).forEach((k, i) => { const c = cell(k, null); label(['1st 12', '2nd 12', '3rd 12'][i], c.cx, c.cy, 54, inkC); });
     OUTSIDE.forEach((k) => {
       const c = cell(k, null);
       if (k === 'red' || k === 'black') {
         g.save(); g.translate(c.cx, c.cy); g.fillStyle = k === 'red' ? '#d62839' : '#0b0b0b';
         g.beginPath(); g.moveTo(0, -36); g.lineTo(62, 0); g.lineTo(0, 36); g.lineTo(-62, 0); g.closePath(); g.fill();
         g.strokeStyle = lineA(.8); g.lineWidth = 3; g.stroke(); g.restore();
-      } else label({ low: '1–18', even: 'EVEN', odd: 'ODD', high: '19–36' }[k]!, c.cx, c.cy, 40, inkC);
+      } else label({ low: '1–18', even: 'EVEN', odd: 'ODD', high: '19–36' }[k]!, c.cx, c.cy, 50, inkC);
     });
     g.strokeStyle = inkC; g.lineWidth = 6; roundRect(g, 3, 3, W - 6, H - 6, 24); g.stroke();
     tex.needsUpdate = true;

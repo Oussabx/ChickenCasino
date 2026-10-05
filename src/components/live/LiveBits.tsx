@@ -30,7 +30,7 @@ export function useSeatSession<S extends StateLike>(t: TableDef, lt: LiveTable<S
       const i = st.s.findIndex((x) => x?.id === pending.rid);
       if (i >= 0) {
         if (store.escrow?.rid !== pending.rid) {
-          const err = store.escrowOpen({ rid: pending.rid, game: t.game, table: t.id, tableName: t.name, buyIn: pending.buy });
+          const err = store.escrowOpen({ rid: pending.rid, game: t.game as 'poker' | 'blackjack', table: t.id, tableName: t.name, buyIn: pending.buy });
           if (err) { toast({ title: err, tone: 'red' }); lt?.send({ sit: null }); setPending(null); return; }
         }
         ridRef.current = pending.rid; setRid(pending.rid); setPending(null);
@@ -122,7 +122,7 @@ export const EMOTES = ['👏', '😂', '🔥', '😱', '🐔', '💰', '😎', '
  * Emote button that sits on the table (same in every live game): tap it, pick
  * an emoji, and it pops up over your seat for everyone at the table.
  */
-export function EmoteButton({ lt, className = '' }: { lt: LiveTable<never> | LiveTable<BaseState> | null; className?: string }) {
+export function EmoteButton({ lt, className = '', up }: { lt: LiveTable<never> | LiveTable<BaseState> | null; className?: string; up?: boolean }) {
   const [open, setOpen] = useState(false);
   const [cool, setCool] = useState(false);
   const send = (e: string) => {
@@ -134,7 +134,7 @@ export function EmoteButton({ lt, className = '' }: { lt: LiveTable<never> | Liv
       {open && (
         <>
           <button type="button" aria-label="Close emotes" className="fixed inset-0 cursor-default" onClick={() => setOpen(false)} />
-          <div className="emote-tray absolute right-0 top-full mt-2 grid w-[208px] grid-cols-4 gap-1 rounded-2xl border border-white/10 bg-ink-900/95 p-2 shadow-2xl backdrop-blur-md">
+          <div className={`emote-tray absolute right-0 grid w-[208px] grid-cols-4 gap-1 rounded-2xl border border-white/10 bg-ink-900/95 p-2 shadow-2xl backdrop-blur-md ${up ? 'bottom-full mb-2' : 'top-full mt-2'}`}>
             {EMOTES.map((e) => (
               <button key={e} type="button" aria-label={`Send ${e}`} onClick={() => send(e)}
                 className="grid h-11 place-items-center rounded-xl text-2xl transition hover:scale-110 hover:bg-white/10 active:scale-95">{e}</button>
@@ -240,6 +240,22 @@ export function HandMeter({ name, rank }: { name: string; rank: number }) {
     <div className="flex min-w-[118px] flex-col gap-1 rounded-xl border border-white/10 bg-black/80 px-2.5 py-1.5 shadow-xl backdrop-blur-md">
       <span className="whitespace-nowrap text-[11px] font-black" style={{ color: col }}>{name}</span>
       <span className="flex gap-[2px]">{Array.from({ length: 10 }, (_, i) => <span key={i} className="h-1.5 flex-1 rounded-full" style={{ background: i < Math.round(pct * 10) ? col : 'rgba(255,255,255,.12)' }} />)}</span>
+    </div>
+  );
+}
+
+/** "Place your bets" with the seconds left. */
+export function BetClock({ deadline, label = 'Place your bets' }: { deadline: number; label?: string }) {
+  const [left, setLeft] = useState(() => Math.ceil(Math.max(0, deadline - Date.now()) / 1000));
+  useEffect(() => {
+    const id = setInterval(() => setLeft(Math.ceil(Math.max(0, deadline - Date.now()) / 1000)), 250);
+    return () => clearInterval(id);
+  }, [deadline]);
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-3 z-10 flex justify-center">
+      <div className="flex items-center gap-2 rounded-full border border-gold/40 bg-black/75 px-4 py-1.5 text-xs font-black uppercase tracking-widest text-gold shadow-lg backdrop-blur">
+        {label} <span className="grid h-6 min-w-[24px] place-items-center rounded-full bg-gold px-1 font-display text-sm text-ink tabular">{left}</span>
+      </div>
     </div>
   );
 }
