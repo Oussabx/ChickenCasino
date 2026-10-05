@@ -191,8 +191,8 @@ const SlotMachine = forwardRef<MachineHandle, {
           <div className="h-display whitespace-nowrap text-gold-grad leading-none drop-shadow-[0_3px_0_rgba(0,0,0,.7)]" style={{ fontSize: compact ? cell * 0.36 : cell * 0.42 }}>Golden Coop</div>
           <div className="relative overflow-hidden rounded-xl border-2 border-gold bg-black/65 text-center shadow-[0_0_18px_rgba(244,196,48,.35)]" style={{ padding: `${cell * 0.04}px ${cell * 0.14}px` }}>
             <span className="shine-sweep" />
-            <div className="font-display font-black uppercase tracking-[.25em] text-gold/80" style={{ fontSize: Math.max(10, cell * 0.11) }}>Jackpot</div>
-            <div className="font-display font-black text-gold-grad tabular leading-tight" style={{ fontSize: Math.max(12, cell * 0.24) }}>{fmt(jackpot, Number.isInteger(jackpot) ? 0 : 2)}</div>
+            <div className="font-display font-black uppercase tracking-[.25em] text-gold/80" style={{ fontSize: Math.max(10, cell * 0.11) }}>Mega jackpot</div>
+            <div className="font-display font-black text-gold-grad tabular leading-tight" style={{ fontSize: Math.max(12, cell * 0.24) }}><Ticker value={jackpot} /></div>
           </div>
         </div>
 
@@ -266,3 +266,23 @@ const SlotMachine = forwardRef<MachineHandle, {
 });
 
 export default SlotMachine;
+
+/** A number that rolls up smoothly to its new value (the growing jackpot). */
+export function Ticker({ value }: { value: number }) {
+  const [shown, setShown] = useState(value);
+  const from = useRef(value);
+  useEffect(() => {
+    const a = from.current, b = value;
+    if (a === b) return;
+    let raf = 0; const t0 = performance.now();
+    const step = (now: number) => {
+      const k = Math.min(1, (now - t0) / 900);
+      const v = a + (b - a) * (1 - Math.pow(1 - k, 3));
+      setShown(v); from.current = v;
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  return <>{fmt(shown, shown >= 100 ? 0 : 2)}</>;
+}

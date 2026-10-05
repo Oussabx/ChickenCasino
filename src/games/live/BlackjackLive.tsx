@@ -8,13 +8,12 @@ import { fmt, fmtCompact } from '../../lib/format';
 import { Card, bjValue, isBlackjack } from '../../lib/cards';
 import { Card3D, TableScene } from '../three/table3d';
 import { Anchor, HandBadge, ResultBanner, Tone } from '../../components/TableUI';
-import Avatar, { NAME_CLASS } from '../../components/Avatar';
 import { liveTable, roomName } from '../../lib/net/tables';
 import { useLiveTable } from '../../lib/net/live';
 import { BJ_BET_MS, BJ_TURN_MS, BSeat, BState, BlackjackEngine } from '../../lib/net/bjEngine';
 import { dec, decList } from '../../lib/net/cardsCodec';
 import BuyIn from '../../components/live/BuyIn';
-import { ConnBadge, EmoteBubble, Reactions, TimerRing, useSeatSession } from '../../components/live/LiveBits';
+import { ConnBadge, EmoteButton, SeatPod, useSeatSession } from '../../components/live/LiveBits';
 import { Coin } from '../../components/Icons';
 
 /* Live blackjack: up to five players, each against the chicken dealer. */
@@ -69,8 +68,10 @@ function BjTable({ tid }: { tid: string }) {
   };
   const cardPos = (i: number, h: number, nh: number, k: number) => {
     const g = geo(i);
-    const side = (nh > 1 ? (h === 0 ? 0.62 : -0.62) : 0) + k * 0.27 - 0.13;
-    return { x: g.cards.x + g.tan.x * side - g.n.x * k * 0.1, z: g.cards.z + g.tan.z * side - g.n.z * k * 0.1, rot: g.rot };
+    // split hands sit side by side, slightly smaller, so both stay readable
+    const split = nh > 1;
+    const side = (split ? (h === 0 ? 0.68 : -0.68) : 0) + k * (split ? 0.2 : 0.27) - (split ? 0.1 : 0.13);
+    return { x: g.cards.x + g.tan.x * side - g.n.x * k * 0.1, z: g.cards.z + g.tan.z * side - g.n.z * k * 0.1, rot: g.rot, scale: split ? 0.82 : 1 };
   };
 
   /* ---------- 3D table ---------- */
@@ -149,13 +150,8 @@ function BjTable({ tid }: { tid: string }) {
       const key = `${i}h${h}`;
       const list = (sh.cards[key] ??= []);
       if (list.length > k) return;
-      // a split: slide the existing card over to its new hand
-      if (nh > 1 && h === 0 && sh.cards[`${i}h0`]?.length && !sh.cards[`${i}h1`]) {
-        const moved = sh.cards[`${i}h0`];
-        await Promise.all(moved.map((m, j) => { const p = cardPos(i, 0, 2, j); return sc.move(m, p.x, p.z); }));
-      }
       const p = cardPos(i, h, nh, k);
-      const m = await sc.deal(c, p.x, p.z, { rot: p.rot });
+      const m = await sc.deal(c, p.x, p.z, { rot: p.rot, scale: p.scale });
       list.push(m);
       setDealtCount((d) => ({ ...d, [key]: list.length }));
       sfx.tick();
@@ -168,6 +164,23 @@ function BjTable({ tid }: { tid: string }) {
       setDealtCount((d) => ({ ...d, dealer: sh.dealer.length }));
       sfx.tick();
     };
+    // a split: the pair separates — first card stays as hand 1, second slides over to start hand 2
+    s.s.forEach((x, i) => {
+      const h0 = sh.cards[`${i}h0`];
+      if (!x || x.hs.length < 2 || sh.cards[`${i}h1`] || !h0 || h0.length < 2) return;
+      queue.push(async () => {
+        const [a, b] = h0;
+        sh.cards[`${i}h0`] = [a];
+        sh.cards[`${i}h1`] = [b];
+        const pa = cardPos(i, 0, 2, 0), pb = cardPos(i, 1, 2, 0);
+        a.mesh.scale.setScalar(pa.scale); b.mesh.scale.setScalar(pb.scale);
+        await Promise.all([sc.move(a, pa.x, pa.z), sc.move(b, pb.x, pb.z)]);
+        const g = geo(i);
+        x.hs.forEach((hh, k) => { const side = k === 0 ? 0.55 : -0.55; sc.setChips(`s${i}h${k}`, hh.bt, g.bet.x + g.tan.x * side, g.bet.z + g.tan.z * side); sh.bets[`${i}h${k}`] = hh.bt; });
+        setDealtCount((d) => ({ ...d, [`${i}h0`]: 1, [`${i}h1`]: 1 }));
+        sfx.bet();
+      });
+    });
     for (let r = 0; r < 2; r++) {
       s.s.forEach((x, i) => { const h = x?.hs[0]; if (!h) return; if (x.hs.length > 1) return; const cs = decList(h.c); if (cs[r]) queue.push(dealTo(i, 0, 1, r, cs[r])); });
       if (dealer[r]) queue.push(dealDealer(r));
@@ -285,7 +298,6 @@ function BjTable({ tid }: { tid: string }) {
         </div>
       )}
       <GameAction>{action}</GameAction>
-      {me && <Reactions lt={table as never} />}
       {me
         ? <button type="button" className="btn-ghost w-full py-2 text-xs" disabled={!!me.lv} onClick={() => { session.standUp(); toast({ title: me.hs.length && st?.ph !== 'settle' ? 'You’ll stand up after this round' : 'Standing up…', tone: 'neutral' }); }}><LogOut size={13} />{me.lv ? 'Standing up…' : 'Stand up & cash out'}</button>
         : <button type="button" className="btn-ghost w-full py-2 text-xs" onClick={() => nav('/games/blackjack')}><LogOut size={13} />Back to the lobby</button>}
@@ -321,7 +333,10 @@ function BjTable({ tid }: { tid: string }) {
         return (
           <div key={x.id}>
             <Anchor scene={scene} at={[g.pod.x, 0.3, g.pod.z]}>
-              <BjPod seat={x} mine={i === mySeat} active={active} deadline={active ? deadline : 0} emo={presence(x.p)?.emo} betting={st.ph === 'bet'} />
+              <SeatPod name={x.n} av={x.av} fr={x.fr} ns={x.ns} stack={x.k} mine={i === mySeat} active={active} deadline={active ? deadline : 0} total={BJ_TURN_MS}
+                emo={presence(x.p)?.emo} dim={!!x.w || !!x.lv} winner={st.ph === 'settle' && x.hs.some((h) => h.r === 'win' || h.r === 'bj')}
+                win={st.ph === 'settle' ? Math.max(0, x.hs.reduce((a, h) => a + (h.pay ?? 0) - h.bt, 0)) : 0}
+                badge={st.ph === 'bet' && x.rd ? 'Ready' : undefined} badgeTone="good" status={x.w ? 'next round' : x.lv ? 'leaving' : undefined} />
             </Anchor>
             {x.hs.map((h, k) => {
               const shownN = dealtCount[`${i}h${k}`] ?? 0;
@@ -356,6 +371,7 @@ function BjTable({ tid }: { tid: string }) {
           <div className="animate-floaty rounded-2xl border border-gold/30 bg-black/75 px-5 py-3 text-center text-sm font-semibold backdrop-blur-md">{st.note}</div>
         </div>
       )}
+      {me && <EmoteButton lt={table as never} className="right-3 top-3" />}
       {outcome && <ResultBanner key={outcome.key} tone={outcome.tone} title={outcome.title} sub={outcome.sub} top />}
       <BuyIn table={t} open={buyFor !== null} onClose={() => setBuyFor(null)} onConfirm={(buy) => { if (session.sit(buyFor ?? 2, buy)) setBuyFor(null); }} />
     </GameShell>
@@ -379,28 +395,6 @@ function BetClock({ deadline }: { deadline: number }) {
       <div className="flex items-center gap-2 rounded-full border border-gold/40 bg-black/75 px-4 py-1.5 text-xs font-black uppercase tracking-widest text-gold shadow-lg backdrop-blur">
         Place your bets <span className="grid h-6 min-w-[24px] place-items-center rounded-full bg-gold px-1 font-display text-sm text-ink tabular">{left}</span>
       </div>
-    </div>
-  );
-}
-
-function BjPod({ seat, mine, active, deadline, emo, betting }: { seat: BSeat; mine: boolean; active: boolean; deadline: number; emo?: { e: string; at: number } | null; betting: boolean }) {
-  const nameCls = seat.ns ? NAME_CLASS[seat.ns] ?? '' : '';
-  return (
-    <div className={`animate-pop relative flex items-center gap-1.5 whitespace-nowrap rounded-full border py-1 pl-1 pr-2.5 shadow-xl backdrop-blur-md transition-all duration-300 sm:gap-2 sm:pr-3 ${active ? 'border-gold bg-black/85 text-cream ring-2 ring-gold/60' : 'border-white/15 bg-black/75 text-cream'} ${seat.w || seat.lv ? 'opacity-55' : ''} ${mine ? 'scale-110' : ''}`}>
-      <span className="relative grid h-8 w-8 place-items-center rounded-full sm:h-10 sm:w-10">
-        <Avatar size={40} avatar={seat.av || undefined} frame={seat.fr} className="!h-full !w-full" />
-        {active && deadline > 0 && <TimerRing deadline={deadline} total={BJ_TURN_MS} size={50} />}
-      </span>
-      <span className="flex flex-col leading-tight">
-        <span className="flex max-w-[100px] items-center gap-1 truncate text-[10px] font-bold sm:text-[11px]">
-          {mine && <span className="rounded bg-gold px-1 text-[8px] font-black leading-3 text-ink">YOU</span>}
-          <span className={`truncate ${nameCls}`}>{seat.n}</span>
-        </span>
-        <span className="font-display text-[11px] font-black text-gold tabular sm:text-xs">{fmt(seat.k, 0)}</span>
-      </span>
-      {betting && seat.rd && <span className="absolute -top-5 left-1/2 -translate-x-1/2 rounded-full bg-emerald-600 px-2 py-0.5 text-[9px] font-black uppercase text-white shadow">Ready</span>}
-      {seat.w && <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-sky-600 px-1.5 text-[8px] font-black uppercase text-white">next round</span>}
-      <EmoteBubble emo={emo} />
     </div>
   );
 }

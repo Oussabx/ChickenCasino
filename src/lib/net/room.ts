@@ -135,8 +135,30 @@ function localRoom(name: string): NetRoom {
   };
 }
 
-/** Join a named room (a table or a lobby). */
+/**
+ * Join a named room (a table or a lobby). Joins are shared and counted: leaving
+ * a table and coming straight back must not let the old page's "leave" close
+ * the room the new one is using.
+ */
+const joined = new Map<string, { room: Promise<NetRoom>; refs: number }>();
 export async function joinRoom(name: string): Promise<NetRoom> {
+  let e = joined.get(name);
+  if (!e) { e = { room: openRoom(name), refs: 0 }; joined.set(name, e); }
+  e.refs++;
+  const entry = e;
+  const r = await entry.room;
+  let left = false;
+  return {
+    kind: r.kind, me: r.me, peers: r.peers, onPeers: r.onPeers, presence: r.presence, connected: r.connected,
+    leave: () => {
+      if (left) return;
+      left = true;
+      if (--entry.refs <= 0) { joined.delete(name); r.leave(); }
+    },
+  };
+}
+
+async function openRoom(name: string): Promise<NetRoom> {
   const p = await platformRoom();
   if (p) {
     try { return wrapPlatform(await p.join(name)); } catch { /* fall through to the local room */ }

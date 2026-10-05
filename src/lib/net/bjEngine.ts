@@ -1,7 +1,7 @@
 import { Card, Shoe, bjValue, isBlackjack } from '../cards';
 import { LiveTable } from './tables';
 import { BaseState, Engine, PeerView } from './live';
-import { enc, encList } from './cardsCodec';
+import { dec, enc, encList } from './cardsCodec';
 
 /* The host's multiplayer blackjack table: everyone plays their own hand against the chicken dealer. */
 
@@ -145,7 +145,12 @@ export class BlackjackEngine implements Engine<BState> {
     this.until = now + BJ_BET_MS;
   }
 
-  private draw() { return this.shoe.draw(); }
+  private draw(): Card {
+    // dev builds only: tests can stack the next cards ("8s8d…")
+    const q = import.meta.env.DEV ? (globalThis as { __bjCards?: string[] }).__bjCards : undefined;
+    if (q?.length) return dec(q.shift()!);
+    return this.shoe.draw();
+  }
 
   private deal(now: number) {
     const players = this.seats.map((s, i) => [s, i] as const).filter(([s]) => s && s.bet > 0 && !s.lv) as [Seat, number][];

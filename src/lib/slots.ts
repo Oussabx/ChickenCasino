@@ -35,6 +35,23 @@ export const LINE_PAYS: Partial<Record<Sym, [number, number, number]>> = {
   golden: [60, 300, 1250],
   wild: [125, 600, 3000],
 };
+/**
+ * MEGA JACKPOT: five Golden Roosters on a line pay a progressive jackpot instead
+ * of a fixed amount. It starts at JACKPOT_SEED line bets (2,500× the total bet),
+ * every paid spin adds JACKPOT_STEP line bets to it, and it resets when it's hit.
+ */
+export const JACKPOT_SEED = 50000;
+export const JACKPOT_STEP = 6;
+export const JACKPOT_CAP = 400000;
+const JP_KEY = 'cc-slot-jackpot';
+/** The jackpot right now, in line bets. */
+export function jackpotNow(): number {
+  try { const v = Number(localStorage.getItem(JP_KEY)); return v >= JACKPOT_SEED ? Math.min(JACKPOT_CAP, v) : JACKPOT_SEED; } catch { return JACKPOT_SEED; }
+}
+export function saveJackpot(v: number) {
+  try { localStorage.setItem(JP_KEY, String(Math.round(Math.min(JACKPOT_CAP, Math.max(JACKPOT_SEED, v))))); } catch { /* storage off: it just won't grow */ }
+}
+
 /** Scatter pays for 3/4/5 coops anywhere, × total bet, and the free spins they award. */
 export const SCATTER_PAYS: Record<number, number> = { 3: 3, 4: 15, 5: 100 };
 export const FREE_SPINS: Record<number, number> = { 3: 10, 4: 15, 5: 20 };
@@ -93,7 +110,7 @@ export function windowFor(stops: number[]): Sym[][] {
   return stops.map((s, r) => { const L = STRIPS[r].length; return [STRIPS[r][mod(s + 1, L)], STRIPS[r][mod(s, L)], STRIPS[r][mod(s - 1, L)]]; });
 }
 
-export interface LineWin { line: number; sym: Sym; count: number; pay: number; cells: [number, number][] }
+export interface LineWin { line: number; sym: Sym; count: number; pay: number; cells: [number, number][]; jackpot?: boolean }
 export interface SpinResult {
   stops: number[];
   grid: Sym[][];
@@ -106,7 +123,7 @@ export interface SpinResult {
 }
 
 /** Best win on one payline (left to right, wild substitutes). */
-function evalLine(grid: Sym[][], li: number): LineWin | null {
+function evalLine(grid: Sym[][], li: number, jp: number): LineWin | null {
   const rows = PAYLINES[li];
   const syms = rows.map((row, r) => grid[r][row]);
   if (syms[0] === 'coop') return null;
@@ -117,17 +134,17 @@ function evalLine(grid: Sym[][], li: number): LineWin | null {
   const base = syms.find((s) => s !== 'wild');
   let run = 0;
   if (base && base !== 'coop') while (run < REELS && (syms[run] === base || syms[run] === 'wild')) run++;
-  const wildPay = wildRun >= 3 ? LINE_PAYS.wild![wildRun - 3] : 0;
+  const wildPay = wildRun >= 5 ? jp : wildRun >= 3 ? LINE_PAYS.wild![wildRun - 3] : 0;
   const basePay = base && base !== 'coop' && run >= 3 ? LINE_PAYS[base]![run - 3] : 0;
   if (!wildPay && !basePay) return null;
   const [sym, count, pay] = wildPay >= basePay ? ['wild' as Sym, wildRun, wildPay] : [base as Sym, run, basePay];
-  return { line: li, sym, count, pay, cells: rows.slice(0, count).map((row, r) => [r, row] as [number, number]) };
+  return { line: li, sym, count, pay, cells: rows.slice(0, count).map((row, r) => [r, row] as [number, number]), jackpot: sym === 'wild' && count >= 5 };
 }
 
-export function evaluate(stops: number[]): SpinResult {
+export function evaluate(stops: number[], jp = LINE_PAYS.wild![2]): SpinResult {
   const grid = windowFor(stops);
   const lines: LineWin[] = [];
-  for (let i = 0; i < LINES; i++) { const w = evalLine(grid, i); if (w) lines.push(w); }
+  for (let i = 0; i < LINES; i++) { const w = evalLine(grid, i, jp); if (w) lines.push(w); }
   const scatters: [number, number][] = [];
   grid.forEach((col, r) => col.forEach((s, row) => { if (s === 'coop') scatters.push([r, row]); }));
   const n = scatters.length;
@@ -137,9 +154,9 @@ export function evaluate(stops: number[]): SpinResult {
   return { stops, grid, lines, scatters, scatterPay, freeSpins, mult: linePay + scatterPay };
 }
 
-export function spin(): SpinResult {
+export function spin(jp?: number): SpinResult {
   // dev builds only: tests can queue exact reel stops
   const q = import.meta.env.DEV ? (globalThis as { __slotStops?: number[][] }).__slotStops : undefined;
-  if (q?.length) return evaluate(q.shift()!);
-  return evaluate(STRIPS.map((s) => Math.floor(rand() * s.length)));
+  if (q?.length) return evaluate(q.shift()!, jp);
+  return evaluate(STRIPS.map((s) => Math.floor(rand() * s.length)), jp);
 }

@@ -3,20 +3,20 @@ import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-
 import { LogOut, UserPlus, Users } from 'lucide-react';
 import GameShell, { GameAction } from '../../components/GameShell';
 import { toast, useStore } from '../../store';
+import { Coin } from '../../components/Icons';
 import { sfx } from '../../lib/sound';
 import { fmt, fmtCompact } from '../../lib/format';
 import { Card, HAND_NAMES, bestHand } from '../../lib/cards';
 import { Card3D, TableScene } from '../three/table3d';
 import { Anchor, ResultBanner } from '../../components/TableUI';
 import PlayingCard from '../../components/PlayingCard';
-import Avatar, { NAME_CLASS } from '../../components/Avatar';
 import { usePhoneLayout } from '../../lib/phone';
 import { liveTable, roomName } from '../../lib/net/tables';
 import { useLiveTable } from '../../lib/net/live';
 import { PSeat, PState, PokerEngine, TURN_MS } from '../../lib/net/pokerEngine';
 import { decList } from '../../lib/net/cardsCodec';
 import BuyIn from '../../components/live/BuyIn';
-import { ConnBadge, EmoteBubble, Reactions, TimerRing, useSeatSession } from '../../components/live/LiveBits';
+import { BadgeTone, ConnBadge, EmoteButton, HandMeter, SeatPod, useSeatSession } from '../../components/live/LiveBits';
 
 /* Live Texas Hold'em: real players share the table; the host page deals. */
 
@@ -112,7 +112,7 @@ function PokerTable({ tid }: { tid: string }) {
   const latest = useRef<PState | null>(null);
   const running = useRef(false);
   const holes = useRef<Map<number, Card3D[]>>(new Map());
-  const [vis, setVis] = useState({ h: -1, hole: 0, board: 0, reveal: false });
+  const [vis, setVis] = useState<{ h: number; hole: number; board: number; reveal: boolean; backs?: Record<number, number> }>({ h: -1, hole: 0, board: 0, reveal: false });
   const recorded = useRef(-1);
 
   // sitting down turns the table: lay everything out again from your new side
@@ -171,7 +171,10 @@ function PokerTable({ tid }: { tid: string }) {
         if (sceneRef.current !== sc || stale()) return;
         const c3 = await sc.deal(null, g.cards.x + g.tan.x * side, g.cards.z + g.tan.z * side, { scale: g.mine ? 1.42 : 0.9, rot, up: false });
         const list = holes.current.get(i) ?? []; list.push(c3); holes.current.set(i, list);
-        if (g.mine) { sc.setCardVisible(c3, false); setVis((v) => ({ ...v, hole: v.hole + 1 })); }
+        // landed cards become crisp HTML: yours face up, everyone else's as backs on their seat
+        sc.setCardVisible(c3, false);
+        if (g.mine) setVis((v) => ({ ...v, hole: v.hole + 1 }));
+        else setVis((v) => ({ ...v, backs: { ...v.backs, [i]: (v.backs?.[i] ?? 0) + 1 } }));
         sfx.tick();
       }
       shown.current.dealt = true;
@@ -313,6 +316,34 @@ function PokerTable({ tid }: { tid: string }) {
     </div>
   ) : null;
 
+  /** What a seat took from the pots this hand. */
+  const wonBy = (i: number) => (st?.win ?? []).reduce((a, p) => a + (p.s.includes(i) ? p.a / p.s.length : 0), 0);
+
+  /* ---------- pre-actions: choose now, played the moment your turn comes ---------- */
+  type Pre = 'checkfold' | 'check' | 'callany' | null;
+  const [pre, setPre] = useState<Pre>(null);
+  const preKey = st ? `${st.h}` : '';
+  useEffect(() => { setPre(null); }, [preKey]);
+  // "Check" only holds while nobody has bet
+  useEffect(() => { if (pre === 'check' && st && me && st.cb > me.b) setPre(null); }, [st?.cb]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!L || !pre) return;
+    const p = pre; setPre(null);
+    if (p === 'checkfold') choose(L.canCheck ? 'check' : 'fold');
+    else if (p === 'check' && L.canCheck) choose('check');
+    else if (p === 'callany') choose(L.canCheck ? 'check' : 'call');
+  }, [canAct]); // eslint-disable-line react-hooks/exhaustive-deps
+  const canPre = !!st && st.ph === 'play' && !!me && !!me.in && !me.f && !me.ai && !canAct;
+
+  /* ---------- street flash: FLOP / TURN / RIVER ---------- */
+  const [flash, setFlash] = useState<{ t: string; k: number } | null>(null);
+  const lastSr = useRef(0);
+  useEffect(() => {
+    if (!st || st.ph !== 'play') { lastSr.current = 0; return; }
+    if (st.sr > lastSr.current && st.sr <= 3) { setFlash({ t: STREET[st.sr], k: st.h * 10 + st.sr }); const id = setTimeout(() => setFlash(null), 1300); lastSr.current = st.sr; return () => clearTimeout(id); }
+    lastSr.current = st.sr;
+  }, [st?.sr, st?.ph]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const myHand = useMemo(() => (myCards.length === 2 ? bestHand([...myCards, ...decList(st?.bd).slice(0, vis.board)]) : null), [myCards, st?.bd, vis.board]);
   const firstFree = st ? st.s.findIndex((x) => !x) : -1;
   const watching = snap.peers.length - (st?.s.filter((x) => x && x.p).length ?? 0);
@@ -332,6 +363,22 @@ function PokerTable({ tid }: { tid: string }) {
       {raiseOpen
         ? <button className="btn-gold py-3 text-sm" onClick={() => choose(raiseTo >= L.maxTo ? 'allin' : L.isBet ? 'bet' : 'raise', raiseTo)}><Lbl t={raiseTo >= L.maxTo ? 'All-in' : L.isBet ? 'Bet' : 'Raise'} s={fmt(raiseTo, 0)} /></button>
         : <button className="btn-gold py-3 text-sm" disabled={!L.canRaise} onClick={() => setRaiseOpen(true)}><Lbl t={L.isBet ? 'Bet' : 'Raise'} s={L.canRaise ? `min ${fmtCompact(L.minTo)}` : '—'} /></button>}
+    </div>
+  );
+  else if (canPre) action = (
+    <div>
+      <div className="mb-1.5 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-smoke"><span>{st.ta >= 0 && st.s[st.ta] ? `${st.s[st.ta]!.n} is thinking…` : 'Dealing…'}</span><span>Pre-select</span></div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {([['checkfold', 'Check / Fold'], ['check', 'Check'], ['callany', 'Call any']] as [Pre, string][]).map(([k, l]) => {
+          const off = k === 'check' && !!me && st.cb > me.b;
+          return (
+            <button key={k} type="button" disabled={off} onClick={() => setPre(pre === k ? null : k)} aria-pressed={pre === k}
+              className={`flex items-center justify-center gap-1.5 rounded-xl border px-1 py-3 text-xs font-black transition disabled:opacity-30 ${pre === k ? 'border-gold bg-gold/15 text-gold' : 'border-white/10 bg-ink-900 text-cream hover:border-white/25'}`}>
+              <span className={`grid h-3.5 w-3.5 place-items-center rounded border ${pre === k ? 'border-gold bg-gold text-ink' : 'border-white/30'}`}>{pre === k ? '✓' : ''}</span>{l}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
   else {
@@ -358,7 +405,6 @@ function PokerTable({ tid }: { tid: string }) {
       </div>
       <div className="hidden lg:block">{raisePanel}</div>
       <GameAction extra={raisePanel ?? undefined}>{action}</GameAction>
-      {me && <Reactions lt={table as never} />}
       {me
         ? <button type="button" className="btn-ghost w-full py-2 text-xs" onClick={() => { session.standUp(); toast({ title: me.in && st?.ph === 'play' ? 'You’ll stand up after this hand' : 'Standing up…', tone: 'neutral' }); }} disabled={!!me.lv}><LogOut size={13} />{me.lv ? 'Standing up…' : 'Stand up & cash out'}</button>
         : <button type="button" className="btn-ghost w-full py-2 text-xs" onClick={() => nav('/games/poker')}><LogOut size={13} />Back to the lobby</button>}
@@ -412,13 +458,19 @@ function PokerTable({ tid }: { tid: string }) {
         const winner = st.ph === 'show' && !!st.win?.some((w) => w.s.includes(i));
         return (
           <Anchor key={x.id} scene={scene} at={at}>
-            <LivePod seat={x} mine={i === mySeat} dealer={st.btn === i && st.ph !== 'wait'} active={st.ta === i} winner={winner} deadline={st.ta === i ? deadline : 0} emo={x.p ? presence(x.p)?.emo : null} />
+            <SeatPod name={x.n} av={x.av} fr={x.fr} ns={x.ns} stack={x.k} mine={i === mySeat}
+              active={st.ta === i} deadline={st.ta === i ? deadline : 0} total={TURN_MS} winner={winner} win={winner ? wonBy(i) : 0}
+              allIn={!!x.ai && !x.f} dim={!!x.f || !!x.w} emo={x.p ? presence(x.p)?.emo : null}
+              backs={i !== mySeat && x.in && !x.f && vis.h === st.h && !(vis.reveal && st.sh?.[i]) ? Math.min(2, vis.backs?.[i] ?? 0) : 0}
+              badge={x.w || st.ph !== 'play' ? undefined : x.l} badgeTone={actionTone(x.l)} status={x.w ? 'next hand' : x.lv ? 'leaving' : undefined} />
           </Anchor>
         );
       })}
       {st && scene && st.ph !== 'wait' && potNow > 0 && (
         <Anchor scene={scene} at={[potAt(portrait)[0] + (portrait ? 0 : 1.3), 0.2, potAt(portrait)[1] + (portrait ? 0.75 : 0)]}>
-          <span className="rounded-full border border-gold/40 bg-black/75 px-3 py-1 font-display text-xs font-black text-gold shadow-lg backdrop-blur tabular">Pot {fmt(potNow, 0)}</span>
+          <span key={potNow} className="pot-pop flex items-center gap-1.5 rounded-full border border-gold/50 bg-gradient-to-b from-black/85 to-[#2a1e04]/90 py-1 pl-1 pr-3 font-display text-sm font-black text-gold shadow-[0_6px_20px_rgba(0,0,0,.6),0_0_18px_rgba(244,196,48,.25)] backdrop-blur tabular">
+            <Coin className="h-5 w-5" /><span className="text-[10px] font-bold uppercase tracking-widest text-cream/70">Pot</span>{fmt(potNow, 0)}
+          </span>
         </Anchor>
       )}
       <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-col items-start gap-1">
@@ -429,7 +481,7 @@ function PokerTable({ tid }: { tid: string }) {
       </div>
       {myHand && st?.ph !== 'wait' && me && !me.f && scene && (
         <Anchor scene={scene} at={[seatGeo(scene, mySeat).cards.x + (portrait ? 0 : 2.1), 0.3, seatGeo(scene, mySeat).cards.z - (portrait ? 1.35 : 0)]}>
-          <span className={`whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-black shadow-lg ${myHand.score[0] >= 1 ? 'bg-gold text-ink' : 'bg-black/75 text-cream'}`}>{myHand.name}</span>
+          <HandMeter name={myHand.name} rank={myHand.score[0]} />
         </Anchor>
       )}
       {st && scene && st.ph !== 'wait' && vis.h === st.h && (
@@ -456,6 +508,12 @@ function PokerTable({ tid }: { tid: string }) {
           <div className="animate-floaty rounded-2xl border border-gold/30 bg-black/75 px-5 py-3 text-center text-sm font-semibold backdrop-blur-md">{st.note}</div>
         </div>
       )}
+      {flash && (
+        <div key={flash.k} className="pointer-events-none absolute inset-x-0 top-[30%] z-20 flex justify-center">
+          <span className="street-flash font-display text-3xl font-black uppercase text-gold-grad drop-shadow-[0_4px_18px_rgba(0,0,0,.9)] sm:text-5xl">{flash.t}</span>
+        </div>
+      )}
+      {me && <EmoteButton lt={table as never} className="right-3 top-3" />}
       {outcome && <ResultBanner key={outcome.key} tone={outcome.tone} title={outcome.title} sub={outcome.sub} top />}
       <BuyIn table={t} open={buyFor !== null} onClose={() => setBuyFor(null)} onConfirm={(buy) => { if (session.sit(buyFor ?? 0, buy)) setBuyFor(null); }} />
       <BustPrompt open={bust} onClose={() => setBust(false)} onRebuy={() => { setBust(false); const f = st?.s.findIndex((x) => !x) ?? -1; setBuyFor(f >= 0 ? f : 0); }} />
@@ -472,31 +530,7 @@ function Lbl({ t, s }: { t: string; s: string }) {
   return <span className="flex flex-col items-center leading-tight"><span>{t}</span><span className="text-[10px] font-semibold opacity-80 tabular">{s}</span></span>;
 }
 
-function LivePod({ seat, mine, dealer, active, winner, deadline, emo }: { seat: PSeat; mine: boolean; dealer: boolean; active: boolean; winner: boolean; deadline: number; emo?: { e: string; at: number } | null }) {
-  const out = !!seat.f || !!seat.w;
-  const nameCls = seat.ns ? NAME_CLASS[seat.ns] ?? '' : '';
-  return (
-    <div className={`animate-pop relative flex items-center gap-1.5 whitespace-nowrap rounded-full border py-1 pl-1 pr-2.5 shadow-xl backdrop-blur-md transition-all duration-300 sm:gap-2 sm:pr-3 ${winner ? 'border-gold bg-gradient-to-b from-gold-300/90 to-gold/90 text-ink shadow-gold' : active ? 'border-gold bg-black/85 text-cream ring-2 ring-gold/60' : 'border-white/15 bg-black/75 text-cream'} ${out && !winner ? 'opacity-50' : ''} ${mine ? 'scale-110' : ''}`}>
-      <span className={`relative grid place-items-center rounded-full ${mine ? 'h-9 w-9 sm:h-11 sm:w-11' : 'h-7 w-7 bg-white/10 text-base sm:h-9 sm:w-9 sm:text-lg'}`}>
-        <Avatar size={44} avatar={seat.av || undefined} frame={seat.fr} className="!h-full !w-full" />
-        {active && deadline > 0 && <TimerRing deadline={deadline} total={TURN_MS} size={mine ? 54 : 46} />}
-      </span>
-      <span className="flex flex-col leading-tight">
-        <span className="flex max-w-[104px] items-center gap-1 truncate text-[10px] font-bold sm:text-[11px]">
-          {mine && <span className="rounded bg-gold px-1 text-[8px] font-black leading-3 text-ink">YOU</span>}
-          <span className={`truncate ${winner ? '' : nameCls}`}>{seat.n}</span>
-        </span>
-        <span className={`font-display text-[11px] font-black tabular sm:text-xs ${winner ? '' : 'text-gold'}`}>{seat.ai && !seat.f ? 'ALL-IN' : fmt(seat.k, 0)}</span>
-      </span>
-      {dealer && <span className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-cream text-[9px] font-black text-ink shadow">D</span>}
-      {seat.w && <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-sky-600 px-1.5 text-[8px] font-black uppercase text-white">next hand</span>}
-      {seat.l && !winner && !seat.w && (
-        <span key={seat.l + seat.tt} className={`animate-pop absolute ${mine ? 'left-full top-1/2 ml-1.5 -translate-y-1/2' : '-top-5 left-1/2 -translate-x-1/2'} rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide shadow ${seat.l === 'Fold' || seat.l === 'Timed out' ? 'bg-ink-500 text-smoke' : seat.l === 'Raise' || seat.l === 'Bet' || seat.l === 'All-in' ? 'bg-blood text-white' : seat.l === 'SB' || seat.l === 'BB' ? 'bg-sky-600 text-white' : 'bg-emerald-600 text-white'}`}>{seat.l}</span>
-      )}
-      <EmoteBubble emo={emo} />
-    </div>
-  );
-}
+const actionTone = (l?: string): BadgeTone => (!l ? 'neutral' : l === 'Fold' || l === 'Timed out' ? 'muted' : l === 'Raise' || l === 'Bet' || l === 'All-in' ? 'hot' : l === 'SB' || l === 'BB' ? 'cool' : 'good');
 
 function BustPrompt({ open, onClose, onRebuy }: { open: boolean; onClose: () => void; onRebuy: () => void }) {
   if (!open) return null;
