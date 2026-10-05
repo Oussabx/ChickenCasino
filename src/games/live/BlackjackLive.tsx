@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { LogOut, PlusCircle, UserPlus, Users } from 'lucide-react';
 import GameShell, { GameAction } from '../../components/GameShell';
+import { MoreTables, tableLook } from '../../components/live/TableChrome';
+import { usePhoneLayout } from '../../lib/phone';
 import { toast, useStore } from '../../store';
 import { sfx } from '../../lib/sound';
 import { fmt, fmtCompact } from '../../lib/format';
@@ -81,6 +83,7 @@ function BjTable({ tid }: { tid: string }) {
   const [scene, setScene] = useState<TableScene | null>(null);
   const turbo = useStore((s) => s.settings.turbo);
   const wallet = useStore((s) => s.balance);
+  const phoneUI = usePhoneLayout().phone;
   useEffect(() => {
     const sc = new TableScene(hostRef.current!, {
       theme: t.theme,
@@ -344,7 +347,7 @@ function BjTable({ tid }: { tid: string }) {
   const holeUp = !dealerCards.includes('??') && !holeHidden;
 
   return (
-    <GameShell id="blackjack" tall controls={controls} title={t.name} subtitle={`Live blackjack · bets ${fmtCompact(t.lo)}–${fmtCompact(t.hi)}`} back="/games/blackjack" rules={[
+    <GameShell id="blackjack" tall controls={controls} title={t.name} subtitle={`Live blackjack · bets ${fmtCompact(t.lo)}–${fmtCompact(t.hi)}`} back="/games/blackjack" look={tableLook(t, snap.peers.length, snap.kind === 'live')} below={<MoreTables t={t} />} rules={[
       'This is a live table: up to five players, each playing their own hand against the chicken dealer.',
       `Bring between ${fmt(t.buyMin, 0)} and ${fmt(t.buyMax, 0)} coins. Bets are ${fmt(t.lo, 0)} to ${fmt(t.hi, 0)}. Whatever you have when you stand up goes back to your wallet.`,
       `Betting is open for ${BJ_BET_MS / 1000} seconds each round — press “Deal me in” to start sooner once everyone is ready.`,
@@ -396,7 +399,7 @@ function BjTable({ tid }: { tid: string }) {
       <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-col items-start gap-1">
         <ConnBadge snap={snap} here={snap.peers.length} />
         {st && st.ph !== 'wait' && <span className="rounded-full bg-black/60 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-cream/80 backdrop-blur">Round #{st.r}</span>}
-        <span className="rounded-full bg-black/60 px-3 py-1 text-[10px] font-semibold text-smoke backdrop-blur">Bets {fmtCompact(t.lo)}–{fmtCompact(t.hi)}</span>
+        {phoneUI && <span className="rounded-full bg-black/60 px-3 py-1 text-[10px] font-semibold text-smoke backdrop-blur">Bets {fmtCompact(t.lo)}–{fmtCompact(t.hi)}</span>}
       </div>
       {st?.ph === 'bet' && <BetClock deadline={deadline} />}
       {st?.note && st.ph === 'wait' && (

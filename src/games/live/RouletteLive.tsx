@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { LogOut, Users } from 'lucide-react';
 import GameShell, { GameAction } from '../../components/GameShell';
+import { MoreTables, tableLook } from '../../components/live/TableChrome';
 import { ALL_IN, BIG_CHIPS, ChipPicker, ChipRow } from '../../components/ChipBets';
 import { toast, useStore } from '../../store';
 import { sfx } from '../../lib/sound';
@@ -237,7 +238,7 @@ function RouletteTable({ tid }: { tid: string }) {
     .map((p) => ({ peer: p.peer, isMe: p.isMe, name: String(p.pres.id?.nm ?? 'Player'), av: p.pres.id?.av, fr: p.pres.id?.fr, emo: p.pres.emo! }))
     .slice(0, 5);
   return (
-    <GameShell id="roulette" tall controls={controls} title={t.name} subtitle="Live roulette · chips 100 to 1M" back="/games/roulette" rules={[
+    <GameShell id="roulette" tall controls={controls} title={t.name} subtitle="Live roulette · chips 100 to 1M" back="/games/roulette" look={tableLook(t, snap.peers.length, snap.kind === 'live')} below={<MoreTables t={t} />} rules={[
       `This is a live table: up to ${RL_MAX_PLAYERS} players bet on the same wheel. Everyone's chips show on the layout.`,
       'Pick a chip (100 up to 1,000,000, or All-in for everything you have) and tap any number, split of the layout or outside bet. Tap again to stack more.',
       'Betting is open for 20 seconds each round, then the wheel spins for everyone. There is no buy-in — chips come straight from your wallet and wins go straight back.',
@@ -255,15 +256,9 @@ function RouletteTable({ tid }: { tid: string }) {
           <span className="rounded-full border border-blood/50 bg-black/75 px-4 py-1.5 text-xs font-black uppercase tracking-widest text-blood backdrop-blur">No more bets</span>
         </div>
       )}
-      {/* recent numbers */}
-      <div className="pointer-events-none absolute bottom-3 left-3 z-10 flex max-w-[70%] flex-wrap items-center gap-1">
-        {hist.length > 0 && <span className="mr-1 text-[10px] font-bold uppercase tracking-widest text-smoke">Last</span>}
-        {hist.slice(0, 12).map((n, i) => (
-          <span key={`${st?.r}-${i}`} className={`grid h-6 min-w-[24px] place-items-center rounded-full px-1 font-display text-[11px] font-black text-white shadow ${i === 0 && st?.ph !== 'spin' ? 'animate-pop ring-2 ring-gold' : 'opacity-75'} ${n === 0 ? 'bg-[#0e8f4a]' : REDS.has(n) ? 'bg-[#b3192a]' : 'bg-[#141414] ring-1 ring-white/20'}`}>{n}</span>
-        ))}
-      </div>
+      <ResultsBoard hist={hist} spinning={st?.ph === 'spin'} round={st?.r ?? 0} />
       {/* reactions from the table */}
-      <div className="pointer-events-none absolute bottom-12 left-3 z-10 flex flex-col items-start gap-1">
+      <div className="pointer-events-none absolute bottom-24 left-3 z-10 flex flex-col items-start gap-1">
         {recent.map((p) => (
           <span key={p.peer + p.emo.at} className="emote-pop-in flex items-center gap-1.5 rounded-full border border-white/10 bg-black/75 py-0.5 pl-0.5 pr-2.5 text-xs font-bold backdrop-blur">
             <Avatar size={22} avatar={p.av || undefined} frame={p.fr} /><span className="max-w-[90px] truncate">{p.isMe ? 'You' : p.name}</span><span className="text-xl leading-none">{p.emo.e}</span>
@@ -280,3 +275,45 @@ const label = (k: string) => {
   if (k.startsWith('n:')) return `number ${k.slice(2)}`;
   return QUICK.find(([q]) => q === k)?.[1] ?? k;
 };
+
+/** The table's results board: the latest numbers, and how red, black and zero have been landing. */
+function ResultsBoard({ hist, spinning, round }: { hist: number[]; spinning: boolean; round: number }) {
+  const n = hist.length;
+  const red = hist.filter((x) => REDS.has(x)).length, zero = hist.filter((x) => x === 0).length, black = n - red - zero;
+  const pct = (k: number) => (n ? Math.round((k / n) * 100) : 0);
+  const counts = new Map<number, number>();
+  hist.forEach((x) => counts.set(x, (counts.get(x) ?? 0) + 1));
+  const hot = [...counts.entries()].filter(([, c]) => c > 1).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const ball = (x: number, big = false, key?: string) => (
+    <span key={key} className={`grid shrink-0 place-items-center rounded-full font-display font-black text-white shadow-[0_2px_6px_rgba(0,0,0,.6)] ${big ? 'h-9 w-9 text-sm ring-2 ring-gold' : 'h-6 w-6 text-[10px]'} ${x === 0 ? 'bg-[#0e8f4a]' : REDS.has(x) ? 'bg-[#b3192a]' : 'bg-[#141414] ring-1 ring-white/25'}`}>{x}</span>
+  );
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center px-16">
+      <div className="flex max-w-full items-center gap-3 rounded-2xl border border-white/10 bg-black/65 px-3 py-2 shadow-[0_10px_30px_-10px_rgba(0,0,0,.9)] backdrop-blur-md">
+        <div className="shrink-0 text-[9px] font-black uppercase leading-tight tracking-[.18em] text-smoke">Last<br />results</div>
+        {n === 0 ? <span className="text-xs text-cream/70">First spin at this table — good luck!</span> : (
+          <>
+            <div className={`flex min-w-0 items-center gap-1 ${spinning ? 'opacity-60' : ''}`}>
+              <span key={round} className={spinning ? '' : 'animate-pop'}>{ball(hist[0], true)}</span>
+              <span className="flex min-w-0 items-center gap-1 overflow-hidden">{hist.slice(1, 10).map((x, i) => ball(x, false, `${round}-${i}`))}</span>
+            </div>
+            <div className="hidden w-36 shrink-0 sm:block">
+              <div className="flex h-2 overflow-hidden rounded-full bg-white/10">
+                <span className="bg-[#c81d2e]" style={{ width: `${pct(red)}%` }} />
+                <span className="bg-[#0e8f4a]" style={{ width: `${pct(zero)}%` }} />
+                <span className="bg-[#3a3a3a]" style={{ width: `${pct(black)}%` }} />
+              </div>
+              <div className="mt-1 flex justify-between text-[10px] font-bold tabular"><span className="text-[#ff5a68]">Red {pct(red)}%</span><span className="text-cream/80">Black {pct(black)}%</span></div>
+            </div>
+            {hot.length > 0 && (
+              <div className="hidden shrink-0 items-center gap-1 md:flex">
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-300">Hot</span>
+                {hot.map(([x]) => ball(x, false, `h${x}`))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

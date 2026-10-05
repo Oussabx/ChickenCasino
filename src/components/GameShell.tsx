@@ -12,7 +12,10 @@ import WinFX from './WinFX';
 import { useLiveFeed } from '../lib/useLiveFeed';
 import { Coin } from './Icons';
 
-export default function GameShell({ id, controls, children, rules, tall, title, subtitle, back = '/games' }: { id: GameId; controls: ReactNode; children: ReactNode; rules: string[]; tall?: boolean; title?: string; subtitle?: string; back?: string }) {
+/** A themed frame for a table page: its colours, a crest and badges for the header, and what goes under the game. */
+export interface ShellLook { accent: string; felt: string; crest: ReactNode; badges: ReactNode; watermark?: string }
+
+export default function GameShell({ id, controls, children, rules, tall, title, subtitle, back = '/games', look, below }: { id: GameId; controls: ReactNode; children: ReactNode; rules: string[]; tall?: boolean; title?: string; subtitle?: string; back?: string; look?: ShellLook; below?: ReactNode }) {
   const g = gameById(id)!;
   const fav = useStore((s) => s.favorites.includes(id));
   const toggleFav = useStore((s) => s.toggleFav);
@@ -59,7 +62,7 @@ export default function GameShell({ id, controls, children, rules, tall, title, 
             style={rotated
               ? { width: vh, height: vw, transform: 'rotate(90deg) translateY(-100%)', transformOrigin: 'top left' }
               : { width: '100vw', height: '100dvh' }}>
-            <section className="relative min-w-0 flex-1 felt grain">{children}<WinFX /></section>
+            <section className="relative min-w-0 flex-1 felt grain">{look && <StageLight look={look} />}{children}<WinFX /></section>
             <aside className="flex min-h-0 w-[clamp(250px,34%,330px)] shrink-0 flex-col overflow-hidden border-l border-white/[0.06] bg-ink-800">
               <div className="flex items-center gap-1.5 border-b border-white/[0.06] px-2 py-1.5" style={{ paddingTop: 'max(6px, env(safe-area-inset-top))' }}>
                 <Link to={back} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-ink-700" aria-label={back === '/games' ? 'Back to games' : 'Back to the lobby'}><ChevronLeft size={16} /></Link>
@@ -81,6 +84,45 @@ export default function GameShell({ id, controls, children, rules, tall, title, 
       </PhoneGameCtx.Provider>
     );
   }
+
+  const buttons = (
+    <div className="ml-auto flex items-center gap-1.5">
+      <IconBtn onClick={() => update({ turbo: !turbo })} active={turbo} label="Turbo mode"><Zap size={16} /></IconBtn>
+      <IconBtn onClick={() => update({ sound: !sound })} active={sound} label="Sound">{sound ? <Volume2 size={16} /> : <VolumeX size={16} />}</IconBtn>
+      <IconBtn onClick={() => toggleFav(id)} active={fav} label="Favourite"><Star size={16} fill={fav ? 'currentColor' : 'none'} /></IconBtn>
+      <IconBtn onClick={() => setInfo(true)} label="How to play"><Info size={16} /></IconBtn>
+    </div>
+  );
+
+  if (look) return (
+    <div className="relative mx-auto max-w-7xl px-3 sm:px-4 lg:px-6 pt-4 lg:pt-6 pb-48 lg:pb-0">
+      {/* the room's colour spills onto the page */}
+      <div className="pointer-events-none absolute inset-x-0 -top-10 h-[640px] opacity-70" style={{ background: `radial-gradient(ellipse 60% 55% at 70% 25%, ${look.felt}55, transparent 70%), radial-gradient(ellipse 45% 40% at 15% 10%, ${look.accent}26, transparent 70%)` }} />
+      <header className="relative mb-4 overflow-hidden rounded-3xl border p-3 sm:p-4" style={{ borderColor: `${look.accent}40`, background: `linear-gradient(115deg, ${look.felt}66 0%, rgba(13,11,12,.92) 45%, rgba(13,11,12,.96) 100%)`, boxShadow: `inset 0 1px 0 rgba(255,255,255,.06), 0 18px 50px -30px ${look.accent}` }}>
+        {look.watermark && <span className="pointer-events-none absolute -bottom-6 right-40 select-none font-display text-[120px] font-black leading-none" style={{ color: `${look.accent}12` }}>{look.watermark}</span>}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: `linear-gradient(90deg, transparent, ${look.accent}, transparent)` }} />
+        <div className="relative flex items-center gap-3">
+          <Link to={back} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-black/40 hover:bg-black/60" aria-label="Back to the lobby"><ChevronLeft size={18} /></Link>
+          <div className="hidden shrink-0 sm:block">{look.crest}</div>
+          <div className="min-w-0">
+            <h1 className="truncate font-display text-xl font-black leading-tight sm:text-[28px]" style={{ backgroundImage: `linear-gradient(180deg, #fff 30%, ${look.accent})`, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>{title ?? g.name}</h1>
+            <p className="truncate text-xs text-cream/70 sm:text-[13px]">{subtitle ?? g.tagline}</p>
+            <div className="mt-2 hidden flex-wrap items-center gap-1.5 md:flex">{look.badges}</div>
+          </div>
+          {buttons}
+        </div>
+      </header>
+
+      <div className="relative card overflow-hidden grid lg:grid-cols-[340px_1fr]" style={{ borderColor: `${look.accent}38`, boxShadow: `0 0 0 1px ${look.accent}14, 0 40px 90px -40px ${look.accent}88` }}>
+        <aside className="order-2 lg:order-1 border-t lg:border-t-0 lg:border-r border-white/[0.06] p-4 space-y-4" style={{ background: `linear-gradient(180deg, ${look.felt}22, transparent 280px), #121012` }}>{controls}</aside>
+        <section className={`order-1 lg:order-2 relative ${tall ? 'min-h-[max(420px,calc(100svh-316px))]' : 'min-h-[max(380px,calc(100svh-400px))]'} sm:min-h-[520px] lg:min-h-[640px] felt grain`}><StageLight look={look} />{children}<WinFX /></section>
+      </div>
+
+      {below ?? <BelowGame id={id} />}
+
+      {rulesModal}
+    </div>
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-6 pt-4 lg:pt-6 pb-48 lg:pb-0">
@@ -137,6 +179,11 @@ export function GameAction({ children, extra }: { children: ReactNode; extra?: R
       )}
     </>
   );
+}
+
+/** Lighting over the 3D table (under its labels): a spotlight in the table's colour and a dark vignette. */
+function StageLight({ look }: { look: ShellLook }) {
+  return <div className="pointer-events-none absolute inset-0 z-[5]" style={{ background: `radial-gradient(ellipse 55% 35% at 50% 0%, ${look.accent}1f, transparent 70%), radial-gradient(ellipse 85% 75% at 50% 52%, transparent 58%, rgba(0,0,0,.55) 100%)`, boxShadow: `inset 0 0 0 1px ${look.accent}1a` }} />;
 }
 
 function IconBtn({ children, onClick, active, label, small }: { children: ReactNode; onClick: () => void; active?: boolean; label: string; small?: boolean }) {
