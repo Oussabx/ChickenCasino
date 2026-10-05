@@ -28,7 +28,7 @@ export default function Settings() {
               <label className="label" htmlFor="nm">Username</label>
               <div className="mt-1 flex gap-2">
                 <input id="nm" className="input" value={name} maxLength={18} onChange={(e) => setName(e.target.value)} />
-                <button className="btn-gold px-4" disabled={name.trim().length < 3 || name === s.user.name}
+                <button className="btn-gold shrink-0 px-4" disabled={name.trim().length < 3 || name === s.user.name}
                   onClick={() => { const r = renameAccount(name); toast(r.ok ? { title: 'Username updated', tone: 'green' } : { title: r.error, tone: 'red' }); }}>Save</button>
               </div>
             </div>

@@ -65,7 +65,7 @@ export default function VipTrack({ onOpen, compact }: { onOpen: (it: ShopItem) =
                     return (
                       <div key={id} className="flex items-center gap-2">
                         <button type="button" onClick={() => onOpen(it)} aria-label={`Look at ${it.name}`} className={`grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-black/40 ring-1 ${on ? '' : 'opacity-50 grayscale'}`} style={{ ['--tw-ring-color' as string]: `${RARITY_COLOR[it.rarity]}66` }}>
-                          <ItemArt it={it} size={52} tryOn={false} />
+                          <ItemArt it={it} size={it.kind === 'table' ? 44 : 52} tryOn={false} />
                         </button>
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-xs font-bold">{it.name}</div>
