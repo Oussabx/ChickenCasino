@@ -54,7 +54,7 @@ export class RouletteEngine implements Engine<RState> {
       this.until = now + RL_SPIN_MS;
     } else if (this.ph === 'spin') {
       this.ph = 'result';
-      this.hist = [this.n, ...this.hist].slice(0, 16);
+      this.hist = [this.n, ...this.hist].slice(0, 40);
       this.until = now + RL_RESULT_MS;
     } else {
       this.r++;

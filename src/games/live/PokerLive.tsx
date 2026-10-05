@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { LogOut, PlusCircle, UserPlus, Users } from 'lucide-react';
 import GameShell, { GameAction } from '../../components/GameShell';
+import { MoreTables, tableLook } from '../../components/live/TableChrome';
 import { toast, useStore } from '../../store';
 import { Coin } from '../../components/Icons';
 import { sfx } from '../../lib/sound';
@@ -441,7 +442,7 @@ function PokerTable({ tid }: { tid: string }) {
   const presence = (p: string) => snap.peers.find((x) => x.peer === p)?.pres;
 
   return (
-    <GameShell id="poker" tall controls={controls} title={t.name} subtitle={`Live Hold’em · blinds ${fmtCompact(t.lo)}/${fmtCompact(t.hi)}`} back="/games/poker" rules={[
+    <GameShell id="poker" tall controls={controls} title={t.name} subtitle={`Live Hold’em · blinds ${fmtCompact(t.lo)}/${fmtCompact(t.hi)}`} back="/games/poker" look={tableLook(t, snap.peers.length, snap.kind === 'live')} below={<MoreTables t={t} />} rules={[
       'This is a live table: everyone with this page open can sit down, stand up and play. Up to 8 players — a hand is dealt as soon as at least 2 are seated with chips.',
       `Bring between ${fmt(t.buyMin, 0)} and ${fmt(t.buyMax, 0)} coins. Whatever you have when you stand up goes back to your wallet.`,
       'The dealer button moves one seat to the left each hand. The two players after it post the small and big blind; everyone gets two private cards that only they can see.',
@@ -481,7 +482,7 @@ function PokerTable({ tid }: { tid: string }) {
         <ConnBadge snap={snap} here={snap.peers.length} />
         {/* on small tables the result banner needs the top edge */}
         {!(phoneUI && outcome) && st && st.ph !== 'wait' && <span className="rounded-full bg-black/60 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-cream/80 backdrop-blur">Hand #{st.h} · {STREET[st.sr]}</span>}
-        {!(phoneUI && outcome) && <span className="rounded-full bg-black/60 px-3 py-1 text-[10px] font-semibold text-smoke backdrop-blur">Blinds {fmtCompact(t.lo)}/{fmtCompact(t.hi)}{watching > 0 ? ` · ${watching} watching` : ''}</span>}
+        {phoneUI ? !outcome && <span className="rounded-full bg-black/60 px-3 py-1 text-[10px] font-semibold text-smoke backdrop-blur">Blinds {fmtCompact(t.lo)}/{fmtCompact(t.hi)}{watching > 0 ? ` · ${watching} watching` : ''}</span> : watching > 0 && <span className="rounded-full bg-black/60 px-3 py-1 text-[10px] font-semibold text-smoke backdrop-blur">{watching} watching</span>}
       </div>
       {myHand && st?.ph !== 'wait' && me && !me.f && scene && (
         <Anchor scene={scene} at={[seatGeo(scene, mySeat).cards.x + (portrait ? 0 : 2.1), 0.3, seatGeo(scene, mySeat).cards.z - (portrait ? 1.35 : 0)]}>

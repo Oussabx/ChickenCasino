@@ -151,7 +151,7 @@ function Fact({ k, v, gold }: { k: string; v: string; gold?: boolean }) {
   );
 }
 
-function TableCard({ t, count, balance, best, vip, onOpen }: { t: LiveTable; count?: { seated: number; watching: number }; balance: number; best: boolean; vip: boolean; onOpen: () => void }) {
+export function TableCard({ t, count, balance, best, vip, onOpen }: { t: LiveTable; count?: { seated: number; watching: number }; balance: number; best: boolean; vip: boolean; onOpen: () => void }) {
   const locked = balance < t.buyMin;
   const seated = count?.seated ?? 0;
   const trim = hex(t.theme.trim);

@@ -112,7 +112,12 @@ export class RouletteScene extends Stage3D {
     this.scene.add(felt);
     const well = new THREE.Mesh(new THREE.CylinderGeometry(R_TRACK + 1.15, R_TRACK + 1.25, 0.14, 96), std(0x2a1209, { roughness: 0.4 }));
     well.position.y = -0.06; this.scene.add(well);
-    const g = glowSprite('rgba(244,196,48,0.55)', 16, 0.22); g.position.set(0, 2, -3); this.scene.add(g);
+    const acc = this.theme ? (this.theme.glow ?? this.theme.trim) : 0xf4c430;
+    const accRgba = (a: number) => `rgba(${(acc >> 16) & 255},${(acc >> 8) & 255},${acc & 255},${a})`;
+    const g = glowSprite(accRgba(0.6), 18, 0.24); g.position.set(0, 2, -3); this.scene.add(g);
+    // the table's colour washes in from both sides
+    const sideA = new THREE.PointLight(acc, 7, 18, 1.5); sideA.position.set(-9, 3, 2); this.scene.add(sideA);
+    const sideB = new THREE.PointLight(acc, 5, 18, 1.5); sideB.position.set(9, 3, -2); this.scene.add(sideB);
     const lamp = new THREE.PointLight(0xffe2b0, 40, 20, 1.4); lamp.position.set(0, 7, 1); this.scene.add(lamp);
 
     // bowl (static): wooden outer ring + sloped ball track

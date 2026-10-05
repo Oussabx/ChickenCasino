@@ -105,20 +105,29 @@ export class TableScene extends Stage3D {
     this.railMat = std(this.theme.rail, { roughness: 0.36 });
     this.trimMat = new THREE.MeshStandardMaterial({ color: this.theme.trim, metalness: 0.75, roughness: 0.28, emissive: this.theme.glow ?? 0x3a2800, emissiveIntensity: this.theme.glow ? 0.9 : 0.25 });
 
-    // room: dark floor, warm back glow, bokeh lights for depth
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), std(0x100809, { roughness: 0.95 }));
+    // room in the table's own colours: a lit back wall, a glossy floor, a light cone over the felt,
+    // and drifting bokeh lights for depth (a live table has a fixed look; otherwise warm gold and red)
+    const accent = opts.theme ? (this.theme.glow ?? this.theme.trim) : 0xf4c430;
+    const second = opts.theme ? lift(this.theme.felt, 0.35) : 0xe63946;
+    this.scene.background = roomBackdrop(accent, second);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ color: 0x0c0809, roughness: 0.35, metalness: 0.4 }));
     floor.rotation.x = -Math.PI / 2; floor.position.y = -1.6; floor.receiveShadow = true; this.scene.add(floor);
-    const back = glowSprite('rgba(244,196,48,0.55)', 26, 0.16); back.position.set(0, 2.5, -9); this.scene.add(back);
-    const redGlow = glowSprite('rgba(230,57,70,0.6)', 18, 0.12); redGlow.position.set(-9, 3, -8); this.scene.add(redGlow);
-    for (let i = 0; i < 22; i++) {
-      const warm = Math.random() < 0.7;
-      const s = glowSprite(warm ? 'rgba(255,214,120,1)' : 'rgba(230,57,70,1)', 0.6 + Math.random() * 1.4, 0.18 + Math.random() * 0.2);
-      s.position.set((Math.random() - 0.5) * 34, 1 + Math.random() * 6, -10 - Math.random() * 8);
+    const back = glowSprite(rgba(accent, 0.6), 30, 0.2); back.position.set(0, 2.5, -9); this.scene.add(back);
+    const sideA = glowSprite(rgba(second, 0.7), 20, 0.16); sideA.position.set(-10, 3, -8); this.scene.add(sideA);
+    const sideB = glowSprite(rgba(second, 0.7), 20, 0.12); sideB.position.set(10, 3, -8); this.scene.add(sideB);
+    for (let i = 0; i < 30; i++) {
+      const warm = Math.random() < 0.65;
+      const s = glowSprite(rgba(warm ? accent : second, 1), 0.6 + Math.random() * 1.6, 0.16 + Math.random() * 0.22);
+      s.position.set((Math.random() - 0.5) * 36, 1 + Math.random() * 7, -10 - Math.random() * 9);
       s.userData.ph = Math.random() * 6; s.userData.o = s.material.opacity;
       this.bokeh.push(s); this.scene.add(s);
     }
     this.lamp = new THREE.PointLight(0xffe0b0, this.lampBase, 20, 1.3); this.lamp.position.set(0, 6.5, 0.5); this.scene.add(this.lamp);
     const pool = glowSprite('rgba(255,236,190,0.9)', 13, 0.045); pool.position.set(0, 0.3, 0); this.scene.add(pool);
+    this.scene.add(lightCone(rgba(accent, 1)));
+    // coloured rim lights pick out the rail and the chips
+    const rimA = new THREE.PointLight(accent, 6, 16, 1.6); rimA.position.set(-7, 2.5, -3); this.scene.add(rimA);
+    const rimB = new THREE.PointLight(second, 5, 16, 1.6); rimB.position.set(7, 2.5, -3); this.scene.add(rimB);
 
     if (opts.oval) this.buildOval(felt, opts.oval.portrait);
     else this.buildD(felt);
@@ -923,4 +932,40 @@ function feltPattern(g: CanvasRenderingContext2D, t: TableTheme, W: number, H: n
     else { g.beginPath(); g.moveTo(cx, cy - 10); g.lineTo(cx + 3, cy - 3); g.lineTo(cx + 10, cy); g.lineTo(cx + 3, cy + 3); g.lineTo(cx, cy + 10); g.lineTo(cx - 3, cy + 3); g.lineTo(cx - 10, cy); g.lineTo(cx - 3, cy - 3); g.closePath(); g.fill(); }
   }
   g.restore();
+}
+
+/* ---------- room helpers ---------- */
+const rgba = (c: number, a: number) => `rgba(${(c >> 16) & 255},${(c >> 8) & 255},${c & 255},${a})`;
+/** A colour pushed toward white (dark felts still read as a light). */
+function lift(c: number, k: number) {
+  const ch = (s: number) => Math.round(((c >> s) & 255) + (255 - ((c >> s) & 255)) * k);
+  return (ch(16) << 16) | (ch(8) << 8) | ch(0);
+}
+/** The back wall: near-black with a soft glow in the table's colours behind the dealer. */
+function roomBackdrop(accent: number, second: number) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 512;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#07050a'; g.fillRect(0, 0, 512, 512);
+  const glow = (x: number, y: number, r: number, col: string) => {
+    const grd = g.createRadialGradient(x, y, 0, x, y, r); grd.addColorStop(0, col); grd.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grd; g.fillRect(0, 0, 512, 512);
+  };
+  glow(256, 150, 330, rgba(accent, 0.28));
+  glow(40, 110, 240, rgba(second, 0.2));
+  glow(472, 110, 240, rgba(second, 0.2));
+  const v = g.createRadialGradient(256, 230, 140, 256, 256, 420); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.75)');
+  g.fillStyle = v; g.fillRect(0, 0, 512, 512);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+/** A soft cone of light falling from the lamp onto the felt. */
+function lightCone(col: string) {
+  const c = document.createElement('canvas'); c.width = 64; c.height = 256;
+  const g = c.getContext('2d')!;
+  const grd = g.createLinearGradient(0, 0, 0, 256); grd.addColorStop(0, 'rgba(255,240,210,0.0)'); grd.addColorStop(0.35, 'rgba(255,240,210,0.5)'); grd.addColorStop(1, col.replace(/[\d.]+\)$/, '0.0)'));
+  g.fillStyle = grd; g.fillRect(0, 0, 64, 256);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 6.5, 8, 48, 1, true), new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+  m.position.set(0, 3.6, 0.2);
+  return m;
 }
