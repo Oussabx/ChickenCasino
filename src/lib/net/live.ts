@@ -25,7 +25,8 @@ export interface PlayerPresence {
   since: number;
   pk: string;
   id: Ident;
-  sit?: { rid: string; seat: number; buy: number } | null;
+  /** `tu`: total chips added to the seat since sitting down (cumulative, so a dropped message can't double-count). */
+  sit?: { rid: string; seat: number; buy: number; tu?: number } | null;
   act?: { h: number; q: number; t: string; a?: number } | null;
   bet?: { r: number; a: number } | null;
   emo?: { e: string; at: number } | null;

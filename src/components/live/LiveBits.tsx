@@ -7,7 +7,7 @@ import { toast, useStore, useUI } from '../../store';
 import { fmt } from '../../lib/format';
 import Avatar, { NAME_CLASS } from '../Avatar';
 
-type SeatLike = { id: string; p: string; k: number } | null;
+type SeatLike = { id: string; p: string; k: number; tu?: number } | null;
 type StateLike = BaseState & { s: SeatLike[] };
 
 /**
@@ -18,6 +18,7 @@ type StateLike = BaseState & { s: SeatLike[] };
 export function useSeatSession<S extends StateLike>(t: TableDef, lt: LiveTable<S> | null, snap: LiveSnapshot<S>, onOut?: (amount: number) => void) {
   const [pending, setPending] = useState<{ rid: string; buy: number; at: number } | null>(null);
   const ridRef = useRef<string | null>(null);
+  const sitRef = useRef<{ rid: string; seat: number; buy: number; tu?: number } | null>(null);
   const [rid, setRid] = useState<string | null>(null);
   const st = snap.state;
   const mySeat = st && rid ? st.s.findIndex((x) => x?.id === rid) : -1;
@@ -39,12 +40,13 @@ export function useSeatSession<S extends StateLike>(t: TableDef, lt: LiveTable<S
     const r = ridRef.current;
     if (!r) return;
     const seat = st.s.find((x) => x?.id === r);
+    if (seat?.tu) store.escrowTopUp(r, seat.tu);
     if (seat) store.escrowSync(r, seat.k);
     const out = st.out.find((o) => o.rid === r);
     if (out) {
       store.escrowSync(r, out.k);
       const amt = store.escrowClose(r);
-      ridRef.current = null; setRid(null);
+      ridRef.current = null; sitRef.current = null; setRid(null);
       lt?.send({ sit: null, act: null, bet: null });
       outRef.current?.(amt);
     }
@@ -82,11 +84,25 @@ export function useSeatSession<S extends StateLike>(t: TableDef, lt: LiveTable<S
     if (err) { toast({ title: err, tone: 'red' }); return false; }
     const r = newRid();
     setPending({ rid: r, buy, at: Date.now() });
-    lt?.send({ sit: { rid: r, seat, buy } });
+    sitRef.current = { rid: r, seat, buy };
+    lt?.send({ sit: sitRef.current });
     return true;
   };
-  const standUp = () => { lt?.send({ sit: null, act: null, bet: null }); };
-  return { mySeat, rid, pending: !!pending, sit, standUp };
+  const standUp = () => { sitRef.current = null; lt?.send({ sit: null, act: null, bet: null }); };
+  /**
+   * Bring `amount` more chips from the wallet to the table. Returns the seat request to send
+   * (with whatever else goes out in the same message), or null if the wallet can't cover it.
+   * The wallet is only charged once the dealer has added the chips.
+   */
+  const topUp = (amount: number) => {
+    const cur = sitRef.current;
+    if (!cur || cur.rid !== ridRef.current || !(amount > 0)) return null;
+    const owed = (cur.tu ?? 0) - (useStore.getState().escrow?.tu ?? 0);
+    if (useStore.getState().balance - owed < amount) { toast({ title: 'Not enough coins in your wallet', tone: 'red' }); return null; }
+    sitRef.current = { ...cur, tu: +((cur.tu ?? 0) + amount).toFixed(2) };
+    return sitRef.current;
+  };
+  return { mySeat, rid, pending: !!pending, sit, standUp, topUp };
 }
 
 /** Countdown ring for whoever is on the clock. */
