@@ -16,6 +16,8 @@ export interface PSeat {
   fr?: string;
   ns?: string;
   k: number;
+  /** Chips added from the wallet so far (echo of the seat request's `tu`). */
+  tu?: number;
   b: number;
   tt: number;
   f?: 1;
@@ -51,7 +53,7 @@ const STREETS = ['preflop', 'flop', 'turn', 'river', 'showdown'] as const;
 export const TURN_MS = 20000;
 const r2 = (v: number) => Math.round(v * 100) / 100;
 
-interface Meta { id: string; p: string; n: string; av: string; fr?: string; ns?: string; w?: boolean; lv?: boolean; timeouts: number }
+interface Meta { id: string; p: string; n: string; av: string; fr?: string; ns?: string; w?: boolean; lv?: boolean; timeouts: number; tu?: number }
 
 const emptySeat = (i: number): Seat => ({ id: i, name: '', avatar: '', human: false, stack: 0, hole: [], bet: 0, total: 0, folded: true, allIn: false, acted: false, sittingOut: true, style: { loose: 0.5, aggro: 0.5 } });
 
@@ -85,7 +87,7 @@ export class PokerEngine implements Engine<PState> {
       // a hand that was running is called off: everything put in goes back
       const stack = prev.ph === 'play' ? r2(x.k + x.tt) : x.k;
       this.g.seats[i] = { ...emptySeat(i), name: x.n, human: true, stack, sittingOut: stack <= 0, folded: false };
-      this.meta[i] = { id: x.id, p: x.p, n: x.n, av: x.av, fr: x.fr, ns: x.ns, lv: !!x.lv, timeouts: 0 };
+      this.meta[i] = { id: x.id, p: x.p, n: x.n, av: x.av, fr: x.fr, ns: x.ns, lv: !!x.lv, timeouts: 0, tu: x.tu ?? 0 };
     });
     if (prev.ph === 'play') this.note = 'New dealer — the last hand was called off and every bet went back';
     this.ph = 'wait';
@@ -117,7 +119,11 @@ export class PokerEngine implements Engine<PState> {
     // players who left the room or stood up (they fold when their turn comes)
     this.meta.forEach((m, i) => {
       if (!m) return;
-      if (!m.lv && byPeer.get(m.p)?.pres.sit?.rid !== m.id) { m.lv = true; changed = true; }
+      const sit = byPeer.get(m.p)?.pres.sit;
+      if (!m.lv && sit?.rid !== m.id) { m.lv = true; changed = true; }
+      // chips added from the wallet: only between hands, never past the table maximum
+      const tu = r2(+(sit?.tu ?? 0) || 0), s = this.g.seats[i], had = m.tu ?? 0;
+      if (!m.lv && sit?.rid === m.id && tu > had && (this.ph === 'wait' || !s.hole.length) && s.stack + tu - had <= this.table.buyMax) { s.stack = r2(s.stack + tu - had); m.tu = tu; changed = true; }
       if (m.lv && (this.ph === 'wait' || !this.g.seats[i].hole.length)) { this.remove(i); changed = true; }
     });
     // new seat requests
@@ -259,6 +265,7 @@ export class PokerEngine implements Engine<PState> {
         const x: PSeat = { id: m.id, p: m.p, n: m.n, av: m.av, k: r2(s.stack), b: r2(s.bet), tt: r2(s.total) };
         if (m.fr) x.fr = m.fr;
         if (m.ns) x.ns = m.ns;
+        if (m.tu) x.tu = m.tu;
         if (s.folded && s.hole.length) x.f = 1;
         if (s.allIn) x.ai = 1;
         if (s.hole.length) x.in = 1;

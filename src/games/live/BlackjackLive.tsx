@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { LogOut, UserPlus, Users } from 'lucide-react';
+import { LogOut, PlusCircle, UserPlus, Users } from 'lucide-react';
 import GameShell, { GameAction } from '../../components/GameShell';
 import { toast, useStore } from '../../store';
 import { sfx } from '../../lib/sound';
@@ -30,8 +30,8 @@ export default function BlackjackLive() {
   return <BjTable key={t.id} tid={t.id} />;
 }
 
-interface Shown { r: number; cards: Record<string, Card3D[]>; dealer: Card3D[]; holeUp: boolean; bets: Record<string, number>; settled: boolean }
-const freshShown = (r = -1): Shown => ({ r, cards: {}, dealer: [], holeUp: false, bets: {}, settled: false });
+interface Shown { r: number; cards: Record<string, Card3D[]>; dealer: Card3D[]; holeUp: boolean; holeDown: boolean; bets: Record<string, number>; settled: boolean }
+const freshShown = (r = -1): Shown => ({ r, cards: {}, dealer: [], holeUp: false, holeDown: false, bets: {}, settled: false });
 
 function BjTable({ tid }: { tid: string }) {
   const t = liveTable(tid)!;
@@ -40,6 +40,7 @@ function BjTable({ tid }: { tid: string }) {
   const { snap, table } = useLiveTable<BState>(roomName(t), () => new BlackjackEngine(t));
   const st = snap.state;
   const [buyFor, setBuyFor] = useState<number | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
   const session = useSeatSession(t, table, snap, (amt) => {
     if (amt > 0) toast({ title: `Cashed out ${fmt(amt, 0)}`, desc: 'Back in your wallet.', tone: 'gold' });
     else toast({ title: 'Out of chips', desc: 'Buy in again to keep playing.', tone: 'neutral' });
@@ -104,6 +105,8 @@ function BjTable({ tid }: { tid: string }) {
   const latest = useRef<BState | null>(null);
   const running = useRef(false);
   const [dealtCount, setDealtCount] = useState<Record<string, number>>({});
+  /** Round whose cards and chips have finished animating — results wait for it. */
+  const [settledR, setSettledR] = useState(-1);
   useEffect(() => { latest.current = st; pump(); }, [st, scene]); // eslint-disable-line react-hooks/exhaustive-deps
   const pump = async () => {
     if (running.current) return;
@@ -161,8 +164,9 @@ function BjTable({ tid }: { tid: string }) {
       if (sh.dealer.length > k) return;
       const code = dealer[k];
       const m = await sc.deal(code === '??' ? null : dec(code), -0.62 + k * 0.62, DEALER_Z, { up: code !== '??' });
+      if (code === '??') sh.holeDown = true;
       sh.dealer.push(m);
-      setDealtCount((d) => ({ ...d, dealer: sh.dealer.length }));
+      setDealtCount((d) => ({ ...d, dealer: sh.dealer.length, ...(code === '??' ? { holeDown: 1 } : {}) }));
       sfx.tick();
     };
     // a split: the pair separates — first card stays as hand 1, second slides over to start hand 2
@@ -187,12 +191,17 @@ function BjTable({ tid }: { tid: string }) {
       if (dealer[r]) queue.push(dealDealer(r));
     }
     s.s.forEach((x, i) => x?.hs.forEach((h, k) => decList(h.c).forEach((c, j) => queue.push(dealTo(i, k, x.hs.length, j, c)))));
-    for (let k = 2; k < dealer.length; k++) queue.push(dealDealer(k));
-    // the hole card turns over
-    if (!dealer.includes('??') && dealer.length > 1 && sh.dealer[1] && !sh.holeUp) {
-      sh.holeUp = true;
-      queue.splice(0, 0, async () => { await sc.flip(sh.dealer[1], dec(dealer[1])); sfx.reveal(); });
+    // the hole card turns over — only once every player card is on the felt, and before the dealer draws
+    if (!dealer.includes('??') && dealer.length > 1) {
+      queue.push(async () => {
+        if (sh.holeUp || !sh.dealer[1] || !sh.holeDown) return;
+        sh.holeUp = true;
+        await sc.flip(sh.dealer[1], dec(dealer[1])); sfx.reveal();
+        setDealtCount((d) => ({ ...d, holeUp: 1 }));
+        await sleep(350);
+      });
     }
+    for (let k = 2; k < dealer.length; k++) queue.push(dealDealer(k));
     for (const step of queue) await step();
     // settle the chips
     if (s.ph === 'settle' && !sh.settled) {
@@ -206,6 +215,7 @@ function BjTable({ tid }: { tid: string }) {
         if (i === mySeat) { mine += h.pay ?? 0; wager += h.bt; }
       }));
       if (mySeat >= 0 && wager > 0) { if (mine > wager) sfx.win(); else if (mine < wager) sfx.lose(); }
+      setSettledR(s.r);
     }
   };
 
@@ -213,7 +223,7 @@ function BjTable({ tid }: { tid: string }) {
   const recorded = useRef(-1);
   const [outcome, setOutcome] = useState<{ tone: 'win' | 'lose' | 'push'; title: string; sub: string; key: number } | null>(null);
   useEffect(() => {
-    if (!st || st.ph !== 'settle' || !me?.hs.length || recorded.current === st.r) return;
+    if (!st || st.ph !== 'settle' || settledR !== st.r || !me?.hs.length || recorded.current === st.r) return;
     recorded.current = st.r;
     const wager = me.hs.reduce((a, h) => a + h.bt, 0);
     const pay = me.hs.reduce((a, h) => a + (h.pay ?? 0), 0);
@@ -221,7 +231,7 @@ function BjTable({ tid }: { tid: string }) {
     useStore.getState().settle('blackjack', wager, +(pay / wager).toFixed(4), `${t.name} · ${res}`, { noCredit: true });
     if (pay > wager) setOutcome(null);
     else setOutcome({ tone: pay === wager ? 'push' : 'lose', title: pay === wager ? 'PUSH' : me.hs.every((h) => bjValue(decList(h.c)).total > 21) ? 'BUST' : 'DEALER WINS', sub: pay === wager ? 'your bet comes back' : '', key: st.r });
-  }, [st]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [st, settledR]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (st?.ph === 'bet') setOutcome(null); }, [st?.ph]);
 
   /* ---------- betting & actions ---------- */
@@ -316,17 +326,22 @@ function BjTable({ tid }: { tid: string }) {
       )}
       <GameAction>{action}</GameAction>
       {me
-        ? <button type="button" className="btn-ghost w-full py-2 text-xs" disabled={!!me.lv} onClick={() => { session.standUp(); toast({ title: me.hs.length && st?.ph !== 'settle' ? 'You’ll stand up after this round' : 'Standing up…', tone: 'neutral' }); }}><LogOut size={13} />{me.lv ? 'Standing up…' : 'Stand up & cash out'}</button>
+        ? <div className="grid grid-cols-2 gap-2">
+            <button type="button" className="btn-ghost w-full py-2 text-xs" disabled={!!me.lv} onClick={() => setAddOpen(true)}><PlusCircle size={13} />Add chips</button>
+            <button type="button" className="btn-ghost w-full py-2 text-xs" disabled={!!me.lv} onClick={() => { session.standUp(); toast({ title: me.hs.length && st?.ph !== 'settle' ? 'You’ll stand up after this round' : 'Standing up…', tone: 'neutral' }); }}><LogOut size={13} />{me.lv ? 'Standing up…' : 'Stand up'}</button>
+          </div>
         : <button type="button" className="btn-ghost w-full py-2 text-xs" onClick={() => nav('/games/blackjack')}><LogOut size={13} />Back to the lobby</button>}
       {canAct && <p className="hidden text-center text-[11px] text-smoke lg:block">Keys: H hit · S stand · D double · P split</p>}
     </>
   );
 
   const dealerCards: string[] = st?.d ? (st.d.match(/.{2}/g) ?? []) : [];
-  const dealerKnown = dealerCards.filter((c) => c !== '??').map(dec).slice(0, dealtCount.dealer ?? 0);
+  // what's on the felt right now: the hole card counts only once it has visibly turned over
+  const holeHidden = !!dealtCount.holeDown && !dealtCount.holeUp;
+  const dealerKnown = dealerCards.slice(0, dealtCount.dealer ?? 0).filter((c, i) => c !== '??' && !(i === 1 && holeHidden)).map(dec);
   const dv = bjValue(dealerKnown);
   const presence = (p: string) => snap.peers.find((x) => x.peer === p)?.pres;
-  const holeUp = !dealerCards.includes('??');
+  const holeUp = !dealerCards.includes('??') && !holeHidden;
 
   return (
     <GameShell id="blackjack" tall controls={controls} title={t.name} subtitle={`Live blackjack · bets ${fmtCompact(t.lo)}–${fmtCompact(t.hi)}`} back="/games/blackjack" rules={[
@@ -351,8 +366,8 @@ function BjTable({ tid }: { tid: string }) {
           <div key={x.id}>
             <Anchor scene={scene} at={[g.pod.x, 0.3, g.pod.z]}>
               <SeatPod name={x.n} av={x.av} fr={x.fr} ns={x.ns} stack={x.k} mine={i === mySeat} active={active} deadline={active ? deadline : 0} total={BJ_TURN_MS}
-                emo={presence(x.p)?.emo} dim={!!x.w || !!x.lv} winner={st.ph === 'settle' && x.hs.some((h) => h.r === 'win' || h.r === 'bj')}
-                win={st.ph === 'settle' ? Math.max(0, x.hs.reduce((a, h) => a + (h.pay ?? 0) - h.bt, 0)) : 0}
+                emo={presence(x.p)?.emo} dim={!!x.w || !!x.lv} winner={settledR === st.r && x.hs.some((h) => h.r === 'win' || h.r === 'bj')}
+                win={settledR === st.r ? Math.max(0, x.hs.reduce((a, h) => a + (h.pay ?? 0) - h.bt, 0)) : 0}
                 badge={st.ph === 'bet' && x.rd ? 'Ready' : undefined} badgeTone="good" status={x.w ? 'next round' : x.lv ? 'leaving' : undefined} />
             </Anchor>
             {x.hs.map((h, k) => {
@@ -361,11 +376,12 @@ function BjTable({ tid }: { tid: string }) {
               const cs = decList(h.c).slice(0, shownN);
               const v = bjValue(cs);
               const p = cardPos(i, k, x.hs.length, 0);
-              const tone: Tone = h.r ? (h.r === 'lose' ? 'lose' : h.r === 'push' ? 'push' : 'win') : active && x.ah === k ? 'active' : 'neutral';
+              const hr = settledR === st.r ? h.r : undefined; // results show once the dealer has finished
+              const tone: Tone = hr ? (hr === 'lose' ? 'lose' : hr === 'push' ? 'push' : 'win') : active && x.ah === k ? 'active' : 'neutral';
               const val = v.total > 21 ? 'BUST' : isBlackjack(cs) && x.hs.length === 1 ? 'BJ' : v.total;
               return (
                 <Anchor key={k} scene={scene} at={[p.x - g.n.x * 1.15, 0.3, p.z - g.n.z * 1.15]}>
-                  <HandBadge value={val} tone={tone} sub={h.r ? (h.r === 'lose' ? '' : `+${fmtCompact((h.pay ?? 0) - h.bt)}`) : h.d ? '×2' : undefined} />
+                  <HandBadge value={val} tone={tone} sub={hr ? (hr === 'lose' ? '' : `+${fmtCompact((h.pay ?? 0) - h.bt)}`) : h.d ? '×2' : undefined} />
                 </Anchor>
               );
             })}
@@ -373,9 +389,9 @@ function BjTable({ tid }: { tid: string }) {
         );
       })}
       {st && scene && dealerKnown.length > 0 && (
-        <Anchor scene={scene} at={[-2.15, 0.3, DEALER_Z]}>
-          <HandBadge label="Dealer" value={holeUp ? (dv.total > 21 ? 'BUST' : dealerKnown.length === 2 && isBlackjack(dealerKnown) ? 'BJ' : dv.total) : dv.total} sub={!holeUp ? '+ ?' : undefined} tone={st.ph === 'settle' && dv.total > 21 ? 'lose' : 'neutral'} />
-        </Anchor>
+        <div className="pointer-events-none absolute inset-x-0 top-3 z-10 flex justify-center">
+          <HandBadge label="Dealer" value={holeUp ? (dv.total > 21 ? 'BUST' : dealerKnown.length === 2 && isBlackjack(dealerKnown) ? 'BJ' : dv.total) : dv.total} sub={!holeUp ? '+ ?' : undefined} tone={settledR === st.r && dv.total > 21 ? 'lose' : 'neutral'} />
+        </div>
       )}
       <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-col items-start gap-1">
         <ConnBadge snap={snap} here={snap.peers.length} />
@@ -390,6 +406,12 @@ function BjTable({ tid }: { tid: string }) {
       )}
       {me && <EmoteButton lt={table as never} className="right-3 top-3" />}
       {outcome && <ResultBanner key={outcome.key} tone={outcome.tone} title={outcome.title} sub={outcome.sub} top />}
+      <BuyIn table={t} open={addOpen && !!me} addTo={me?.k ?? 0} onClose={() => setAddOpen(false)} onConfirm={(amt) => {
+        const sit = session.topUp(amt);
+        if (!sit) return;
+        table?.send({ sit }); setAddOpen(false); sfx.bet();
+        toast({ title: `Adding ${fmt(amt, 0)} chips`, desc: undefined, tone: 'gold' });
+      }} />
       <BuyIn table={t} open={buyFor !== null} onClose={() => setBuyFor(null)} onConfirm={(buy) => { if (session.sit(buyFor ?? 2, buy)) setBuyFor(null); }} />
     </GameShell>
   );

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { LogOut, UserPlus, Users } from 'lucide-react';
+import { LogOut, PlusCircle, UserPlus, Users } from 'lucide-react';
 import GameShell, { GameAction } from '../../components/GameShell';
 import { toast, useStore } from '../../store';
 import { Coin } from '../../components/Icons';
@@ -44,6 +44,7 @@ function PokerTable({ tid }: { tid: string }) {
   const { snap, table } = useLiveTable<PState>(roomName(t), () => new PokerEngine(t));
   const st = snap.state;
   const [buyFor, setBuyFor] = useState<number | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
   const [bust, setBust] = useState(false);
   const session = useSeatSession(t, table, snap, (amt) => {
     if (amt > 0) toast({ title: `Cashed out ${fmt(amt, 0)}`, desc: 'Back in your wallet.', tone: 'gold' });
@@ -406,7 +407,10 @@ function PokerTable({ tid }: { tid: string }) {
       <div className="hidden lg:block">{raisePanel}</div>
       <GameAction extra={raisePanel ?? undefined}>{action}</GameAction>
       {me
-        ? <button type="button" className="btn-ghost w-full py-2 text-xs" onClick={() => { session.standUp(); toast({ title: me.in && st?.ph === 'play' ? 'You’ll stand up after this hand' : 'Standing up…', tone: 'neutral' }); }} disabled={!!me.lv}><LogOut size={13} />{me.lv ? 'Standing up…' : 'Stand up & cash out'}</button>
+        ? <div className="grid grid-cols-2 gap-2">
+            <button type="button" className="btn-ghost w-full py-2 text-xs" disabled={!!me.lv} onClick={() => setAddOpen(true)}><PlusCircle size={13} />Add chips</button>
+            <button type="button" className="btn-ghost w-full py-2 text-xs" onClick={() => { session.standUp(); toast({ title: me.in && st?.ph === 'play' ? 'You’ll stand up after this hand' : 'Standing up…', tone: 'neutral' }); }} disabled={!!me.lv}><LogOut size={13} />{me.lv ? 'Standing up…' : 'Stand up'}</button>
+          </div>
         : <button type="button" className="btn-ghost w-full py-2 text-xs" onClick={() => nav('/games/poker')}><LogOut size={13} />Back to the lobby</button>}
       {!phoneUI && (
         <div className="rounded-xl bg-ink-900 p-3 text-xs">
@@ -515,6 +519,12 @@ function PokerTable({ tid }: { tid: string }) {
       )}
       {me && <EmoteButton lt={table as never} className="right-3 top-3" />}
       {outcome && <ResultBanner key={outcome.key} tone={outcome.tone} title={outcome.title} sub={outcome.sub} top />}
+      <BuyIn table={t} open={addOpen && !!me} addTo={me?.k ?? 0} onClose={() => setAddOpen(false)} onConfirm={(amt) => {
+        const sit = session.topUp(amt);
+        if (!sit) return;
+        table?.send({ sit }); setAddOpen(false); sfx.bet();
+        toast({ title: `Adding ${fmt(amt, 0)} chips`, desc: me?.in && st?.ph === 'play' ? 'They land as soon as this hand is over.' : undefined, tone: 'gold' });
+      }} />
       <BuyIn table={t} open={buyFor !== null} onClose={() => setBuyFor(null)} onConfirm={(buy) => { if (session.sit(buyFor ?? 0, buy)) setBuyFor(null); }} />
       <BustPrompt open={bust} onClose={() => setBust(false)} onRebuy={() => { setBust(false); const f = st?.s.findIndex((x) => !x) ?? -1; setBuyFor(f >= 0 ? f : 0); }} />
     </GameShell>
