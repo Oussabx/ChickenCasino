@@ -95,7 +95,7 @@ export default function Promotions() {
             <p className="text-sm text-smoke">Psst… try <b className="text-cream">CLUCK</b>, <b className="text-cream">GOLDENEGG</b> or <b className="text-cream">WINBIGGER</b>.</p>
             <form className="mt-4 flex gap-2" onSubmit={(e) => { e.preventDefault(); const r = s.redeem(code); setCodeMsg(r); if (r.startsWith('Redeemed')) { sfx.win(); setCode(''); } }}>
               <input className="input uppercase tracking-widest font-bold" placeholder="ENTER CODE" value={code} onChange={(e) => setCode(e.target.value)} />
-              <button className="btn-gold px-5" disabled={!code.trim()}>Redeem</button>
+              <button className="btn-gold shrink-0 px-5" disabled={!code.trim()}>Redeem</button>
             </form>
             {codeMsg && <p className={`mt-2 text-sm ${codeMsg.startsWith('Redeemed') ? 'text-emerald-400' : 'text-blood'}`}>{codeMsg}</p>}
           </section>

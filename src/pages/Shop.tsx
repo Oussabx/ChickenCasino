@@ -115,8 +115,8 @@ function Featured({ onOpen, go }: { onOpen: (it: ShopItem) => void; go: (t: Tab)
         <LazyMount minHeight={600}><Grid items={SHOP.filter((i) => i.kind === 'set')} onOpen={onOpen} wide /></LazyMount>
       </section>
       <section className="own-layer cv-auto grid gap-5 lg:grid-cols-[1fr_1.4fr]">
-        <LazyMount minHeight={260}><EggTeaser go={() => go('eggs')} /></LazyMount>
-        <LazyMount minHeight={260}><VipTrack onOpen={onOpen} compact /></LazyMount>
+        <LazyMount minHeight={260} className="flex"><EggTeaser go={() => go('eggs')} /></LazyMount>
+        <LazyMount minHeight={260} className="flex"><VipTrack onOpen={onOpen} compact /></LazyMount>
       </section>
       <Shelf title="Legendary" icon={<Gem size={18} className="text-gold" />} items={legendary} onOpen={onOpen} />
       {almost.length > 0 && <Shelf title="Start your collection" icon={<Layers size={18} className="text-emerald-400" />} items={almost} onOpen={onOpen} />}
@@ -192,14 +192,14 @@ function Category({ kind, onOpen }: { kind: ItemKind; onOpen: (it: ShopItem) => 
 
 function EggTeaser({ go }: { go: () => void }) {
   return (
-    <button type="button" onClick={go} className="group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#1e1a0e] to-black p-5 text-left">
+    <button type="button" onClick={go} className="group relative flex w-full flex-col overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#1e1a0e] to-black p-5 text-left sm:p-7">
       <div className="flex items-center gap-2 font-display text-[11px] font-black uppercase tracking-[.3em] text-gold/80"><EggIcon size={14} />Egg Shop</div>
       <h3 className="h-display mt-1 text-3xl text-gold-grad">Hatch a surprise</h3>
       <p className="mt-1 text-sm text-cream/70">Cosmetics only, never a duplicate, odds shown up front.</p>
       <div className="mt-4 flex items-end justify-between">
         {EGGS.map((e, i) => <div key={e.id} className="shop-egg-idle transition group-hover:-translate-y-1" style={{ animationDelay: `${i * 0.3}s` }}><EggArt egg={e.id} size={44 + i * 8} /></div>)}
       </div>
-      <span className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-gold">Open the Egg Shop <ArrowRight size={14} className="transition group-hover:translate-x-1" /></span>
+      <span className="mt-auto inline-flex items-center gap-1 pt-4 text-sm font-bold text-gold">Open the Egg Shop <ArrowRight size={14} className="transition group-hover:translate-x-1" /></span>
     </button>
   );
 }

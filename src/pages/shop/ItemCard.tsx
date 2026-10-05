@@ -18,7 +18,7 @@ export default function ItemCard({ it, onOpen, compact }: { it: ShopItem; onOpen
         <span className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/50 to-transparent" />
         <span className="shop-shine" />
         <div className={`relative transition duration-500 group-hover:scale-110 ${gone ? 'opacity-40 grayscale' : ''}`}>
-          <ItemArt it={it} size={compact ? 108 : 132} />
+          <ItemArt it={it} size={compact ? 108 : 132} tryOn={it.kind !== 'chicken'} />
         </div>
         <div className="absolute left-2 top-2"><ItemBadges it={it} owned={owned} equipped={equipped} /></div>
         <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-0.5 font-display text-[10px] font-black uppercase tracking-wider" style={{ color: col }}>{it.rarity}</span>
