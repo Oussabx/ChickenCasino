@@ -50,6 +50,9 @@ const VideoPoker = lazy(() => import('./games/VideoPoker'));
 const Slots = lazy(() => import('./games/Slots'));
 const Craps = lazy(() => import('./games/Craps'));
 const Keno = lazy(() => import('./games/Keno'));
+const LiveLobby = lazy(() => import('./pages/live/LiveLobby'));
+const PokerLive = lazy(() => import('./games/live/PokerLive'));
+const BlackjackLive = lazy(() => import('./games/live/BlackjackLive'));
 
 export default function App() {
   return (
@@ -65,11 +68,15 @@ export default function App() {
             <Route path="games/egg-hunt" element={<EggHunt />} />
             <Route path="games/cluck-dice" element={<CluckDice />} />
             <Route path="games/golden-wheel" element={<GoldenWheel />} />
-            <Route path="games/blackjack" element={<Blackjack />} />
+            <Route path="games/blackjack" element={<LiveLobby key="bj" game="blackjack" />} />
+            <Route path="games/blackjack/practice" element={<Blackjack />} />
+            <Route path="games/blackjack/:tableId" element={<BlackjackLive />} />
             <Route path="games/roulette" element={<Roulette />} />
             <Route path="games/baccarat" element={<Baccarat key="classic" variant="classic" />} />
             <Route path="games/punto-banco" element={<Baccarat key="punto" variant="punto" />} />
-            <Route path="games/poker" element={<Poker />} />
+            <Route path="games/poker" element={<LiveLobby key="poker" game="poker" />} />
+            <Route path="games/poker/practice" element={<Poker />} />
+            <Route path="games/poker/:tableId" element={<PokerLive />} />
             <Route path="games/video-poker" element={<VideoPoker />} />
             <Route path="games/slots" element={<Slots />} />
             <Route path="games/craps" element={<Craps />} />

@@ -300,7 +300,7 @@ export default function Blackjack() {
   );
 
   return (
-    <GameShell id="blackjack" controls={controls} rules={[
+    <GameShell id="blackjack" title="Blackjack practice" subtitle="Just you and the dealer · offline" back="/games/blackjack" controls={controls} rules={[
       'Place your bet and press Deal. You and the dealer get two cards; one dealer card stays face down.',
       'Get closer to 21 than the dealer without going over. Face cards count 10, aces 1 or 11.',
       'Hit to take a card, Stand to hold, Double to double your bet for exactly one more card, Split a pair into two hands.',

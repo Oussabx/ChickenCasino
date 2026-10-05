@@ -12,7 +12,7 @@ import WinFX from './WinFX';
 import { useLiveFeed } from '../lib/useLiveFeed';
 import { Coin } from './Icons';
 
-export default function GameShell({ id, controls, children, rules, tall }: { id: GameId; controls: ReactNode; children: ReactNode; rules: string[]; tall?: boolean }) {
+export default function GameShell({ id, controls, children, rules, tall, title, subtitle, back = '/games' }: { id: GameId; controls: ReactNode; children: ReactNode; rules: string[]; tall?: boolean; title?: string; subtitle?: string; back?: string }) {
   const g = gameById(id)!;
   const fav = useStore((s) => s.favorites.includes(id));
   const toggleFav = useStore((s) => s.toggleFav);
@@ -62,8 +62,8 @@ export default function GameShell({ id, controls, children, rules, tall }: { id:
             <section className="relative min-w-0 flex-1 felt grain">{children}<WinFX /></section>
             <aside className="flex min-h-0 w-[clamp(250px,34%,330px)] shrink-0 flex-col overflow-hidden border-l border-white/[0.06] bg-ink-800">
               <div className="flex items-center gap-1.5 border-b border-white/[0.06] px-2 py-1.5" style={{ paddingTop: 'max(6px, env(safe-area-inset-top))' }}>
-                <Link to="/games" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-ink-700" aria-label="Back to games"><ChevronLeft size={16} /></Link>
-                <div className="flex min-w-0 flex-1 items-center gap-1 rounded-lg bg-ink-900 px-2 py-1.5 font-display text-xs font-black text-gold tabular" title={g.name}>
+                <Link to={back} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-ink-700" aria-label={back === '/games' ? 'Back to games' : 'Back to the lobby'}><ChevronLeft size={16} /></Link>
+                <div className="flex min-w-0 flex-1 items-center gap-1 rounded-lg bg-ink-900 px-2 py-1.5 font-display text-xs font-black text-gold tabular" title={title ?? g.name}>
                   <Coin className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{fmt(balance, 0)}</span>
                 </div>
                 <IconBtn small onClick={() => update({ turbo: !turbo })} active={turbo} label="Turbo mode"><Zap size={14} /></IconBtn>
@@ -85,10 +85,10 @@ export default function GameShell({ id, controls, children, rules, tall }: { id:
   return (
     <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-6 pt-4 lg:pt-6 pb-48 lg:pb-0">
       <div className="mb-4 flex items-center gap-2">
-        <Link to="/games" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-ink-700 hover:bg-ink-600" aria-label="Back to games"><ChevronLeft size={18} /></Link>
+        <Link to={back} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-ink-700 hover:bg-ink-600" aria-label={back === '/games' ? 'Back to games' : 'Back to the lobby'}><ChevronLeft size={18} /></Link>
         <div className="min-w-0">
-          <h1 className="font-display text-lg sm:text-2xl font-black leading-tight truncate">{g.name}</h1>
-          <p className="text-xs text-smoke truncate">{g.tagline}</p>
+          <h1 className="font-display text-lg sm:text-2xl font-black leading-tight truncate">{title ?? g.name}</h1>
+          <p className="text-xs text-smoke truncate">{subtitle ?? g.tagline}</p>
         </div>
         <div className="ml-auto flex items-center gap-1.5">
           <IconBtn onClick={() => update({ turbo: !turbo })} active={turbo} label="Turbo mode"><Zap size={16} /></IconBtn>

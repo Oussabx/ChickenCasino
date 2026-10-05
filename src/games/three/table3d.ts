@@ -58,6 +58,10 @@ export interface TableOpts {
   oval?: { portrait: boolean };
   /** Chicken croupier behind the D table (on by default). */
   dealer?: boolean;
+  /** A fixed look (live tables each have their own) instead of the player's equipped table skin. */
+  theme?: TableTheme;
+  /** Title printed on the oval felt. */
+  title?: string;
   /** Camera framing: [centre z, width, height] for wide and narrow viewports. */
   view?: { wide?: [number, number, number]; narrow?: [number, number, number] };
 }
@@ -96,8 +100,8 @@ export class TableScene extends Stage3D {
     this.key.position.set(-3, 13, 6);
     this.key.intensity = 1.9;
     // the player's equipped table skin (Classic Green keeps each game's own felt colour)
-    this.theme = eqTable();
-    const felt = eqTableId() === 'tb-classic' ? (opts.felt ?? this.theme.felt) : this.theme.felt;
+    this.theme = opts.theme ?? eqTable();
+    const felt = !opts.theme && eqTableId() === 'tb-classic' ? (opts.felt ?? this.theme.felt) : this.theme.felt;
     this.railMat = std(this.theme.rail, { roughness: 0.36 });
     this.trimMat = new THREE.MeshStandardMaterial({ color: this.theme.trim, metalness: 0.75, roughness: 0.28, emissive: this.theme.glow ?? 0x3a2800, emissiveIntensity: this.theme.glow ? 0.9 : 0.25 });
 
@@ -326,7 +330,7 @@ export class TableScene extends Stage3D {
       // title printed above the board, logo faintly under the pot
       if (logo.complete && logo.naturalWidth) { g.save(); g.globalAlpha = 0.07; g.filter = 'grayscale(1) brightness(2)'; g.drawImage(logo, cx - 110, cy - 1.45 * S - 110, 220, 220); g.restore(); }
       g.fillStyle = inkA(this.theme, 0.8); g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.font = `900 ${0.26 * S}px Montserrat, system-ui, sans-serif`; g.fillText('TEXAS HOLD\'EM · NO LIMIT', cx, cy - 0.98 * S);
+      g.font = `900 ${0.26 * S}px Montserrat, system-ui, sans-serif`; g.fillText(this.opts.title ?? 'TEXAS HOLD\'EM · NO LIMIT', cx, cy - 0.98 * S);
       tex.needsUpdate = true;
     };
     draw(); logo.onload = draw; document.fonts?.ready.then(draw);

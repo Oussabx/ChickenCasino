@@ -19,7 +19,10 @@ export interface Round {
   detail?: string;
 }
 
-export type TxKind = 'bonus' | 'daily' | 'shop' | 'promo' | 'mission' | 'rakeback' | 'level' | 'exchange' | 'faucet' | 'purchase';
+/** Coins taken to a live table: they come back (as the final stack) when you stand up. */
+export interface Escrow { rid: string; game: 'poker' | 'blackjack'; table: string; tableName: string; buyIn: number; stack: number; at: number }
+
+export type TxKind = 'bonus' | 'daily' | 'shop' | 'promo' | 'mission' | 'rakeback' | 'level' | 'exchange' | 'faucet' | 'purchase' | 'table';
 export interface Tx { id: string; kind: TxKind; label: string; coins: number; eggs: number; at: number }
 
 export interface Settings {
@@ -155,6 +158,8 @@ interface State {
   cards: SavedCard[];
   defaultCard: string | null;
   orders: Order[];
+  /** Coins sitting at a live table right now. */
+  escrow: Escrow | null;
 
   /** Replace all per-account game data (null = fresh account). */
   loadData: (d: GameData | null) => void;
@@ -163,7 +168,13 @@ interface State {
   placeBet: (amount: number) => boolean;
   /** Give back (or, with a negative amount, re-commit) coins sitting on a table layout — not a round. */
   refund: (amount: number) => void;
-  settle: (game: GameId, bet: number, multiplier: number, detail?: string) => number;
+  settle: (game: GameId, bet: number, multiplier: number, detail?: string, opts?: { noCredit?: boolean }) => number;
+  /** Take `amount` from the balance to a live table seat. Returns an error, or null. */
+  escrowOpen: (e: Omit<Escrow, 'stack' | 'at'>) => string | null;
+  /** Remember the seat's current stack (what you get back if the page closes). */
+  escrowSync: (rid: string, stack: number) => void;
+  /** Stand up: the stack goes back to the balance. Returns the amount. */
+  escrowClose: (rid?: string) => number;
   grant: (kind: TxKind, label: string, coins: number, eggs?: number) => void;
   buy: (id: string) => string | null;
   equip: (id: string) => void;
@@ -212,6 +223,7 @@ const GAME_DEFAULTS = {
   cards: [] as SavedCard[],
   defaultCard: null as string | null,
   orders: [] as Order[],
+  escrow: null as Escrow | null,
 };
 
 /** Everything that belongs to one account (settings stay per-device). */
@@ -259,7 +271,35 @@ export const useStore = create<State>()(
 
       refund: (amount) => set((s) => ({ balance: +(s.balance + amount).toFixed(2) })),
 
-      settle: (game, bet, multiplier, detail) => {
+      escrowOpen: (e) => {
+        const s = get();
+        if (s.escrow) s.escrowClose();
+        const err = get().betError(e.buyIn);
+        if (err) return err;
+        set((st) => ({
+          balance: +(st.balance - e.buyIn).toFixed(2),
+          escrow: { ...e, stack: e.buyIn, at: Date.now() },
+          txs: [{ id: uid(), kind: 'table' as TxKind, label: `Bought in at ${e.tableName}`, coins: -e.buyIn, eggs: 0, at: Date.now() }, ...st.txs].slice(0, 300),
+        }));
+        return null;
+      },
+      escrowSync: (rid, stack) => {
+        const e = get().escrow;
+        if (e && e.rid === rid && e.stack !== stack) set({ escrow: { ...e, stack: +stack.toFixed(2) } });
+      },
+      escrowClose: (rid) => {
+        const e = get().escrow;
+        if (!e || (rid && e.rid !== rid)) return 0;
+        const amt = Math.max(0, +e.stack.toFixed(2));
+        set((st) => ({
+          balance: +(st.balance + amt).toFixed(2),
+          escrow: null,
+          txs: [{ id: uid(), kind: 'table' as TxKind, label: `Cashed out of ${e.tableName}`, coins: amt, eggs: 0, at: Date.now() }, ...st.txs].slice(0, 300),
+        }));
+        return amt;
+      },
+
+      settle: (game, bet, multiplier, detail, opts) => {
         const payout = +(bet * multiplier).toFixed(2);
         const s = get();
         const prevLevel = levelFromXp(s.xp);
@@ -267,7 +307,7 @@ export const useStore = create<State>()(
         const pg = s.stats.perGame[game] ?? { rounds: 0, wagered: 0, profit: 0, best: 0 };
         const round: Round = { id: uid(), game, bet, multiplier, payout, at: Date.now(), detail };
         set({
-          balance: +(s.balance + payout).toFixed(2),
+          balance: opts?.noCredit ? s.balance : +(s.balance + payout).toFixed(2),
           xp,
           rounds: [round, ...s.rounds].slice(0, 500),
           stats: {
