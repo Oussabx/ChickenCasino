@@ -29,6 +29,8 @@ export interface PlayerPresence {
   act?: { h: number; q: number; t: string; a?: number } | null;
   bet?: { r: number; a: number } | null;
   emo?: { e: string; at: number } | null;
+  /** Roulette: this round's chips on the layout (for everyone to see). */
+  rb?: { r: number; b: Record<string, number> } | null;
 }
 
 /** Fields every engine's public state carries. */

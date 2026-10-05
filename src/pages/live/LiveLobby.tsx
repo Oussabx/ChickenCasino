@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Bot, ChevronLeft, Crown, Lock, Radio, Zap } from 'lucide-react';
-import { BJ_TABLES, LiveTable, POKER_TABLES, hex } from '../../lib/net/tables';
+import { BJ_TABLES, LiveTable, POKER_TABLES, ROULETTE_TABLES, hex } from '../../lib/net/tables';
 import { useLobby } from '../../lib/net/lobby';
 import { fmt, fmtCompact } from '../../lib/format';
 import { useStore, useUI } from '../../store';
@@ -15,23 +15,28 @@ const BANDS = [
   { id: 'vip', label: 'VIP room', sub: 'For the high rollers only', tiers: [8, 9] },
 ] as const;
 type Band = 'all' | (typeof BANDS)[number]['id'];
+/** Roulette tables share one chip range, so they're one list. */
+const ROULETTE_BAND = [{ id: 'all', label: 'All tables', sub: 'Same chips at every table (100 to 1M) — pick the look you like', tiers: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] }] as const;
 
 /** Zynga-style lobby: ten live tables per game, from friendly stakes to the high-roller room. */
-export default function LiveLobby({ game }: { game: 'poker' | 'blackjack' }) {
-  const tables = game === 'poker' ? POKER_TABLES : BJ_TABLES;
+export default function LiveLobby({ game }: { game: 'poker' | 'blackjack' | 'roulette' }) {
+  const roulette = game === 'roulette';
+  const tables = game === 'poker' ? POKER_TABLES : game === 'blackjack' ? BJ_TABLES : ROULETTE_TABLES;
   const { counts, kind, online } = useLobby();
   const balance = useStore((s) => s.balance);
   const escrow = useStore((s) => s.escrow);
   const nav = useNavigate();
   const [band, setBand] = useState<Band>('all');
   // "Play now": the biggest table you can comfortably afford (4+ minimum buy-ins)
-  const best = [...tables].reverse().find((t) => balance >= t.buyMin * 4) ?? [...tables].reverse().find((t) => balance >= t.buyMin);
+  const best = roulette
+    ? [...tables].filter((t) => (counts[t.id]?.seated ?? 0) > 0).sort((a, b) => (counts[b.id]?.seated ?? 0) - (counts[a.id]?.seated ?? 0))[0]
+    : [...tables].reverse().find((t) => balance >= t.buyMin * 4) ?? [...tables].reverse().find((t) => balance >= t.buyMin);
   const featured = best ?? tables[0];
-  const title = game === 'poker' ? 'Texas Hold’em' : 'Blackjack';
+  const title = game === 'poker' ? 'Texas Hold’em' : game === 'blackjack' ? 'Blackjack' : 'Roulette';
   const base = `/games/${game}`;
   const seatedAll = Object.values(counts).reduce((a, c) => a + c.seated, 0);
   const open = (t: LiveTable) => nav(`${base}/${t.id}${balance >= t.buyMin ? '?sit=1' : ''}`);
-  const shown = BANDS.filter((b) => band === 'all' || b.id === band);
+  const shown = roulette ? ROULETTE_BAND : BANDS.filter((b) => band === 'all' || b.id === band);
 
   return (
     <div className="mx-auto max-w-7xl px-3 pb-28 pt-4 sm:px-4 lg:px-6 lg:pt-6">
@@ -39,7 +44,7 @@ export default function LiveLobby({ game }: { game: 'poker' | 'blackjack' }) {
         <Link to="/games" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-ink-700 hover:bg-ink-600" aria-label="Back to games"><ChevronLeft size={18} /></Link>
         <div className="min-w-0">
           <h1 className="truncate font-display text-lg font-black leading-tight sm:text-2xl">{title} · Live tables</h1>
-          <p className="truncate text-xs text-smoke">{game === 'poker' ? 'Real players, real bluffs. Pick your stakes and your buy-in.' : 'Up to five players against the chicken dealer.'}</p>
+          <p className="truncate text-xs text-smoke">{game === 'poker' ? 'Real players, real bluffs. Pick your stakes and your buy-in.' : game === 'blackjack' ? 'Up to five players against the chicken dealer.' : 'Up to 25 players on one wheel. Chips from 100 to a million.'}</p>
         </div>
       </div>
 
@@ -51,24 +56,24 @@ export default function LiveLobby({ game }: { game: 'poker' | 'blackjack' }) {
               <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[.16em] ${kind === 'live' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-white/10 text-smoke'}`}>
                 <span className={`h-1.5 w-1.5 rounded-full ${kind === 'live' ? 'animate-pulse bg-emerald-400' : 'bg-smoke'}`} />{kind === 'live' ? 'Live' : 'This browser only'}
               </span>
-              {best && <span className="rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[.16em] text-ink" style={{ background: hex(featured.theme.trim) }}>Recommended for you</span>}
+              {best && <span className="rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[.16em] text-ink" style={{ background: hex(featured.theme.trim) }}>{roulette ? 'Hot table' : 'Recommended for you'}</span>}
             </div>
             <h2 className="mt-3 font-display text-3xl font-black leading-[1.05] sm:text-4xl lg:text-5xl">{featured.name}</h2>
             <p className="mt-1 text-sm text-cream/70">{featured.tagline} · Table {featured.tier + 1} of 10</p>
             <div className="mt-4 grid max-w-md grid-cols-3 gap-2">
-              <Stat k={game === 'poker' ? 'Blinds' : 'Bets'} v={`${fmtCompact(featured.lo)}${game === 'poker' ? '/' : '–'}${fmtCompact(featured.hi)}`} />
-              <Stat k="Buy-in" v={`${fmtCompact(featured.buyMin)}–${fmtCompact(featured.buyMax)}`} gold />
-              <Stat k="Seated" v={`${counts[featured.id]?.seated ?? 0}/${featured.seats}`} />
+              <Stat k={game === 'poker' ? 'Blinds' : roulette ? 'Chips' : 'Bets'} v={`${fmtCompact(featured.lo)}${game === 'poker' ? '/' : '–'}${fmtCompact(featured.hi)}`} />
+              <Stat k="Buy-in" v={roulette ? 'None' : `${fmtCompact(featured.buyMin)}–${fmtCompact(featured.buyMax)}`} gold />
+              <Stat k={roulette ? 'Players' : 'Seated'} v={`${counts[featured.id]?.seated ?? 0}/${featured.seats}`} />
             </div>
             <div className="mt-5 hidden flex-col gap-2 sm:flex sm:flex-row">
-              <HeroButtons best={best} base={base} onOpen={open} />
+              <HeroButtons best={roulette ? featured : best} base={base} onOpen={open} />
             </div>
           </div>
           <button type="button" onClick={() => open(featured)} className="group relative mx-auto w-full max-w-[520px] focus-visible:outline-none" aria-label={`Open ${featured.name}`}>
             <TablePreview t={featured} seated={counts[featured.id]?.seated ?? 0} size="lg" />
           </button>
           <div className="flex flex-col gap-2 sm:hidden">
-            <HeroButtons best={best} base={base} onOpen={open} />
+            <HeroButtons best={roulette ? featured : best} base={base} onOpen={open} />
           </div>
         </div>
         {/* quick facts */}
@@ -85,7 +90,7 @@ export default function LiveLobby({ game }: { game: 'poker' | 'blackjack' }) {
       )}
 
       {/* ---------- stakes filter ---------- */}
-      <div className="no-scrollbar -mx-3 mt-5 flex gap-1.5 overflow-x-auto px-3 sm:mx-0 sm:px-0">
+      <div className={`no-scrollbar ${roulette ? 'hidden' : ''} -mx-3 mt-5 flex gap-1.5 overflow-x-auto px-3 sm:mx-0 sm:px-0`}>
         {(['all', ...BANDS.map((b) => b.id)] as Band[]).map((b) => {
           const label = b === 'all' ? 'All tables' : BANDS.find((x) => x.id === b)!.label;
           return (
@@ -104,9 +109,9 @@ export default function LiveLobby({ game }: { game: 'poker' | 'blackjack' }) {
               <h3 className={`flex items-center gap-2 font-display text-lg font-black sm:text-xl ${b.id === 'vip' ? 'text-gold-grad' : ''}`}>{b.id === 'vip' && <Crown size={18} className="text-gold" />}{b.label}</h3>
               <p className="truncate text-xs text-smoke">{b.sub}</p>
             </div>
-            <span className="shrink-0 text-[11px] font-semibold text-smoke tabular">Buy-ins {fmtCompact(tables[b.tiers[0]].buyMin)}–{fmtCompact(tables[b.tiers[b.tiers.length - 1]].buyMax)}</span>
+            {!roulette && <span className="shrink-0 text-[11px] font-semibold text-smoke tabular">Buy-ins {fmtCompact(tables[b.tiers[0]].buyMin)}–{fmtCompact(tables[b.tiers[b.tiers.length - 1]].buyMax)}</span>}
           </div>
-          <div className={`grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3 ${b.tiers.length === 3 ? 'lg:grid-cols-3' : ''}`}>
+          <div className={`grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3 ${b.tiers.length !== 2 ? 'lg:grid-cols-3' : ''}`}>
             {b.tiers.map((i) => tables[i]).map((t) => (
               <TableCard key={t.id} t={t} count={counts[t.id]} balance={balance} best={best?.id === t.id} vip={b.id === 'vip'} onOpen={() => open(t)} />
             ))}
@@ -178,8 +183,10 @@ function TableCard({ t, count, balance, best, vip, onOpen }: { t: LiveTable; cou
             : <span className="hidden shrink-0 rounded-full bg-white/5 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-smoke sm:inline">Table {t.tier + 1}</span>}
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
-          <span><span className="text-smoke">{t.game === 'poker' ? 'Blinds ' : 'Bets '}</span><b className="font-display tabular">{fmtCompact(t.lo)}{t.game === 'poker' ? '/' : '–'}{fmtCompact(t.hi)}</b></span>
-          <span><span className="text-smoke">Buy-in </span><b className="font-display tabular text-gold">{fmtCompact(t.buyMin)}–{fmtCompact(t.buyMax)}</b></span>
+          <span><span className="text-smoke">{t.game === 'poker' ? 'Blinds ' : t.game === 'roulette' ? 'Chips ' : 'Bets '}</span><b className="font-display tabular">{fmtCompact(t.lo)}{t.game === 'poker' ? '/' : '–'}{fmtCompact(t.hi)}</b></span>
+          {t.game === 'roulette'
+            ? <span className="text-smoke">No buy-in</span>
+            : <span><span className="text-smoke">Buy-in </span><b className="font-display tabular text-gold">{fmtCompact(t.buyMin)}–{fmtCompact(t.buyMax)}</b></span>}
         </div>
         {locked ? (
           <div className="mt-auto">
@@ -189,8 +196,8 @@ function TableCard({ t, count, balance, best, vip, onOpen }: { t: LiveTable; cou
         ) : (
           <div className="mt-auto flex items-center justify-between gap-2">
             <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-smoke">
-              <span className="flex shrink-0 gap-0.5">{Array.from({ length: t.seats }, (_, i) => <span key={i} className={`h-1.5 w-1.5 rounded-full ${i < seated ? 'bg-emerald-400' : 'bg-white/15'}`} />)}</span>
-              <span className="truncate">{seated ? `${seated} playing` : 'Open table'}{count?.watching ? ` · ${count.watching} watching` : ''}</span>
+              {t.seats <= 8 && <span className="flex shrink-0 gap-0.5">{Array.from({ length: t.seats }, (_, i) => <span key={i} className={`h-1.5 w-1.5 rounded-full ${i < seated ? 'bg-emerald-400' : 'bg-white/15'}`} />)}</span>}
+              <span className="truncate">{t.seats > 8 ? `${seated}/${t.seats} players` : seated ? `${seated} playing` : 'Open table'}{count?.watching ? ` · ${count.watching} watching` : ''}</span>
             </span>
             <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-gold px-3 py-1.5 text-xs font-black text-ink transition group-hover:bg-gold-300">Join<ArrowRight size={13} /></span>
           </div>
@@ -206,6 +213,7 @@ function TableCard({ t, count, balance, best, vip, onOpen }: { t: LiveTable; cou
  * it: felt, rail, chips in the pot, seats round the edge, chicken dealer at the head.
  */
 export function TablePreview({ t, seated, size = 'sm' }: { t: LiveTable; seated: number; size?: 'sm' | 'lg' }) {
+  if (t.game === 'roulette') return <WheelPreview t={t} seated={seated} size={size} />;
   const th = t.theme;
   const poker = t.game === 'poker';
   const lg = size === 'lg';
@@ -238,6 +246,34 @@ export function TablePreview({ t, seated, size = 'sm' }: { t: LiveTable; seated:
           <span key={i} className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 ${lg ? 'h-5 w-5' : 'h-2.5 w-2.5 sm:h-3 sm:w-3'} ${i < seated ? 'border-black/50 bg-gold shadow-[0_0_10px_rgba(244,196,48,.9)]' : 'border-white/20 bg-ink-900'}`} style={{ left: `${p.x}%`, top: `${p.y}%` }} />
         ))}
       </div>
+    </div>
+  );
+}
+
+/** Roulette preview: the wheel, spinning slowly, beside a strip of the layout in the table's felt. */
+function WheelPreview({ t, seated, size }: { t: LiveTable; seated: number; size: 'sm' | 'lg' }) {
+  const th = t.theme;
+  const lg = size === 'lg';
+  const W = lg ? 'h-[150px] w-[150px] sm:h-[200px] sm:w-[200px]' : 'h-[84px] w-[84px] sm:h-[116px] sm:w-[116px]';
+  // 37 pockets: green zero, then red/black alternating
+  const seg = 360 / 37;
+  const stops = Array.from({ length: 37 }, (_, i) => `${i === 0 ? '#0e8f4a' : i % 2 ? '#b3192a' : '#141414'} ${i * seg}deg ${(i + 1) * seg}deg`).join(',');
+  return (
+    <div className={`relative flex w-full items-center justify-center gap-3 ${lg ? 'h-[190px] sm:h-[250px]' : 'h-[100px] sm:h-[132px]'}`}>
+      <div className={`relative shrink-0 rounded-full p-[5%] ${W}`} style={{ background: `radial-gradient(circle, ${hex(th.rail)} 60%, #1a0d06)`, boxShadow: `0 14px 30px -10px rgba(0,0,0,.85)${th.glow ? `, 0 0 26px ${hex(th.glow)}66` : ''}` }}>
+        <div className="wheel-idle relative h-full w-full rounded-full" style={{ background: `conic-gradient(${stops})`, boxShadow: `inset 0 0 0 2px ${hex(th.trim)}` }}>
+          <div className="absolute inset-[26%] rounded-full" style={{ background: `radial-gradient(circle, ${hex(th.trim)}, #6b4a12)`, boxShadow: '0 0 10px rgba(0,0,0,.6)' }} />
+          <span className="absolute left-1/2 top-[8%] h-[7%] w-[7%] -translate-x-1/2 rounded-full bg-white shadow" />
+        </div>
+      </div>
+      {lg && (
+        <div className="hidden flex-col gap-1 sm:flex" style={{ transform: 'perspective(600px) rotateY(-14deg)' }}>
+          <div className="grid grid-cols-6 gap-[3px] rounded-lg p-2" style={{ background: `linear-gradient(160deg, ${hex(th.felt)}, ${hex(th.edge)})`, boxShadow: `inset 0 0 0 1.5px ${hex(th.trim)}99` }}>
+            {Array.from({ length: 18 }, (_, i) => { const n = i + 1; const red = [1, 3, 5, 7, 9, 12, 14, 16, 18].includes(n); return <span key={n} className="grid h-6 w-6 place-items-center rounded-[3px] font-display text-[10px] font-black text-white" style={{ background: red ? '#b3192a' : '#141414' }}>{n}</span>; })}
+          </div>
+          <span className="text-center text-[11px] font-bold text-cream/70">{seated}/{t.seats} players</span>
+        </div>
+      )}
     </div>
   );
 }

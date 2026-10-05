@@ -316,3 +316,8 @@ input[type='range'].range::-moz-range-track { height: 8px; background: transpare
 @keyframes pot-pop { 0% { transform: scale(1) } 40% { transform: scale(1.18) } 100% { transform: scale(1) } }
 .pot-pop { animation: pot-pop .45s ease-out; }
 @media (prefers-reduced-motion: reduce) { .win-float, .seat-win, .street-flash, .pot-pop, .emote-pop { animation-duration: .01ms; } }
+@keyframes emote-pop-in { 0% { opacity: 0; transform: translateX(-12px) scale(.9) } 12% { opacity: 1; transform: none } 85% { opacity: 1 } 100% { opacity: 0 } }
+.emote-pop-in { animation: emote-pop-in 4s ease-out both; }
+@keyframes wheel-idle { to { transform: rotate(360deg) } }
+.wheel-idle { animation: wheel-idle 14s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .wheel-idle { animation: none; } }

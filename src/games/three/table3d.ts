@@ -66,7 +66,7 @@ export interface TableOpts {
   view?: { wide?: [number, number, number]; narrow?: [number, number, number] };
 }
 
-const DENOMS: [number, number][] = [[1000, 0x7c3aed], [500, 0x1e1e1e], [100, 0xf4c430], [25, 0x10b981], [5, 0xe63946], [1, 0xf8f6ef]];
+const DENOMS: [number, number][] = [[1000000, 0], [500000, 0], [100000, 0], [50000, 0], [10000, 0], [5000, 0], [1000, 0x7c3aed], [500, 0x1e1e1e], [100, 0xf4c430], [25, 0x10b981], [5, 0xe63946], [1, 0xf8f6ef]];
 
 type Anim = { t0: number; dur: number; step: (k: number) => void; done: () => void };
 interface Glow { mesh: THREE.Mesh; base: number; pulse: boolean; fade?: number }
@@ -849,7 +849,7 @@ export class TableScene extends Stage3D {
 }
 
 /** A stack of casino chips worth `amount`, with a floating amount label. `userData.n` = chip count. */
-export function chipStack(amount: number, r = 0.3) {
+export function chipStack(amount: number, r = 0.3, labelScale = 1) {
   const g = new THREE.Group();
   const h = r * 0.227;
   let left = amount, n = 0;
@@ -858,7 +858,7 @@ export function chipStack(amount: number, r = 0.3) {
   }
   if (n === 0) { const c = chipColor(1); const ch = makeChip(c.color, r, c.stripe, c.glow); ch.position.y = r / 3; g.add(ch); n = 1; }
   const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: textTexture(fmtChip(amount), { w: 192, h: 80, size: 46, color: '#F4C430', bg: 'rgba(11,11,11,.82)', radius: 40 }), depthTest: false, transparent: true }));
-  label.scale.set(r * 1.83, r * 0.77, 1); label.position.y = r * 0.67 + n * h + r * 1.5; label.renderOrder = 10;
+  label.scale.set(r * 1.83 * labelScale, r * 0.77 * labelScale, 1); label.position.y = r * 0.67 + n * h + r * (1.5 + (labelScale - 1) * 0.6); label.renderOrder = 10;
   g.add(label);
   g.userData.n = n;
   return g;
@@ -875,7 +875,7 @@ const easeOutBounce = (x: number) => {
   return n1 * (x -= 2.625 / d1) * x + 0.984375;
 };
 
-const fmtChip = (v: number) => (v >= 10000 ? `${Math.round(v / 1000)}k` : v >= 1000 ? `${Math.round(v / 100) / 10}k` : Number.isInteger(v) ? String(v) : v.toFixed(2));
+const fmtChip = (v: number) => (v >= 1e6 ? `${Math.round(v / 1e5) / 10}M` : v >= 10000 ? `${Math.round(v / 1000)}k` : v >= 1000 ? `${Math.round(v / 100) / 10}k` : Number.isInteger(v) ? String(v) : v.toFixed(2));
 
 const glowCache = new Map<string, THREE.CanvasTexture>();
 /** Soft glowing rounded-rect outline, sized for a w×h (world) area plus 0.35 margin each side. */
