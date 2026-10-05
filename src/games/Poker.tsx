@@ -421,7 +421,7 @@ export default function Poker() {
   const streetLabel = g ? { preflop: 'Pre-flop', flop: 'Flop', turn: 'Turn', river: 'River', showdown: 'Showdown' }[g.street] : '';
 
   return (
-    <GameShell id="poker" tall controls={controls} rules={[
+    <GameShell id="poker" tall controls={controls} title="Hold’em practice" subtitle="You against the chicken bots · offline" back="/games/poker" rules={[
       'Pick the blinds and how many players (2–8), then take a seat. The chicken croupier deals every hand but never plays.',
       'The dealer button moves one seat to the left each hand. The two players after it post the small and big blind; everyone gets two private cards.',
       'Pre-flop betting starts left of the big blind. Then the flop (3 shared cards), the turn (4th) and the river (5th) are dealt, each followed by a betting round that starts left of the button. A card is burned before each street.',
