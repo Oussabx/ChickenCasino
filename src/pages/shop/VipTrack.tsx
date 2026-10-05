@@ -22,7 +22,7 @@ export default function VipTrack({ onOpen, compact }: { onOpen: (it: ShopItem) =
     else { sfx.win(); toast({ title: `${itemById(id)?.name} unlocked!`, tone: 'gold' }); }
   };
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-gold/30 bg-gradient-to-br from-[#2a1d02] via-[#120c02] to-black p-5 sm:p-7">
+    <section className="relative w-full overflow-hidden rounded-3xl border border-gold/30 bg-gradient-to-br from-[#2a1d02] via-[#120c02] to-black p-5 sm:p-7">
       <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-gold/20 blur-3xl" />
       <div className="relative flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -40,7 +40,7 @@ export default function VipTrack({ onOpen, compact }: { onOpen: (it: ShopItem) =
             const on = level >= t.level;
             return (
               <div key={t.name} className="flex w-0 flex-col items-center">
-                <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 transition ${on ? 'shop-vip-on' : 'bg-ink-900'}`} style={{ borderColor: on ? t.color : 'rgba(255,255,255,.15)', background: on ? `${t.color}30` : undefined }}>
+                <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 transition ${on ? 'shop-vip-on' : 'bg-ink-900'}`} style={{ borderColor: on ? t.color : 'rgba(255,255,255,.15)', background: on ? `linear-gradient(${t.color}30, ${t.color}30), #0b0b0b` : '#0b0b0b' }}>
                   {on ? <Crown size={18} style={{ color: t.color }} /> : <Lock size={14} className="text-smoke" />}
                 </div>
                 <div className="mt-1.5 w-16 text-center font-display text-[10px] leading-tight sm:w-auto sm:whitespace-nowrap font-black uppercase tracking-wider sm:text-xs" style={{ color: on ? t.color : '#8a8a8a' }}>{t.name}</div>

@@ -32,7 +32,7 @@ export default function Home() {
             <span className="word-in inline-block text-gold-grad" style={{ animationDelay: '420ms' }}>bigger.</span>
           </h1>
           <p className="mt-5 text-lg text-cream/80 max-w-sm word-in" style={{ animationDelay: '600ms' }}>Your favorite casino games, with a little more chicken.</p>
-          <div className="mt-8 grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 sm:flex sm:flex-wrap word-in" style={{ animationDelay: '720ms' }}>
+          <div className="mt-8 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap word-in" style={{ animationDelay: '720ms' }}>
             {user ? (
               <Link to="/games/chicken-cross" className="btn-gold px-5 py-3.5 text-base whitespace-nowrap">Play Chicken Cross <ArrowRight size={18} /></Link>
             ) : (
