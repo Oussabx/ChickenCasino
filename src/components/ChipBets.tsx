@@ -24,8 +24,10 @@ export function ChipToken({ value, size = 36, selected }: { value: number; size?
   const c = chipColor(value);
   return (
     <span className={`relative grid place-items-center rounded-full font-display font-black shadow-lg ${selected ? 'ring-2 ring-gold ring-offset-2 ring-offset-ink-800 -translate-y-1' : ''} transition`}
-      style={{ width: size, height: size, fontSize: size * 0.32, color: c.text, backgroundColor: c.css, backgroundImage: `repeating-conic-gradient(${c.stripeCss}cc 0 10deg, transparent 10deg 45deg)`, boxShadow: c.glow ? `0 0 ${size * 0.35}px ${c.css}` : undefined }}>
-      <span className="grid place-items-center rounded-full border-2 border-dashed border-white/60" style={{ width: size * 0.66, height: size * 0.66, background: c.css }}>{chipLabel(value)}</span>
+      style={{ width: size, height: size, backgroundColor: c.css, backgroundImage: `repeating-conic-gradient(${c.stripeCss}cc 0 10deg, transparent 10deg 45deg)`, boxShadow: c.glow ? `0 0 ${size * 0.35}px ${c.css}` : undefined }}>
+      {/* a light centre disc so the value reads on every chip colour */}
+      <span className="grid place-items-center rounded-full leading-none tracking-tight text-[#111]"
+        style={{ width: size * 0.68, height: size * 0.68, background: 'radial-gradient(circle at 50% 35%, #ffffff, #ece6d6)', boxShadow: `inset 0 0 0 ${Math.max(1.5, size * 0.05)}px ${c.css}, 0 1px 2px rgba(0,0,0,.45)`, fontSize: size * (chipLabel(value).length >= 4 ? 0.23 : chipLabel(value).length === 3 ? 0.27 : 0.3) }}>{chipLabel(value)}</span>
     </span>
   );
 }
