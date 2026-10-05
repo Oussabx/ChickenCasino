@@ -7,8 +7,8 @@ import { useCountUp } from '../components/TableUI';
 import { useStore } from '../store';
 import { sfx } from '../lib/sound';
 import { fmt } from '../lib/format';
-import { FREE_SPINS, FREE_SPIN_MULT, LINES, LINE_COLORS, LINE_PAYS, PAYLINES, SCATTER_PAYS, SYMBOL_NAME, SpinResult, Sym, spin as rollSpin } from '../lib/slots';
-import SlotMachine, { MachineHandle } from './SlotMachine';
+import { FREE_SPINS, FREE_SPIN_MULT, JACKPOT_SEED, JACKPOT_STEP, LINES, LINE_COLORS, LINE_PAYS, PAYLINES, SCATTER_PAYS, SYMBOL_NAME, SpinResult, Sym, jackpotNow, saveJackpot, spin as rollSpin } from '../lib/slots';
+import SlotMachine, { MachineHandle, Ticker } from './SlotMachine';
 import { loadSlotArt, symbolUrl } from './three/slotArt';
 import { usePhoneLayout } from '../lib/phone';
 
@@ -34,6 +34,8 @@ export default function Slots() {
   const phone = usePhoneLayout().phone;
   const urls = useSymbolUrls();
   const [sess, setSess] = useState<Session>(loadSession);
+  // the progressive jackpot, in line bets
+  const [jp, setJp] = useState(jackpotNow);
   useEffect(() => saveSession(sess), [sess]);
   const turbo = useStore((s) => s.settings.turbo);
   const machine = useRef<MachineHandle>(null);
@@ -85,8 +87,14 @@ export default function Slots() {
     setSess((x) => ({ ...x, spins: x.spins + 1, spent: x.spent + bet }));
     const lineBet = bet / LINES;
     setShown({ amount: 0, label: 'Spinning…', tone: 'idle' });
-    const res = rollSpin();
+    const jpNow = jackpotNow();
+    const res = rollSpin(jpNow);
+    // every paid spin feeds the jackpot; hitting it starts it over
+    const hitJp = res.lines.some((l) => l.jackpot);
+    saveJackpot(hitJp ? JACKPOT_SEED : jpNow + JACKPOT_STEP);
     await runReels(res);
+    setJp(jackpotNow());
+    if (hitJp) { sfx.bigWin(); setBanner('MEGA JACKPOT!'); await wait(2600); setBanner(null); }
     let total = present(res, lineBet, 1);
     if (total > 0) setShown({ amount: total, label: describe(res), tone: 'win' });
     else setShown({ amount: 0, label: res.freeSpins ? '' : 'No win — spin again', tone: 'idle' });
@@ -104,7 +112,8 @@ export default function Slots() {
       while (left > 0 && machine.current) {
         left--; played++;
         setFree({ left, total: played + left, won: featureWin });
-        const fr = rollSpin();
+        const fr = rollSpin(jackpotNow());
+        if (fr.lines.some((l) => l.jackpot)) { saveJackpot(JACKPOT_SEED); setJp(JACKPOT_SEED); }
         await runReels(fr);
         const w = present(fr, lineBet, FREE_SPIN_MULT);
         featureWin += w;
@@ -175,7 +184,7 @@ export default function Slots() {
         <Seg options={AUTO} value={auto} onChange={setAuto} disabled={running} render={(v) => (v ? String(v) : 'Off')} />
       </div>
       {(!sideLegend || phone) && <SessionStats s={sess} onReset={() => setSess(EMPTY_SESSION)} compact />}
-      {(!sideLegend || phone) && <Legend urls={urls} lineBet={bet / LINES} bet={bet} lit={lit} free={!!free} compact />}
+      {(!sideLegend || phone) && <Legend urls={urls} lineBet={bet / LINES} bet={bet} lit={lit} free={!!free} jp={jp} compact />}
       <GameAction extra={<MiniBet value={bet} onChange={setBet} disabled={running} />}>
         {autoLeft > 0 ? (
           <button className="btn-red w-full py-4 text-base" onClick={() => setAutoLeft(0)}>Stop autoplay ({autoLeft})</button>
@@ -202,7 +211,7 @@ export default function Slots() {
     ]}>
       <div ref={boxRef} className="absolute inset-0 flex">
         <div className="relative min-w-0 flex-1">
-          <SlotMachine ref={machine} free={!!free} jackpot={JACKPOT * (bet / LINES)}
+          <SlotMachine ref={machine} free={!!free} jackpot={jp * (bet / LINES)}
             freeInfo={free && (
               <div className="flex items-center gap-2 whitespace-nowrap rounded-full border-2 border-blood bg-black/85 px-3 py-1 font-display text-xs font-black tracking-wider text-cream shadow-[0_0_20px_rgba(230,57,70,.6)] sm:text-sm">
                 <span className="text-blood">FREE SPINS</span><span className="tabular">{free.total - free.left}/{free.total}</span><span className="text-gold tabular">+{fmt(free.won)}</span><span className="rounded bg-blood px-1.5 text-[10px] text-white">×3</span>
@@ -218,7 +227,7 @@ export default function Slots() {
             </button>
             {legendOpen && (
               <div className="absolute inset-y-0 right-0 z-[15] w-[min(300px,62%)] overflow-y-auto overscroll-contain border-l border-gold/30 bg-ink/90 p-2.5 pb-12 backdrop-blur-md animate-slideUp">
-                <Legend urls={urls} lineBet={bet / LINES} bet={bet} lit={lit} free={!!free} />
+                <Legend urls={urls} lineBet={bet / LINES} bet={bet} lit={lit} free={!!free} jp={jp} />
               </div>
             )}
           </>
@@ -227,7 +236,7 @@ export default function Slots() {
           <div className="relative z-10 w-[clamp(220px,27%,280px)] shrink-0 overflow-y-auto border-l border-white/[0.06] bg-black/45 p-3 backdrop-blur-sm">
             <SessionStats s={sess} onReset={() => setSess(EMPTY_SESSION)} />
             <div className="h-2" />
-            <Legend urls={urls} lineBet={bet / LINES} bet={bet} lit={lit} free={!!free} />
+            <Legend urls={urls} lineBet={bet / LINES} bet={bet} lit={lit} free={!!free} jp={jp} />
           </div>
         )}
       </div>
@@ -279,7 +288,7 @@ function Paytable({ open, onClose, lineBet, urls }: { open: boolean; onClose: ()
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-bold">{SYMBOL_NAME[s]}</div>
               <div className="mt-0.5 grid grid-cols-3 gap-1 text-[11px] tabular">
-                {LINE_PAYS[s]!.map((p, i) => <span key={i} className="rounded bg-white/5 px-1 py-0.5 text-center"><b className="text-smoke">{i + 3}×</b> <span className="text-gold">{fmt(p * lineBet, Number.isInteger(p * lineBet) ? 0 : 2)}</span></span>)}
+                {LINE_PAYS[s]!.map((p, i) => <span key={i} className="rounded bg-white/5 px-1 py-0.5 text-center"><b className="text-smoke">{i + 3}×</b> <span className="text-gold">{s === 'wild' && i === 2 ? 'JACKPOT' : fmt(p * lineBet, Number.isInteger(p * lineBet) ? 0 : 2)}</span></span>)}
               </div>
             </div>
           </div>
@@ -308,8 +317,6 @@ function Paytable({ open, onClose, lineBet, urls }: { open: boolean; onClose: ()
   );
 }
 
-/** Five Golden Roosters on a line — the top prize, in line bets. */
-const JACKPOT = LINE_PAYS.wild![2];
 
 /** Symbol art as image URLs (drawn once, shared by the legend and the paytable). */
 let urlCache: Record<string, string> | null = null;
@@ -333,7 +340,7 @@ const money = (v: number) => (v >= 10000 ? `${fmt(v / 1000, v % 1000 ? 1 : 0)}k`
  * Always-visible legend: the jackpot, how free spins are won, what the wild
  * does, and what each symbol pays at the current bet. Rows light up on a win.
  */
-function Legend({ urls, lineBet, bet, lit, free, compact }: { urls: Record<string, string>; lineBet: number; bet: number; lit: { syms: Sym[]; coop: boolean }; free: boolean; compact?: boolean }) {
+function Legend({ urls, lineBet, bet, lit, free, compact, jp }: { urls: Record<string, string>; lineBet: number; bet: number; lit: { syms: Sym[]; coop: boolean }; free: boolean; compact?: boolean; jp: number }) {
   const img = (s: string, size: string) => (urls[s] ? <img src={urls[s]} alt="" className={`${size} shrink-0`} draggable={false} /> : <span className={`${size} shrink-0`} />);
   const hot = (s: Sym) => lit.syms.includes(s);
   return (
@@ -344,9 +351,9 @@ function Legend({ urls, lineBet, bet, lit, free, compact }: { urls: Record<strin
         <div className="flex items-center gap-2">
           {img('wild', compact ? 'h-9 w-9' : 'h-11 w-11')}
           <div className="min-w-0">
-            <div className="font-display text-[10px] font-black uppercase tracking-[.2em] text-gold/80">Jackpot</div>
-            <div className="font-display text-lg font-black leading-tight text-gold-grad tabular">{money(JACKPOT * lineBet)}</div>
-            <div className="text-[10px] leading-tight text-cream/75">5 Golden Roosters on a line{free ? ' · ×3 now!' : ''}</div>
+            <div className="font-display text-[10px] font-black uppercase tracking-[.2em] text-gold/80">Mega jackpot · growing</div>
+            <div className="font-display text-lg font-black leading-tight text-gold-grad tabular"><Ticker value={jp * lineBet} /></div>
+            <div className="text-[10px] leading-tight text-cream/75">5 Golden Roosters on a line{free ? ' · ×3 now!' : ''} · grows every spin</div>
             <div className="text-[10px] leading-tight text-cream/60"><b className="text-gold">Wild</b> — stands in for any symbol except the Coop</div>
           </div>
         </div>
@@ -421,3 +428,4 @@ function SessionStats({ s, onReset, compact }: { s: Session; onReset: () => void
     </div>
   );
 }
+

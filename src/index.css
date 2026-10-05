@@ -302,3 +302,17 @@ input[type='range'].range::-moz-range-track { height: 8px; background: transpare
 /* live tables: a quick reaction pops over the player's seat */
 @keyframes emote-pop { 0% { transform: translate(-50%, 8px) scale(.4); opacity: 0 } 18% { transform: translate(-50%, -4px) scale(1.2); opacity: 1 } 30% { transform: translate(-50%, 0) scale(1) } 80% { opacity: 1 } 100% { transform: translate(-50%, -18px) scale(.9); opacity: 0 } }
 .emote-pop { animation: emote-pop 2.6s ease-out both; }
+@keyframes emote-tray { from { opacity: 0; transform: translateY(-6px) scale(.96) } to { opacity: 1; transform: none } }
+.emote-tray { animation: emote-tray .16s ease-out both; transform-origin: top right; }
+
+/* live tables: seats, wins, street flashes */
+.seat-back { background: repeating-linear-gradient(45deg, #b3202e 0 3px, #8e1622 3px 6px); }
+@keyframes win-float { 0% { opacity: 0; transform: translateY(10px) scale(.7) } 15% { opacity: 1; transform: translateY(0) scale(1.15) } 25% { transform: scale(1) } 80% { opacity: 1 } 100% { opacity: 0; transform: translateY(-26px) } }
+.win-float { animation: win-float 2.8s ease-out both; }
+@keyframes seat-win { 0%, 100% { box-shadow: 0 0 14px rgba(244,196,48,.6) } 50% { box-shadow: 0 0 34px rgba(244,196,48,1) } }
+.seat-win { animation: seat-win 1s ease-in-out infinite; }
+@keyframes street-flash { 0% { opacity: 0; transform: scale(1.6); letter-spacing: .6em } 20% { opacity: 1; transform: scale(1); letter-spacing: .3em } 75% { opacity: 1 } 100% { opacity: 0; transform: scale(.95) } }
+.street-flash { animation: street-flash 1.3s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes pot-pop { 0% { transform: scale(1) } 40% { transform: scale(1.18) } 100% { transform: scale(1) } }
+.pot-pop { animation: pot-pop .45s ease-out; }
+@media (prefers-reduced-motion: reduce) { .win-float, .seat-win, .street-flash, .pot-pop, .emote-pop { animation-duration: .01ms; } }
