@@ -20,7 +20,7 @@ export interface Round {
 }
 
 /** Coins taken to a live table: they come back (as the final stack) when you stand up. */
-export interface Escrow { rid: string; game: 'poker' | 'blackjack'; table: string; tableName: string; buyIn: number; stack: number; at: number }
+export interface Escrow { rid: string; game: 'poker' | 'blackjack'; table: string; tableName: string; buyIn: number; stack: number; at: number; /** Chips added from the balance after sitting down. */ tu?: number }
 
 export type TxKind = 'bonus' | 'daily' | 'shop' | 'promo' | 'mission' | 'rakeback' | 'level' | 'exchange' | 'faucet' | 'purchase' | 'table';
 export interface Tx { id: string; kind: TxKind; label: string; coins: number; eggs: number; at: number }
@@ -173,6 +173,8 @@ interface State {
   escrowOpen: (e: Omit<Escrow, 'stack' | 'at'>) => string | null;
   /** Remember the seat's current stack (what you get back if the page closes). */
   escrowSync: (rid: string, stack: number) => void;
+  /** The table took `tu` chips in total from the balance since sitting down: pay what's new. */
+  escrowTopUp: (rid: string, tu: number) => void;
   /** Stand up: the stack goes back to the balance. Returns the amount. */
   escrowClose: (rid?: string) => number;
   grant: (kind: TxKind, label: string, coins: number, eggs?: number) => void;
@@ -286,6 +288,16 @@ export const useStore = create<State>()(
       escrowSync: (rid, stack) => {
         const e = get().escrow;
         if (e && e.rid === rid && e.stack !== stack) set({ escrow: { ...e, stack: +stack.toFixed(2) } });
+      },
+      escrowTopUp: (rid, tu) => {
+        const e = get().escrow;
+        const add = e && e.rid === rid ? +(tu - (e.tu ?? 0)).toFixed(2) : 0;
+        if (!e || add <= 0) return;
+        set((st) => ({
+          balance: +(st.balance - add).toFixed(2),
+          escrow: { ...e, tu, buyIn: +(e.buyIn + add).toFixed(2) },
+          txs: [{ id: uid(), kind: 'table' as TxKind, label: `Added chips at ${e.tableName}`, coins: -add, eggs: 0, at: Date.now() }, ...st.txs].slice(0, 300),
+        }));
       },
       escrowClose: (rid) => {
         const e = get().escrow;

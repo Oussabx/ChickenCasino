@@ -256,7 +256,7 @@ export default function Blackjack() {
 
   const h = hands[active];
   const canDouble = phase === 'player' && h && h.cards.length === 2 && !h.doubled;
-  const canSplit = phase === 'player' && hands.length === 1 && h && h.cards.length === 2 && Math.min(10, h.cards[0].r === 14 ? 11 : h.cards[0].r) === Math.min(10, h.cards[1].r === 14 ? 11 : h.cards[1].r);
+  const canSplit = phase === 'player' && hands.length === 1 && h && h.cards.length === 2 && (h.cards[0].r === 14 ? 11 : Math.min(10, h.cards[0].r)) === (h.cards[1].r === 14 ? 11 : Math.min(10, h.cards[1].r));
   const dealerShown = holeShown ? dealer : dealer.slice(0, 1);
   const dv = dealerShown.length ? bjValue(dealerShown) : null;
 

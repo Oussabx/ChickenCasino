@@ -23,6 +23,8 @@ export interface BSeat {
   fr?: string;
   ns?: string;
   k: number;
+  /** Chips added from the wallet so far (echo of the seat request's `tu`). */
+  tu?: number;
   /** Bet placed for the coming round. */
   bet: number;
   /** Ready to deal. */
@@ -47,10 +49,10 @@ export interface BState extends BaseState {
 export const BJ_BET_MS = 15000;
 export const BJ_TURN_MS = 15000;
 const r2 = (v: number) => Math.round(v * 100) / 100;
-const ten = (c: Card) => Math.min(10, c.r === 14 ? 11 : c.r);
+const ten = (c: Card) => (c.r === 14 ? 11 : Math.min(10, c.r));
 
 interface Hand { cards: Card[]; bt: number; doubled: boolean; done: boolean; split: boolean; r?: BHand['r']; pay?: number }
-interface Seat { id: string; p: string; n: string; av: string; fr?: string; ns?: string; k: number; bet: number; rd: boolean; hands: Hand[]; ah: number; w: boolean; lv: boolean; timeouts: number }
+interface Seat { id: string; p: string; n: string; av: string; fr?: string; ns?: string; k: number; bet: number; rd: boolean; hands: Hand[]; ah: number; w: boolean; lv: boolean; timeouts: number; tu: number }
 
 export class BlackjackEngine implements Engine<BState> {
   private seats: (Seat | null)[];
@@ -80,7 +82,7 @@ export class BlackjackEngine implements Engine<BState> {
     prev.s.forEach((x, i) => {
       if (!x || i >= this.table.seats) return;
       const back = midRound ? x.hs.reduce((a, h) => a + h.bt, 0) : 0;
-      this.seats[i] = { id: x.id, p: x.p, n: x.n, av: x.av, fr: x.fr, ns: x.ns, k: r2(x.k + back), bet: 0, rd: false, hands: [], ah: 0, w: false, lv: !!x.lv, timeouts: 0 };
+      this.seats[i] = { id: x.id, p: x.p, n: x.n, av: x.av, fr: x.fr, ns: x.ns, k: r2(x.k + back), bet: 0, rd: false, hands: [], ah: 0, w: false, lv: !!x.lv, timeouts: 0, tu: x.tu ?? 0 };
     });
     if (midRound) this.note = 'New dealer — the last round was called off and every bet went back';
     this.ph = 'wait';
@@ -101,7 +103,11 @@ export class BlackjackEngine implements Engine<BState> {
     const byPeer = new Map(peers.map((p) => [p.peer, p]));
     this.seats.forEach((s, i) => {
       if (!s) return;
-      if (!s.lv && byPeer.get(s.p)?.pres.sit?.rid !== s.id) { s.lv = true; changed = true; }
+      const sit = byPeer.get(s.p)?.pres.sit;
+      if (!s.lv && sit?.rid !== s.id) { s.lv = true; changed = true; }
+      // chips added from the wallet (e.g. to cover a split or double); never past the table maximum
+      const tu = r2(+(sit?.tu ?? 0) || 0);
+      if (!s.lv && sit?.rid === s.id && tu > s.tu && s.k + (tu - s.tu) <= this.table.buyMax) { s.k = r2(s.k + tu - s.tu); s.tu = tu; changed = true; }
       if (s.lv && !this.inRound(s)) { this.remove(i); changed = true; }
     });
     for (const p of peers) {
@@ -116,7 +122,7 @@ export class BlackjackEngine implements Engine<BState> {
       const at = free.includes(sit.seat) ? sit.seat : free.sort((a, b) => Math.abs(a - sit.seat) - Math.abs(b - sit.seat))[0];
       const id = p.pres.id;
       const waiting = this.ph !== 'wait' && this.ph !== 'bet' && this.ph !== 'settle';
-      this.seats[at] = { id: sit.rid, p: p.peer, n: String(id.nm ?? 'Player').slice(0, 18), av: String(id.av ?? ''), fr: id.fr, ns: id.ns, k: buy, bet: 0, rd: false, hands: [], ah: 0, w: waiting, lv: false, timeouts: 0 };
+      this.seats[at] = { id: sit.rid, p: p.peer, n: String(id.nm ?? 'Player').slice(0, 18), av: String(id.av ?? ''), fr: id.fr, ns: id.ns, k: buy, bet: 0, rd: false, hands: [], ah: 0, w: waiting, lv: false, timeouts: 0, tu: 0 };
       changed = true;
     }
     // bets and "deal me in" while betting is open
@@ -312,6 +318,7 @@ export class BlackjackEngine implements Engine<BState> {
         }), ah: s.ah };
         if (s.fr) x.fr = s.fr;
         if (s.ns) x.ns = s.ns;
+        if (s.tu) x.tu = s.tu;
         if (s.rd) x.rd = 1;
         if (s.w) x.w = 1;
         if (s.lv) x.lv = 1;

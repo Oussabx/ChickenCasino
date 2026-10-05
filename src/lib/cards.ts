@@ -26,6 +26,9 @@ export class Shoe {
   private cards: Card[] = [];
   constructor(private decks: number) { this.cards = makeShoe(decks); }
   draw(): Card {
+    // dev builds only: tests can stack the next cards ({r, s} objects)
+    const q = import.meta.env.DEV ? (globalThis as { __shoe?: Card[] }).__shoe : undefined;
+    if (q?.length) return q.shift()!;
     if (this.cards.length < this.decks * 13) this.cards = makeShoe(this.decks);
     return this.cards.pop()!;
   }

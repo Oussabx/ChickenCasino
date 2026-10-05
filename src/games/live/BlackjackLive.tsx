@@ -79,6 +79,7 @@ function BjTable({ tid }: { tid: string }) {
   const sceneRef = useRef<TableScene | null>(null);
   const [scene, setScene] = useState<TableScene | null>(null);
   const turbo = useStore((s) => s.settings.turbo);
+  const wallet = useStore((s) => s.balance);
   useEffect(() => {
     const sc = new TableScene(hostRef.current!, {
       theme: t.theme,
@@ -236,10 +237,26 @@ function BjTable({ tid }: { tid: string }) {
   useEffect(() => { if (canAct) { sfx.tick(); navigator.vibrate?.(40); } }, [canAct]);
   const hand = canAct ? me!.hs[me!.ah] : null;
   const hc = hand ? decList(hand.c) : [];
-  const canDouble = !!hand && hc.length === 2 && me!.k >= hand.bt;
-  const ten = (c: Card) => Math.min(10, c.r === 14 ? 11 : c.r);
-  const canSplit = !!hand && hc.length === 2 && me!.hs.length === 1 && ten(hc[0]) === ten(hc[1]) && me!.k >= hand.bt;
-  const send = (tp: string) => { if (!st || !canAct) return; sfx.click(); setSentQ(st.tq); table?.send({ act: { h: st.r, q: st.tq, t: tp } }); };
+  // short on table chips? splitting or doubling tops the seat up from the wallet
+  const short = hand ? Math.max(0, +(hand.bt - me!.k).toFixed(2)) : 0;
+  const coverable = !!hand && (short === 0 || (wallet >= short && me!.k + short <= t.buyMax));
+  const canDouble = !!hand && hc.length === 2 && coverable;
+  const ten = (c: Card) => (c.r === 14 ? 11 : Math.min(10, c.r));
+  const isPair = !!hand && hc.length === 2 && me!.hs.length === 1 && ten(hc[0]) === ten(hc[1]);
+  const canSplit = isPair && coverable;
+  const send = (tp: string) => {
+    if (!st || !canAct) return;
+    if ((tp === 'split' && !canSplit) || (tp === 'double' && !canDouble)) return;
+    const act = { h: st.r, q: st.tq, t: tp };
+    if ((tp === 'split' || tp === 'double') && short > 0) {
+      const sit = session.topUp(short);
+      if (!sit) return;
+      sfx.bet(); setSentQ(st.tq); table?.send({ sit, act });
+      return;
+    }
+    sfx.click(); setSentQ(st.tq); table?.send({ act });
+  };
+  const extra = (on: boolean) => (on && short > 0 ? <span className="block whitespace-nowrap text-[10px] font-semibold opacity-80">+{fmtCompact(short)} from wallet</span> : null);
   useEffect(() => {
     if (!canAct) return;
     const k = (e: KeyboardEvent) => { if (e.target instanceof HTMLInputElement) return; const m: Record<string, string> = { h: 'hit', s: 'stand', d: 'double', p: 'split' }; const a = m[e.key.toLowerCase()]; if (a) send(a); };
@@ -262,8 +279,8 @@ function BjTable({ tid }: { tid: string }) {
     <div className="grid grid-cols-2 gap-2">
       <button className="btn-gold py-3 text-sm" onClick={() => send('hit')}>Hit</button>
       <button className="btn-red py-3 text-sm" onClick={() => send('stand')}>Stand</button>
-      <button className="btn-double py-3 text-sm" disabled={!canDouble} onClick={() => send('double')}>Double</button>
-      <button className="btn-split py-3 text-sm" disabled={!canSplit} onClick={() => send('split')}>Split</button>
+      <button className="btn-double flex-col !gap-0 py-3 text-sm leading-tight" disabled={!canDouble} onClick={() => send('double')}>Double{extra(canDouble)}</button>
+      <button className="btn-split flex-col !gap-0 py-3 text-sm leading-tight" disabled={!canSplit} onClick={() => send('split')} title={isPair ? undefined : 'Split needs a pair'}>Split{extra(canSplit)}</button>
     </div>
   );
   else {
