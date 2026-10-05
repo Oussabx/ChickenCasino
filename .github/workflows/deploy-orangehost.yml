@@ -1,0 +1,57 @@
+# Builds the site and uploads it to Orange Host (cPanel) over FTP on every
+# push to main. Set these in GitHub → Settings → Secrets and variables → Actions:
+#   FTP_SERVER    e.g. ftp.yourdomain.com   (cPanel → FTP Accounts → "Configure FTP Client")
+#   FTP_USERNAME  e.g. deploy@yourdomain.com
+#   FTP_PASSWORD  that FTP account's password
+# Optional repository variable:
+#   FTP_DIR       remote folder, default "public_html/" (must end with "/")
+# Until the secrets exist the deploy step is skipped, so the workflow stays green.
+name: Deploy to Orange Host
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-orangehost
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Check FTP settings
+        id: cfg
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+        run: |
+          if [ -z "$FTP_SERVER" ]; then
+            echo "FTP secrets not set yet — skipping upload."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload to Orange Host
+        if: steps.cfg.outputs.ready == 'true'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          local-dir: ./dist/
+          server-dir: ${{ vars.FTP_DIR || 'public_html/' }}
+          # only changed files are uploaded; old hashed bundles are cleaned up
+          dangerous-clean-slate: false
